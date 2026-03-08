@@ -2,7 +2,6 @@ import React from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { Banner } from './Banner';
 import { LabeledInput } from './FieldControls';
-import { MetricCard } from './MetricCard';
 import { styles } from '../styles';
 
 type BannerState = {
@@ -81,20 +80,6 @@ export function LoginScreen({
           >
             {loggingIn ? <ActivityIndicator color="#F8FAFC" /> : <Text style={styles.primaryButtonText}>Sign In To Visitplan</Text>}
           </Pressable>
-        </View>
-
-        <View style={styles.loginShowcaseCard}>
-          <Text style={styles.showcaseEyebrow}>Workspace Preview</Text>
-          <Text style={styles.showcaseTitle}>Fast planning, cleaner follow-up, one modern dashboard.</Text>
-          <View style={styles.showcaseChartCard}>
-            <View style={styles.showcaseLine} />
-            <View style={styles.showcaseLineShort} />
-            <View style={styles.showcaseLineDot} />
-          </View>
-          <View style={styles.showcaseMetricRow}>
-            <MetricCard label="Modes" value="Web / iOS / Android" />
-            <MetricCard label="Flow" value="Create / Update / Result" />
-          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
