@@ -12,7 +12,9 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bim.visitplan",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.bim.visitplan",
