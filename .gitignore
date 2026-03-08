@@ -38,11 +38,20 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# generated native outputs and local native config
+ios/Pods/
+ios/build/
+ios/.symlinks/
+ios/.xcode.env.local
+ios/**/*.xcworkspace/xcuserdata/
+ios/**/*.xcodeproj/xcuserdata/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/app/debug.keystore
+*.keystore
 
 # local Android artifacts
 *.apk
-android/app/build/
-android/build/

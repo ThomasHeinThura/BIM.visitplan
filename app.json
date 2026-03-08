@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bim.visitplan",
+      "bundleIdentifier": "com.heinthura.bimvisitplan",
       "buildNumber": "2"
     },
     "android": {
