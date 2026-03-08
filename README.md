@@ -7,6 +7,7 @@ Expo TypeScript client for BIM CRM visit plans. One codebase runs on iOS, Androi
 - Sign in against the CRM bearer-token API.
 - List visit plans visible to the current user.
 - Create new visit plans.
+- Edit existing visit plans.
 - Inspect visit plan detail.
 - Update visit plan status when the backend exposes `PATCH /api/v1/visit-plans/{id}/status`.
 
@@ -18,6 +19,7 @@ The app points to `https://uat-crm.bimats.com:10443` by default. You can overrid
 
 ```bash
 npm install
+npm run typecheck
 npm run ios
 npm run android
 npm run web
@@ -33,6 +35,7 @@ For full app support, deploy these API capabilities:
 - `GET /api/v1/visit-plans`
 - `POST /api/v1/visit-plans`
 - `GET /api/v1/visit-plans/{id}`
+- `PUT /api/v1/visit-plans/{id}`
 - `PATCH /api/v1/visit-plans/{id}/status`
 
-The current UAT instance already supports login, list, detail, and create. If status updates are not yet deployed there, the app shows a clear error instead of pretending the action succeeded.
+The current UAT instance should support login, list, detail, create, update, and status update after the latest BIM.GRGCRM deployment. If an endpoint is still missing, the app surfaces the API error directly.
