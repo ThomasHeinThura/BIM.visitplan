@@ -1,143 +1,118 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { styles } from '../styles';
 import type { VisitPlan } from '../types';
-import { STATUS_OPTIONS } from '../utils/visitplan';
 
 export function VisitPlanSummary({
-  selectedVisitPlan,
-  meetingResultDraft,
-  onChangeMeetingResult,
-  onSaveMeetingResult,
-  savingMeetingResult,
-  updatingStatus,
-  onStatusUpdate,
+  visitPlans,
+  userName,
+  totalPlans,
+  scopeLabel,
+  selectedDate,
   onEditVisitPlan,
+  onJumpToPlanDate,
   onCreateVisitPlan,
   onLogout,
 }: {
-  selectedVisitPlan: VisitPlan | null;
-  meetingResultDraft: string;
-  onChangeMeetingResult: (value: string) => void;
-  onSaveMeetingResult: () => void;
-  savingMeetingResult: boolean;
-  updatingStatus: number | null;
-  onStatusUpdate: (status: number) => void;
+  visitPlans: VisitPlan[];
+  userName: string;
+  totalPlans: number;
+  scopeLabel: string;
+  selectedDate: string;
   onEditVisitPlan: (visitPlan: VisitPlan) => void;
+  onJumpToPlanDate: (date: string) => void;
   onCreateVisitPlan: () => void;
   onLogout: () => void;
 }) {
-  if (!selectedVisitPlan) {
-    return (
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Visit Plan Summary</Text>
-        <Text style={styles.sectionSubtitle}>Select a visit plan from the calendar, or create a new one.</Text>
-        <View style={styles.inlineButtonRow}>
-          <Pressable onPress={onCreateVisitPlan} style={styles.primaryButtonSmall}>
-            <Text style={styles.primaryButtonText}>Create Visit Plan</Text>
-          </Pressable>
-          <Pressable onPress={onLogout} style={styles.secondaryButtonMuted}>
-            <Text style={styles.secondaryButtonText}>Logout</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
+  const sortedPlans = [...visitPlans].sort((left, right) => {
+    const leftKey = `${left.date} ${left.start_time}`;
+    const rightKey = `${right.date} ${right.start_time}`;
+    return leftKey.localeCompare(rightKey);
+  });
+  const initials = userName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
 
   return (
     <ScrollView contentContainerStyle={styles.sideColumnStack}>
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Visit Plan Summary</Text>
-        <Text style={styles.detailTitle}>{selectedVisitPlan.title}</Text>
-        <Text style={styles.detailMeta}>{selectedVisitPlan.client_name || 'No client selected'}</Text>
-        <Text style={styles.detailMeta}>{selectedVisitPlan.date} | {selectedVisitPlan.start_time} - {selectedVisitPlan.end_time}</Text>
-        <Text style={styles.detailMeta}>Location: {selectedVisitPlan.location}{selectedVisitPlan.location_others ? ` (${selectedVisitPlan.location_others})` : ''}</Text>
-        <Text style={styles.detailMeta}>Creator: {selectedVisitPlan.creator?.name || 'Unknown'}</Text>
-
-        <View style={styles.detailSectionCard}>
-          <Text style={styles.detailSectionTitle}>Agenda</Text>
-          <Text style={styles.detailBody}>{selectedVisitPlan.agenda}</Text>
-        </View>
-
-        <View style={styles.detailSectionCard}>
-          <Text style={styles.detailSectionTitle}>Description</Text>
-          <Text style={styles.detailBodyMuted}>{selectedVisitPlan.description || 'No description added yet.'}</Text>
-        </View>
-
-        {selectedVisitPlan.members.length > 0 ? (
-          <View style={styles.detailSectionCard}>
-            <Text style={styles.detailSectionTitle}>Assigned Members</Text>
-            <View style={styles.selectionChipRow}>
-              {selectedVisitPlan.members.map((member) => (
-                <View key={member.id} style={styles.selectionChipStatic}>
-                  <Text style={styles.selectionChipText}>{member.name}</Text>
-                </View>
-              ))}
-            </View>
+      <View style={styles.sessionBanner}>
+        <View style={styles.sessionIdentityRow}>
+          <View style={styles.sessionAvatar}>
+            <Text style={styles.sessionAvatarText}>{initials || 'VP'}</Text>
           </View>
-        ) : null}
+          <View style={styles.sessionIdentityText}>
+            <Text style={styles.sessionUserName}>{userName}</Text>
+            <Text style={styles.sessionUserMeta}>Scope {scopeLabel}</Text>
+          </View>
+        </View>
+        <Pressable onPress={onLogout} style={styles.secondaryButtonMuted}>
+          <Text style={styles.secondaryButtonText}>Logout</Text>
+        </Pressable>
+      </View>
 
-        <View style={styles.inlineButtonRow}>
-          {selectedVisitPlan.permissions?.can_edit ? (
-            <Pressable onPress={() => onEditVisitPlan(selectedVisitPlan)} style={styles.primaryButtonSmall}>
-              <Text style={styles.primaryButtonText}>Edit Visit Plan</Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={onCreateVisitPlan} style={styles.secondaryButtonMuted}>
-            <Text style={styles.secondaryButtonText}>New Visit Plan</Text>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Your Visit Plans</Text>
+        <View style={styles.summaryStatsGrid}>
+          <View style={styles.summaryStatCard}>
+            <Text style={styles.summaryStatLabel}>Total visible</Text>
+            <Text style={styles.summaryStatValue}>{totalPlans}</Text>
+          </View>
+          <View style={styles.summaryStatCard}>
+            <Text style={styles.summaryStatLabel}>Scope</Text>
+            <Text style={styles.summaryStatValueSmall}>{scopeLabel}</Text>
+          </View>
+          <View style={styles.summaryStatCard}>
+            <Text style={styles.summaryStatLabel}>Window starts</Text>
+            <Text style={styles.summaryStatValueSmall}>{selectedDate}</Text>
+          </View>
+        </View>
+        <View style={styles.inlineButtonRowCompact}>
+          <Pressable onPress={onCreateVisitPlan} style={styles.primaryButtonSmall}>
+            <Text style={styles.primaryButtonText}>Create Visit Plan</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Meeting Result</Text>
-        <Text style={styles.sectionSubtitle}>Update the result, decisions, and next steps after the meeting.</Text>
-        <TextInput
-          value={meetingResultDraft}
-          onChangeText={onChangeMeetingResult}
-          editable={Boolean(selectedVisitPlan.permissions?.can_edit) && !savingMeetingResult}
-          multiline
-          placeholder="Add the meeting result here"
-          placeholderTextColor="#94A3B8"
-          style={[styles.input, styles.multilineInput, styles.meetingResultInput]}
-        />
-        {selectedVisitPlan.permissions?.can_edit ? (
-          <Pressable
-            onPress={onSaveMeetingResult}
-            disabled={savingMeetingResult}
-            style={({ pressed }) => [
-              styles.primaryButtonSmall,
-              styles.inlineActionButton,
-              pressed && !savingMeetingResult ? styles.primaryButtonPressed : null,
-              savingMeetingResult ? styles.buttonDisabled : null,
-            ]}
-          >
-            {savingMeetingResult ? <ActivityIndicator color="#F8FAFC" /> : <Text style={styles.primaryButtonText}>Save Meeting Result</Text>}
-          </Pressable>
-        ) : null}
-      </View>
+        <Text style={styles.sectionTitle}>All Visible Plan Summaries</Text>
+        <Text style={styles.sectionSubtitle}>Showing the same set counted in Total visible.</Text>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Status Update</Text>
-        <View style={styles.statusUpdateRow}>
-          {STATUS_OPTIONS.map((status) => (
-            <Pressable
-              key={status.id}
-              onPress={() => onStatusUpdate(status.id)}
-              disabled={updatingStatus !== null || !selectedVisitPlan.permissions?.can_update_status}
-              style={({ pressed }) => [
-                styles.statusAction,
-                selectedVisitPlan.status_id === status.id ? styles.statusActionActive : null,
-                pressed ? styles.statusActionPressed : null,
-                updatingStatus !== null || !selectedVisitPlan.permissions?.can_update_status ? styles.buttonDisabled : null,
-              ]}
-            >
-              <Text style={selectedVisitPlan.status_id === status.id ? styles.statusActionTextActive : styles.statusActionText}>
-                {updatingStatus === status.id ? 'Updating...' : status.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {sortedPlans.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>No visit plans found</Text>
+            <Text style={styles.emptyStateDescription}>Adjust search or filters, or create a new visit plan.</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.summaryListScroll} contentContainerStyle={styles.summaryListStack} nestedScrollEnabled>
+            {sortedPlans.map((visitPlan) => (
+              <View key={visitPlan.id} style={styles.summaryListCard}>
+                <View style={styles.visitPlanCardHeader}>
+                  <View style={styles.visitPlanCardTitleWrap}>
+                    <Text style={styles.visitPlanCardTitle} numberOfLines={2}>{visitPlan.title}</Text>
+                    <Text style={styles.visitPlanCardMeta} numberOfLines={1}>{visitPlan.client_name || 'No client selected'}</Text>
+                  </View>
+                  <Text style={styles.visitPlanCardBadge}>{visitPlan.status}</Text>
+                </View>
+                <Text style={styles.visitPlanCardMeta}>{visitPlan.date} | {visitPlan.start_time} - {visitPlan.end_time}</Text>
+                <Text style={styles.visitPlanCardMeta}>Creator: {visitPlan.creator?.name || 'Unknown'}</Text>
+                <Text style={styles.visitPlanCardMeta} numberOfLines={2}>{visitPlan.agenda}</Text>
+                <View style={styles.inlineButtonRowCompact}>
+                  <Pressable onPress={() => onJumpToPlanDate(visitPlan.date)} style={styles.secondaryButtonMuted}>
+                    <Text style={styles.secondaryButtonText}>Show Day</Text>
+                  </Pressable>
+                  {visitPlan.permissions?.can_edit ? (
+                    <Pressable onPress={() => onEditVisitPlan(visitPlan)} style={styles.primaryButtonSmall}>
+                      <Text style={styles.primaryButtonText}>Edit</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
       </View>
     </ScrollView>
   );

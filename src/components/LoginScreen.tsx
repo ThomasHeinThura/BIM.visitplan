@@ -41,7 +41,7 @@ export function LoginScreen({
           <Text style={styles.eyebrow}>BIM CRM</Text>
           <Text style={styles.loginTitle}>Visitplan Workspace</Text>
           <Text style={styles.loginSubtitle}>
-            One Expo codebase for iOS, Android, and web, built on the CRM bearer-token API.
+            Sign in with your CRM account to open the visit plan workspace.
           </Text>
 
           <LabeledInput

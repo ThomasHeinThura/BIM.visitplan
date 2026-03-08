@@ -17,6 +17,7 @@ export function VisitPlanModal({
   visibleYears,
   visibleQuarters,
   visibleTeam,
+  allTeam,
   lookupQueries,
   setLookupQueries,
   selectedClientLabel,
@@ -36,6 +37,7 @@ export function VisitPlanModal({
   visibleYears: LookupItem[];
   visibleQuarters: LookupItem[];
   visibleTeam: LookupItem[];
+  allTeam: LookupItem[];
   lookupQueries: { client: string; financialYear: string; financialQuarter: string; team: string };
   setLookupQueries: React.Dispatch<React.SetStateAction<{ client: string; financialYear: string; financialQuarter: string; team: string }>>;
   selectedClientLabel: string | null;
@@ -145,6 +147,7 @@ export function VisitPlanModal({
                 query={lookupQueries.team}
                 onChangeQuery={(value) => setLookupQueries((current) => ({ ...current, team: value }))}
                 options={visibleTeam}
+                allOptions={allTeam}
                 selectedIds={draft.members}
                 onToggle={(id) => {
                   setDraft((current) => ({

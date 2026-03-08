@@ -1,23 +1,21 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useDeferredValue, useEffect, useState } from 'react';
+import { SafeAreaView, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_API_BASE_URL } from './src/config';
 import { Banner } from './src/components/Banner';
 import { CalendarBoard } from './src/components/CalendarBoard';
 import { LoginScreen } from './src/components/LoginScreen';
-import { MetricCard } from './src/components/MetricCard';
 import { VisitPlanModal } from './src/components/VisitPlanModal';
 import { VisitPlanSummary } from './src/components/VisitPlanSummary';
 import {
   ApiError,
   createVisitPlan,
   getMe,
-  getVisitPlan,
   listResource,
   listVisitPlans,
   login,
   updateVisitPlan,
-  updateVisitPlanStatus,
 } from './src/lib/api';
 import { styles } from './src/styles';
 import type {
@@ -35,9 +33,7 @@ import {
   filterLookupItems,
   findLookupLabel,
   formatDateForApi,
-  getMonthStart,
   mapLookupItem,
-  sameIsoDate,
   toFriendlyMessage,
   validateDraft,
 } from './src/utils/visitplan';
@@ -68,9 +64,13 @@ type LoginFormState = {
 };
 
 type ModalMode = 'create' | 'edit';
+const SESSION_STORAGE_KEY = 'bim.visitplan.session';
 
 export default function App() {
+  const { width } = useWindowDimensions();
+  const isCompactLayout = width < 980;
   const [session, setSession] = useState<SessionState | null>(null);
+  const [restoringSession, setRestoringSession] = useState(true);
   const [loginForm, setLoginForm] = useState<LoginFormState>({
     baseUrl: DEFAULT_API_BASE_URL,
     email: '',
@@ -81,7 +81,6 @@ export default function App() {
   const [visitPlans, setVisitPlans] = useState<VisitPlan[]>([]);
   const [visitPlanMeta, setVisitPlanMeta] = useState<VisitPlanListResponse['meta'] | null>(null);
   const [loadingVisitPlans, setLoadingVisitPlans] = useState(false);
-  const [loadingSelectedVisitPlan, setLoadingSelectedVisitPlan] = useState(false);
   const [lookups, setLookups] = useState<LookupsState>({
     clients: [],
     financialYears: [],
@@ -89,14 +88,10 @@ export default function App() {
     team: [],
   });
   const [loadingLookups, setLoadingLookups] = useState(false);
-  const [selectedVisitPlan, setSelectedVisitPlan] = useState<VisitPlan | null>(null);
-  const [meetingResultDraft, setMeetingResultDraft] = useState('');
-  const [savingMeetingResult, setSavingMeetingResult] = useState(false);
   const [searchText, setSearchText] = useState('');
   const deferredSearchText = useDeferredValue(searchText);
   const [activeStatusFilter, setActiveStatusFilter] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => createInitialDraft().date);
-  const [currentMonth, setCurrentMonth] = useState(() => getMonthStart(new Date()));
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [editingVisitPlanId, setEditingVisitPlanId] = useState<number | null>(null);
@@ -108,7 +103,10 @@ export default function App() {
     team: '',
   });
   const [submittingDraft, setSubmittingDraft] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
+
+  useEffect(() => {
+    void restorePersistedSession();
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -121,10 +119,6 @@ export default function App() {
     });
   }, [session, deferredSearchText, activeStatusFilter]);
 
-  useEffect(() => {
-    setMeetingResultDraft(selectedVisitPlan?.description || '');
-  }, [selectedVisitPlan]);
-
   const canAssignMembers = Boolean(session?.permissions.can_create);
   const visibleClients = filterLookupItems(lookups.clients, lookupQueries.client, 25);
   const visibleYears = filterLookupItems(lookups.financialYears, lookupQueries.financialYear, 25);
@@ -133,11 +127,6 @@ export default function App() {
   const selectedClientLabel = findLookupLabel(lookups.clients, draft.client_id);
   const selectedFinancialYearLabel = findLookupLabel(lookups.financialYears, draft.financial_year_id);
   const selectedFinancialQuarterLabel = findLookupLabel(lookups.financialQuarters, draft.financial_quarter_id);
-
-  const plansForSelectedDate = useMemo(
-    () => visitPlans.filter((item) => sameIsoDate(item.date, selectedDate)),
-    [selectedDate, visitPlans],
-  );
 
   async function handleLogin() {
     if (!loginForm.email || !loginForm.password || !loginForm.baseUrl) {
@@ -161,12 +150,15 @@ export default function App() {
         throw new ApiError('This account does not have visit plan access.', 403);
       }
 
-      setSession({
+      const nextSession = {
         baseUrl: loginForm.baseUrl,
         token: authResponse.token,
         user,
         permissions,
-      });
+      };
+
+      setSession(nextSession);
+      await persistSession(nextSession);
       setBanner({ tone: 'success', message: 'Signed in. Loading visit plan workspace...' });
     } catch (error) {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
@@ -203,38 +195,11 @@ export default function App() {
         financialQuarters: quarters.map((item) => mapLookupItem(item, 'financialQuarter')),
         team: team.map((item) => mapLookupItem(item, 'team')),
       });
-
-      if (selectedVisitPlan) {
-        const refreshed = visitPlanResponse.data.find((item) => item.id === selectedVisitPlan.id);
-        setSelectedVisitPlan(refreshed || null);
-      } else {
-        const firstForSelectedDate = visitPlanResponse.data.find((item) => sameIsoDate(item.date, selectedDate));
-        setSelectedVisitPlan(firstForSelectedDate || null);
-      }
     } catch (error) {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
     } finally {
       setLoadingVisitPlans(false);
       setLoadingLookups(false);
-    }
-  }
-
-  async function handleSelectVisitPlan(visitPlanId: number) {
-    if (!session) {
-      return;
-    }
-
-    setLoadingSelectedVisitPlan(true);
-
-    try {
-      const response = await getVisitPlan(session.baseUrl, session.token, visitPlanId);
-      setSelectedVisitPlan(response.data);
-      setSelectedDate(response.data.date);
-      setCurrentMonth(getMonthStart(new Date(response.data.date)));
-    } catch (error) {
-      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
-    } finally {
-      setLoadingSelectedVisitPlan(false);
     }
   }
 
@@ -291,10 +256,7 @@ export default function App() {
         ? await updateVisitPlan(session.baseUrl, session.token, editingVisitPlanId, payload)
         : await createVisitPlan(session.baseUrl, session.token, payload);
 
-      setSelectedVisitPlan(response.data);
       setSelectedDate(response.data.date);
-      setCurrentMonth(getMonthStart(new Date(response.data.date)));
-      setMeetingResultDraft(response.data.description || '');
       closeVisitPlanModal();
       setBanner({
         tone: 'success',
@@ -312,68 +274,37 @@ export default function App() {
     }
   }
 
-  async function handleSaveMeetingResult() {
-    if (!session || !selectedVisitPlan) {
-      return;
-    }
-
-    setSavingMeetingResult(true);
-
-    try {
-      const response = await updateVisitPlan(session.baseUrl, session.token, selectedVisitPlan.id, {
-        ...buildDraftFromVisitPlan(selectedVisitPlan),
-        description: meetingResultDraft,
-      });
-
-      setSelectedVisitPlan(response.data);
-      setVisitPlans((current) => current.map((item) => (item.id === response.data.id ? response.data : item)));
-      setMeetingResultDraft(response.data.description || '');
-      setBanner({ tone: 'success', message: 'Meeting result updated successfully.' });
-    } catch (error) {
-      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
-    } finally {
-      setSavingMeetingResult(false);
-    }
-  }
-
-  async function handleStatusUpdate(nextStatus: number) {
-    if (!session || !selectedVisitPlan) {
-      return;
-    }
-
-    setUpdatingStatus(nextStatus);
-
-    try {
-      const response = await updateVisitPlanStatus(session.baseUrl, session.token, selectedVisitPlan.id, nextStatus);
-      setSelectedVisitPlan(response.data);
-      setVisitPlans((current) => current.map((item) => (item.id === response.data.id ? response.data : item)));
-      setBanner({ tone: 'success', message: 'Visit plan status updated successfully.' });
-    } catch (error) {
-      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
-    } finally {
-      setUpdatingStatus(null);
-    }
-  }
-
   function handleLogout() {
     setSession(null);
     setVisitPlans([]);
     setVisitPlanMeta(null);
-    setSelectedVisitPlan(null);
     setDraft(createInitialDraft());
-    setMeetingResultDraft('');
     setIsModalVisible(false);
     setBanner({ tone: 'info', message: 'Signed out.' });
-  }
-
-  function handleChangeMonth(offset: number) {
-    setCurrentMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    void clearPersistedSession();
   }
 
   function handleSelectDate(date: string) {
     setSelectedDate(date);
-    const match = visitPlans.find((item) => sameIsoDate(item.date, date));
-    setSelectedVisitPlan(match || null);
+  }
+
+  function handleShiftScheduleWindow(offset: number) {
+    const nextDate = shiftIsoDate(selectedDate, offset);
+    setSelectedDate(nextDate);
+  }
+
+  if (restoringSession) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <View style={styles.screenBackdrop} pointerEvents="none">
+          <View style={[styles.backgroundOrb, styles.backgroundOrbTop]} />
+          <View style={[styles.backgroundOrb, styles.backgroundOrbMiddle]} />
+          <View style={[styles.backgroundOrb, styles.backgroundOrbBottom]} />
+        </View>
+        <View style={styles.restoreShell} />
+      </SafeAreaView>
+    );
   }
 
   if (!session) {
@@ -403,27 +334,10 @@ export default function App() {
       </View>
 
       <View style={styles.appShell}>
-        <View style={styles.heroHeader}>
-          <MetricCard compact label="BIM Visitplan" value="Calendar Workspace" />
-          <View style={styles.heroMeta}>
-            <MetricCard compact label="User" value={`${session.user.first_name} ${session.user.last_name}`} />
-            <MetricCard compact label="Scope" value={session.permissions.can_view_all ? 'Global' : 'Own'} />
-            <MetricCard compact label="Create" value={session.permissions.can_create ? 'Enabled' : 'View only'} />
-          </View>
-        </View>
-
         {banner ? <Banner banner={banner} /> : null}
 
-        <View style={styles.metricsRow}>
-          <MetricCard label="Visible plans" value={String(visitPlanMeta?.total ?? 0)} />
-          <MetricCard label="Connected API" value="UAT Ready" />
-          <MetricCard label="Team assignment" value={canAssignMembers ? 'Available' : 'Restricted'} />
-          <MetricCard label="Selected day" value={selectedDate} />
-        </View>
-
-        <View style={styles.contentRow}>
+        <View style={[styles.contentRow, isCompactLayout ? styles.contentRowStacked : null]}>
           <CalendarBoard
-            currentMonth={currentMonth}
             selectedDate={selectedDate}
             visitPlans={visitPlans}
             loading={loadingVisitPlans}
@@ -431,8 +345,8 @@ export default function App() {
             onChangeSearchText={setSearchText}
             activeStatusFilter={activeStatusFilter}
             onChangeStatusFilter={setActiveStatusFilter}
-            onPreviousMonth={() => handleChangeMonth(-1)}
-            onNextMonth={() => handleChangeMonth(1)}
+            onPreviousWindow={() => handleShiftScheduleWindow(-3)}
+            onNextWindow={() => handleShiftScheduleWindow(3)}
             onSelectDate={handleSelectDate}
             onCreateVisitPlan={() => openCreateModal(selectedDate)}
             onRefresh={() => {
@@ -441,36 +355,27 @@ export default function App() {
                 status: activeStatusFilter,
               });
             }}
-            plansForSelectedDate={plansForSelectedDate}
             onOpenVisitPlan={(id) => {
-              void handleSelectVisitPlan(id);
+              const visitPlan = visitPlans.find((item) => item.id === id);
+              if (visitPlan) {
+                handleSelectDate(visitPlan.date);
+              }
             }}
             onEditVisitPlan={openEditModal}
           />
 
-          <View style={styles.sideColumn}>
-            {loadingSelectedVisitPlan ? (
-              <View style={styles.sectionCard}>
-                <ActivityIndicator color="#355CFF" />
-              </View>
-            ) : (
-              <VisitPlanSummary
-                selectedVisitPlan={selectedVisitPlan}
-                meetingResultDraft={meetingResultDraft}
-                onChangeMeetingResult={setMeetingResultDraft}
-                onSaveMeetingResult={() => {
-                  void handleSaveMeetingResult();
-                }}
-                savingMeetingResult={savingMeetingResult}
-                updatingStatus={updatingStatus}
-                onStatusUpdate={(status) => {
-                  void handleStatusUpdate(status);
-                }}
-                onEditVisitPlan={openEditModal}
-                onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                onLogout={handleLogout}
-              />
-            )}
+          <View style={[styles.sideColumn, isCompactLayout ? styles.sideColumnFull : null]}>
+            <VisitPlanSummary
+              visitPlans={visitPlans}
+              userName={`${session.user.first_name} ${session.user.last_name}`.trim()}
+              totalPlans={visitPlanMeta?.total ?? visitPlans.length}
+              scopeLabel={session.permissions.can_view_all ? 'Global' : 'Own'}
+              selectedDate={selectedDate}
+              onEditVisitPlan={openEditModal}
+              onJumpToPlanDate={handleSelectDate}
+              onCreateVisitPlan={() => openCreateModal(selectedDate)}
+              onLogout={handleLogout}
+            />
           </View>
         </View>
       </View>
@@ -487,6 +392,7 @@ export default function App() {
         visibleYears={visibleYears}
         visibleQuarters={visibleQuarters}
         visibleTeam={visibleTeam}
+        allTeam={lookups.team}
         lookupQueries={lookupQueries}
         setLookupQueries={setLookupQueries}
         selectedClientLabel={selectedClientLabel}
@@ -499,4 +405,39 @@ export default function App() {
       />
     </SafeAreaView>
   );
+
+  async function restorePersistedSession() {
+    try {
+      const rawSession = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+      if (!rawSession) {
+        return;
+      }
+
+      const persistedSession = JSON.parse(rawSession) as SessionState;
+      setSession(persistedSession);
+      setLoginForm((current) => ({ ...current, baseUrl: persistedSession.baseUrl }));
+    } catch {
+      await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+    } finally {
+      setRestoringSession(false);
+    }
+  }
+}
+
+async function persistSession(session: SessionState) {
+  await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+}
+
+async function clearPersistedSession() {
+  await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
+function shiftIsoDate(isoDate: string, offset: number) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  date.setDate(date.getDate() + offset);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
