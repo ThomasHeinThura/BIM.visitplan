@@ -4,8 +4,16 @@
 
 - UAT backend default is already configured in the app.
 - Expo iOS native project can be generated successfully.
+- CocoaPods install completed successfully for the generated iOS workspace.
+- Simulator build succeeds for `iPhone 17 Pro` on iOS 26.3.1.
 - iOS bundle identifier for the app is `com.bim.visitplan`.
-- The remaining blockers are local iOS toolchain setup and Apple signing, not React Native app logic.
+- The remaining blocker for installable iPhone/TestFlight builds is Apple signing.
+
+## Current Blocker For Device Release
+
+- No valid Apple code-signing identities are installed on this Mac.
+- The Xcode project does not yet have a configured development team.
+- Because of that, you cannot produce an installable `.ipa` or TestFlight upload yet.
 
 ## Verified App-Level Readiness
 
@@ -17,10 +25,10 @@
 
 ## Remaining Local Machine Tasks
 
-1. Install CocoaPods.
-2. Install the iOS platform component from Xcode Components.
-3. Run `pod install` inside the `ios` folder.
-4. Open `ios/BIMVisitplan.xcworkspace` in Xcode.
+1. Add an Apple account in Xcode.
+2. Select a development team in Signing & Capabilities.
+3. Connect a physical iPhone if you want direct device UAT installation.
+4. Keep using `ios/BIMVisitplan.xcworkspace`, not the `.xcodeproj`.
 
 ## UAT iOS Build Steps
 
@@ -28,17 +36,42 @@
    `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
 2. Install CocoaPods if missing:
    `brew install cocoapods`
-3. Install iOS platform components if Xcode says they are missing:
-   Xcode > Settings > Components
-4. Install pods:
+3. Install pods:
    `cd ios && pod install`
-5. Open the workspace:
+4. Open the workspace:
    `open ios/BIMVisitplan.xcworkspace`
-6. In Xcode, select the `BIMVisitplan` target.
-7. Under Signing & Capabilities, choose your Apple team.
-8. Set bundle identifier if your team requires a different one.
-9. Build to a simulator first.
-10. Build to a physical iPhone for UAT testing.
+5. In Xcode, select the `BIMVisitplan` target.
+6. Under Signing & Capabilities, choose your Apple team.
+7. Keep bundle identifier as `com.bim.visitplan`, unless your Apple team requires a different identifier.
+8. Build to a simulator first.
+9. Build to a physical iPhone for UAT testing.
+
+## Exact Physical iPhone UAT Steps
+
+1. Connect the iPhone by cable.
+2. Trust the Mac on the iPhone if prompted.
+3. In Xcode, choose the connected iPhone as the run destination.
+4. In Signing & Capabilities, make sure the selected Apple team resolves signing warnings.
+5. Press Run in Xcode.
+6. On the iPhone, if prompted, allow Developer Mode and trust the developer certificate.
+7. Launch the app on the device and test against UAT.
+
+## Exact Archive And TestFlight Steps
+
+1. Increment `ios.buildNumber` in `app.json` before each new upload.
+2. Open `ios/BIMVisitplan.xcworkspace` in Xcode.
+3. Select `Any iOS Device` as the build destination.
+4. Use the `Release` configuration.
+5. Run `Product > Archive`.
+6. Wait for Organizer to open.
+7. Select the archive and choose `Distribute App`.
+8. Choose `App Store Connect`.
+9. Choose `Upload`.
+10. Keep automatic signing unless your Apple team requires manual signing.
+11. Complete the upload.
+12. In App Store Connect, open TestFlight and wait for processing.
+13. Add internal testers first.
+14. For external testers, submit the build for Beta App Review if required.
 
 ## UAT Test Scope For iOS
 
@@ -55,7 +88,8 @@
 
 ## If You Need TestFlight Later
 
-1. Increment `ios.buildNumber` in `app.json`.
-2. Archive from Xcode.
-3. Upload to App Store Connect.
-4. Distribute through TestFlight for UAT testers.
+1. Make sure signing is green in Xcode.
+2. Increment `ios.buildNumber` in `app.json`.
+3. Archive from Xcode.
+4. Upload to App Store Connect.
+5. Distribute through TestFlight for UAT testers.
