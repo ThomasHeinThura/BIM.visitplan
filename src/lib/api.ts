@@ -116,15 +116,21 @@ export async function listResource(
 
 async function requestJson<T>(baseUrl: string, path: string, options: RequestOptions = {}): Promise<T> {
   const url = `${sanitizeBaseUrl(baseUrl)}${path}`;
-  const response = await fetch(url, {
-    method: options.method || 'GET',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: options.method || 'GET',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    throw new ApiError(extractNetworkErrorMessage(error, url), 0, error);
+  }
 
   const contentType = response.headers.get('content-type') || '';
   const payload = contentType.includes('application/json') ? await response.json() : await response.text();
@@ -160,6 +166,18 @@ function extractErrorMessage(payload: unknown, status: number) {
   }
 
   return `Request failed with status ${status}.`;
+}
+
+function extractNetworkErrorMessage(error: unknown, url: string) {
+  if (error instanceof Error) {
+    if (error.message === 'Failed to fetch') {
+      return `Network request failed for ${url}. If you are using web, this usually means the CRM API is blocking the browser origin with CORS or the HTTPS certificate is not trusted by the browser.`;
+    }
+
+    return error.message;
+  }
+
+  return `Network request failed for ${url}.`;
 }
 
 function toQueryString(params: Record<string, string | number | undefined>) {
