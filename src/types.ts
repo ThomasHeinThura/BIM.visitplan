@@ -87,11 +87,13 @@ export type VisitPlanDraft = {
   agenda: string;
   description?: string;
   url?: string;
+  members: number[];
 };
 
 export type LookupItem = {
   id: number;
   label: string;
+  subtitle?: string;
 };
 
 export type LoginResponse = {
