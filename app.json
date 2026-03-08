@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bim.visitplan",
-      "buildNumber": "1"
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.bim.visitplan",
