@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useDeferredValue, useEffect, useState } from 'react';
-import { SafeAreaView, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView, ScrollView, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_API_BASE_URL } from './src/config';
 import { Banner } from './src/components/Banner';
 import { CalendarBoard } from './src/components/CalendarBoard';
@@ -33,6 +33,8 @@ import {
   filterLookupItems,
   findLookupLabel,
   formatDateForApi,
+  formatWeekRange,
+  getWeekBounds,
   mapLookupItem,
   toFriendlyMessage,
   validateDraft,
@@ -119,7 +121,7 @@ export default function App() {
     });
   }, [session, deferredSearchText, activeStatusFilter]);
 
-  const canAssignMembers = Boolean(session?.permissions.can_create);
+  const canAssignMembers = Boolean(session?.permissions.can_create || session?.permissions.can_edit);
   const visibleClients = filterLookupItems(lookups.clients, lookupQueries.client, 25);
   const visibleYears = filterLookupItems(lookups.financialYears, lookupQueries.financialYear, 25);
   const visibleQuarters = filterLookupItems(lookups.financialQuarters, lookupQueries.financialQuarter, 25);
@@ -127,6 +129,11 @@ export default function App() {
   const selectedClientLabel = findLookupLabel(lookups.clients, draft.client_id);
   const selectedFinancialYearLabel = findLookupLabel(lookups.financialYears, draft.financial_year_id);
   const selectedFinancialQuarterLabel = findLookupLabel(lookups.financialQuarters, draft.financial_quarter_id);
+  const currentWeek = getWeekBounds(new Date());
+  const weeklyPlans = visitPlans.filter(
+    (visitPlan) => visitPlan.date >= currentWeek.start && visitPlan.date <= currentWeek.end,
+  ).length;
+  const weekRangeLabel = formatWeekRange(currentWeek.start, currentWeek.end);
 
   async function handleLogin() {
     if (!loginForm.email || !loginForm.password || !loginForm.baseUrl) {
@@ -333,52 +340,109 @@ export default function App() {
         <View style={[styles.backgroundOrb, styles.backgroundOrbBottom]} />
       </View>
 
-      <View style={styles.appShell}>
-        {banner ? <Banner banner={banner} /> : null}
+      <ScrollView contentContainerStyle={styles.appScrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.appShell}>
+          {banner ? <Banner banner={banner} /> : null}
 
-        <View style={[styles.contentRow, isCompactLayout ? styles.contentRowStacked : null]}>
-          <CalendarBoard
-            selectedDate={selectedDate}
-            visitPlans={visitPlans}
-            loading={loadingVisitPlans}
-            searchText={searchText}
-            onChangeSearchText={setSearchText}
-            activeStatusFilter={activeStatusFilter}
-            onChangeStatusFilter={setActiveStatusFilter}
-            onPreviousWindow={() => handleShiftScheduleWindow(-3)}
-            onNextWindow={() => handleShiftScheduleWindow(3)}
-            onSelectDate={handleSelectDate}
-            onCreateVisitPlan={() => openCreateModal(selectedDate)}
-            onRefresh={() => {
-              void loadDashboardData(session, {
-                search: deferredSearchText,
-                status: activeStatusFilter,
-              });
-            }}
-            onOpenVisitPlan={(id) => {
-              const visitPlan = visitPlans.find((item) => item.id === id);
-              if (visitPlan) {
-                handleSelectDate(visitPlan.date);
-              }
-            }}
-            onEditVisitPlan={openEditModal}
-          />
+          <View style={[styles.contentRow, isCompactLayout ? styles.contentRowStacked : null]}>
+            {isCompactLayout ? (
+              <>
+                <View style={styles.sideColumnFull}>
+                  <VisitPlanSummary
+                    visitPlans={visitPlans}
+                    userName={`${session.user.first_name} ${session.user.last_name}`.trim()}
+                    weeklyPlans={weeklyPlans}
+                    scopeLabel={session.permissions.can_view_all ? 'Global' : 'Own'}
+                    selectedDate={selectedDate}
+                    weekRangeLabel={weekRangeLabel}
+                    onEditVisitPlan={openEditModal}
+                    onJumpToPlanDate={handleSelectDate}
+                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                    onLogout={handleLogout}
+                  />
+                </View>
 
-          <View style={[styles.sideColumn, isCompactLayout ? styles.sideColumnFull : null]}>
-            <VisitPlanSummary
-              visitPlans={visitPlans}
-              userName={`${session.user.first_name} ${session.user.last_name}`.trim()}
-              totalPlans={visitPlanMeta?.total ?? visitPlans.length}
-              scopeLabel={session.permissions.can_view_all ? 'Global' : 'Own'}
-              selectedDate={selectedDate}
-              onEditVisitPlan={openEditModal}
-              onJumpToPlanDate={handleSelectDate}
-              onCreateVisitPlan={() => openCreateModal(selectedDate)}
-              onLogout={handleLogout}
-            />
+                <View style={styles.mainColumnFull}>
+                  <CalendarBoard
+                    selectedDate={selectedDate}
+                    visitPlans={visitPlans}
+                    loading={loadingVisitPlans}
+                    searchText={searchText}
+                    onChangeSearchText={setSearchText}
+                    activeStatusFilter={activeStatusFilter}
+                    onChangeStatusFilter={setActiveStatusFilter}
+                    onPreviousWindow={() => handleShiftScheduleWindow(-3)}
+                    onNextWindow={() => handleShiftScheduleWindow(3)}
+                    onSelectDate={handleSelectDate}
+                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                    onRefresh={() => {
+                      void loadDashboardData(session, {
+                        search: deferredSearchText,
+                        status: activeStatusFilter,
+                      });
+                    }}
+                    onOpenVisitPlan={(id) => {
+                      const visitPlan = visitPlans.find((item) => item.id === id);
+                      if (visitPlan) {
+                        handleSelectDate(visitPlan.date);
+                      }
+                    }}
+                    onEditVisitPlan={openEditModal}
+                    compactLayout={true}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.mainColumn}>
+                  <CalendarBoard
+                    selectedDate={selectedDate}
+                    visitPlans={visitPlans}
+                    loading={loadingVisitPlans}
+                    searchText={searchText}
+                    onChangeSearchText={setSearchText}
+                    activeStatusFilter={activeStatusFilter}
+                    onChangeStatusFilter={setActiveStatusFilter}
+                    onPreviousWindow={() => handleShiftScheduleWindow(-3)}
+                    onNextWindow={() => handleShiftScheduleWindow(3)}
+                    onSelectDate={handleSelectDate}
+                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                    onRefresh={() => {
+                      void loadDashboardData(session, {
+                        search: deferredSearchText,
+                        status: activeStatusFilter,
+                      });
+                    }}
+                    onOpenVisitPlan={(id) => {
+                      const visitPlan = visitPlans.find((item) => item.id === id);
+                      if (visitPlan) {
+                        handleSelectDate(visitPlan.date);
+                      }
+                    }}
+                    onEditVisitPlan={openEditModal}
+                    compactLayout={false}
+                  />
+                </View>
+
+                <View style={styles.sideColumn}>
+                  <VisitPlanSummary
+                    visitPlans={visitPlans}
+                    userName={`${session.user.first_name} ${session.user.last_name}`.trim()}
+                    weeklyPlans={weeklyPlans}
+                    scopeLabel={session.permissions.can_view_all ? 'Global' : 'Own'}
+                    selectedDate={selectedDate}
+                    weekRangeLabel={weekRangeLabel}
+                    onEditVisitPlan={openEditModal}
+                    onJumpToPlanDate={handleSelectDate}
+                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                    onLogout={handleLogout}
+                  />
+                </View>
+              </>
+            )}
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       <VisitPlanModal
         visible={isModalVisible}

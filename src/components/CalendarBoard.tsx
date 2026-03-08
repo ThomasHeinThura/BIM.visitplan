@@ -8,6 +8,7 @@ import { FilterChip } from './FieldControls';
 export function CalendarBoard({
   selectedDate,
   visitPlans,
+  compactLayout,
   loading,
   searchText,
   onChangeSearchText,
@@ -23,6 +24,7 @@ export function CalendarBoard({
 }: {
   selectedDate: string;
   visitPlans: VisitPlan[];
+  compactLayout: boolean;
   loading: boolean;
   searchText: string;
   onChangeSearchText: (value: string) => void;
@@ -41,12 +43,12 @@ export function CalendarBoard({
   return (
     <View style={styles.mainColumn}>
       <View style={styles.sectionCard}>
-        <View style={styles.sectionHeaderRow}>
+        <View style={[styles.sectionHeaderRow, compactLayout ? styles.sectionHeaderRowStacked : null]}>
           <View>
             <Text style={styles.sectionTitle}>Visit Plan Schedule</Text>
             <Text style={styles.sectionSubtitle}>Three-day list view for fast planning and quick edits.</Text>
           </View>
-          <View style={styles.headerActionRow}>
+          <View style={[styles.headerActionRow, compactLayout ? styles.headerActionRowStacked : null]}>
             <Pressable onPress={onRefresh} style={styles.secondaryButton}>
               <Text style={styles.secondaryButtonText}>Refresh</Text>
             </Pressable>
@@ -93,8 +95,8 @@ export function CalendarBoard({
             <ActivityIndicator color="#355CFF" />
             <Text style={styles.loadingText}>Loading visit plans...</Text>
           </View>
-        ) : (
-          <View style={styles.scheduleDayGrid}>
+        ) : compactLayout ? (
+          <View style={styles.mobileScheduleList}>
             {scheduleDays.map((day) => {
               const dayPlans = visitPlans
                 .filter((item) => item.date === day.isoDate)
@@ -102,7 +104,72 @@ export function CalendarBoard({
               const isSelected = day.isoDate === selectedDate;
 
               return (
-                <View key={day.isoDate} style={[styles.scheduleDayColumn, isSelected ? styles.scheduleDayColumnActive : null]}>
+                <View key={day.isoDate} style={[styles.mobileScheduleSection, isSelected ? styles.mobileScheduleSectionActive : null]}>
+                  <Pressable onPress={() => onSelectDate(day.isoDate)} style={styles.mobileScheduleHeader}>
+                    <View>
+                      <Text style={styles.scheduleDayTitle}>{day.dayName}</Text>
+                      <Text style={styles.scheduleDayDate}>{day.dateLabel}</Text>
+                    </View>
+                    <Text style={styles.scheduleDayCount}>{dayPlans.length} plan{dayPlans.length === 1 ? '' : 's'}</Text>
+                  </Pressable>
+
+                  {dayPlans.length === 0 ? (
+                    <View style={styles.scheduleDayEmpty}>
+                      <Text style={styles.emptyStateDescription}>No visit plans for this day.</Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      nestedScrollEnabled
+                      style={styles.mobileScheduleScroll}
+                      contentContainerStyle={styles.scheduleDayStack}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {dayPlans.map((visitPlan) => (
+                        <View key={visitPlan.id} style={styles.visitPlanCardCompact}>
+                          <View style={styles.visitPlanCardHeader}>
+                            <View style={styles.visitPlanCardTitleWrap}>
+                              <Text style={styles.visitPlanCardTitle} numberOfLines={2}>{visitPlan.title}</Text>
+                              <Text style={styles.visitPlanCardMeta} numberOfLines={1}>{visitPlan.client_name || 'No client selected'}</Text>
+                            </View>
+                            <Text style={styles.visitPlanCardBadge}>{visitPlan.status}</Text>
+                          </View>
+                          <Text style={styles.visitPlanCardMeta}>{visitPlan.start_time} - {visitPlan.end_time}</Text>
+                          <Text style={styles.visitPlanCardMeta} numberOfLines={2}>{visitPlan.agenda}</Text>
+                          <View style={styles.inlineButtonRowCompact}>
+                            <Pressable onPress={() => onOpenVisitPlan(visitPlan.id)} style={styles.secondaryButtonMuted}>
+                              <Text style={styles.secondaryButtonText}>Summary</Text>
+                            </Pressable>
+                            {visitPlan.permissions?.can_edit ? (
+                              <Pressable onPress={() => onEditVisitPlan(visitPlan)} style={styles.primaryButtonSmall}>
+                                <Text style={styles.primaryButtonText}>Edit</Text>
+                              </Pressable>
+                            ) : null}
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={[styles.scheduleDayGrid, compactLayout ? styles.scheduleDayGridStacked : null]}>
+            {scheduleDays.map((day) => {
+              const dayPlans = visitPlans
+                .filter((item) => item.date === day.isoDate)
+                .sort((left, right) => left.start_time.localeCompare(right.start_time));
+              const isSelected = day.isoDate === selectedDate;
+
+              return (
+                <View
+                  key={day.isoDate}
+                  style={[
+                    styles.scheduleDayColumn,
+                    compactLayout ? styles.scheduleDayColumnStacked : null,
+                    isSelected ? styles.scheduleDayColumnActive : null,
+                  ]}
+                >
                   <Pressable onPress={() => onSelectDate(day.isoDate)} style={styles.scheduleDayHeader}>
                     <Text style={styles.scheduleDayTitle}>{day.dayName}</Text>
                     <Text style={styles.scheduleDayDate}>{day.dateLabel}</Text>
@@ -114,7 +181,12 @@ export function CalendarBoard({
                       <Text style={styles.emptyStateDescription}>No visit plans for this day.</Text>
                     </View>
                   ) : (
-                    <ScrollView style={styles.scheduleDayScroll} contentContainerStyle={styles.scheduleDayStack} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                      nestedScrollEnabled
+                      style={compactLayout ? styles.scheduleDayScrollCompact : styles.scheduleDayScroll}
+                      contentContainerStyle={styles.scheduleDayStack}
+                      showsVerticalScrollIndicator={false}
+                    >
                       {dayPlans.map((visitPlan) => (
                         <View key={visitPlan.id} style={styles.visitPlanCardCompact}>
                           <View style={styles.visitPlanCardHeader}>

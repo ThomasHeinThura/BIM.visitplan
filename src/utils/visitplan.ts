@@ -167,6 +167,39 @@ export function formatReadableDate(isoDate: string) {
   });
 }
 
+export function getWeekBounds(referenceDate: Date) {
+  const start = new Date(referenceDate);
+  start.setHours(0, 0, 0, 0);
+
+  const dayOfWeek = start.getDay();
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  start.setDate(start.getDate() - daysSinceMonday);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    start: toIsoDate(start),
+    end: toIsoDate(end),
+  };
+}
+
+export function formatWeekRange(startIsoDate: string, endIsoDate: string) {
+  const start = new Date(`${startIsoDate}T00:00:00`);
+  const end = new Date(`${endIsoDate}T00:00:00`);
+
+  const startLabel = start.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+  const endLabel = end.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+
+  return `${startLabel} - ${endLabel}`;
+}
+
 export function sameIsoDate(left: string, right: string) {
   return left === right;
 }

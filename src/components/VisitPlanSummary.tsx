@@ -6,9 +6,10 @@ import type { VisitPlan } from '../types';
 export function VisitPlanSummary({
   visitPlans,
   userName,
-  totalPlans,
+  weeklyPlans,
   scopeLabel,
   selectedDate,
+  weekRangeLabel,
   onEditVisitPlan,
   onJumpToPlanDate,
   onCreateVisitPlan,
@@ -16,9 +17,10 @@ export function VisitPlanSummary({
 }: {
   visitPlans: VisitPlan[];
   userName: string;
-  totalPlans: number;
+  weeklyPlans: number;
   scopeLabel: string;
   selectedDate: string;
+  weekRangeLabel: string;
   onEditVisitPlan: (visitPlan: VisitPlan) => void;
   onJumpToPlanDate: (date: string) => void;
   onCreateVisitPlan: () => void;
@@ -37,7 +39,7 @@ export function VisitPlanSummary({
     .join('');
 
   return (
-    <ScrollView contentContainerStyle={styles.sideColumnStack}>
+    <View style={styles.sideColumnStack}>
       <View style={styles.sessionBanner}>
         <View style={styles.sessionIdentityRow}>
           <View style={styles.sessionAvatar}>
@@ -57,16 +59,12 @@ export function VisitPlanSummary({
         <Text style={styles.sectionTitle}>Your Visit Plans</Text>
         <View style={styles.summaryStatsGrid}>
           <View style={styles.summaryStatCard}>
-            <Text style={styles.summaryStatLabel}>Total visible</Text>
-            <Text style={styles.summaryStatValue}>{totalPlans}</Text>
+            <Text style={styles.summaryStatLabel}>This week visit plans</Text>
+            <Text style={styles.summaryStatValue}>{weeklyPlans}</Text>
           </View>
           <View style={styles.summaryStatCard}>
-            <Text style={styles.summaryStatLabel}>Scope</Text>
-            <Text style={styles.summaryStatValueSmall}>{scopeLabel}</Text>
-          </View>
-          <View style={styles.summaryStatCard}>
-            <Text style={styles.summaryStatLabel}>Window starts</Text>
-            <Text style={styles.summaryStatValueSmall}>{selectedDate}</Text>
+            <Text style={styles.summaryStatLabel}>Week range</Text>
+            <Text style={styles.summaryStatValueSmall}>{weekRangeLabel}</Text>
           </View>
         </View>
         <View style={styles.inlineButtonRowCompact}>
@@ -78,7 +76,7 @@ export function VisitPlanSummary({
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>All Visible Plan Summaries</Text>
-        <Text style={styles.sectionSubtitle}>Showing the same set counted in Total visible.</Text>
+        <Text style={styles.sectionSubtitle}>Showing the loaded visit plans. The weekly count above only includes plans in the current week.</Text>
 
         {sortedPlans.length === 0 ? (
           <View style={styles.emptyState}>
@@ -86,7 +84,7 @@ export function VisitPlanSummary({
             <Text style={styles.emptyStateDescription}>Adjust search or filters, or create a new visit plan.</Text>
           </View>
         ) : (
-          <ScrollView style={styles.summaryListScroll} contentContainerStyle={styles.summaryListStack} nestedScrollEnabled>
+          <ScrollView style={styles.summaryListScroll} contentContainerStyle={styles.summaryListStack} nestedScrollEnabled showsVerticalScrollIndicator={false}>
             {sortedPlans.map((visitPlan) => (
               <View key={visitPlan.id} style={styles.summaryListCard}>
                 <View style={styles.visitPlanCardHeader}>
@@ -114,6 +112,6 @@ export function VisitPlanSummary({
           </ScrollView>
         )}
       </View>
-    </ScrollView>
+    </View>
   );
 }

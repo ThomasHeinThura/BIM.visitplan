@@ -151,6 +151,7 @@ export function TeamMemberChooser({
     () => allOptions.filter((item) => selectedIds.includes(item.id)),
     [allOptions, selectedIds],
   );
+  const shouldShowOptions = isOpen && query.trim().length > 0;
 
   return (
     <View style={styles.fieldBlock}>
@@ -159,9 +160,14 @@ export function TeamMemberChooser({
         value={query}
         onChangeText={(value) => {
           onChangeQuery(value);
-          setIsOpen(true);
+          setIsOpen(value.trim().length > 0);
         }}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => setIsOpen(query.trim().length > 0)}
+        onBlur={() => {
+          if (!query.trim()) {
+            setIsOpen(false);
+          }
+        }}
         placeholder="Search team members"
         placeholderTextColor="#94A3B8"
         style={styles.input}
@@ -177,7 +183,7 @@ export function TeamMemberChooser({
         </View>
       ) : null}
 
-      {isOpen ? (
+      {shouldShowOptions ? (
         <View style={styles.lookupPanel}>
           <ScrollView nestedScrollEnabled style={styles.lookupScroll}>
             {loading ? (

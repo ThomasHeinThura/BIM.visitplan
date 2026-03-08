@@ -165,33 +165,33 @@ export function VisitPlanModal({
               <View style={styles.calendarNavRow}>
                 <Text style={styles.fieldLabel}>Date Picker</Text>
                 <View style={styles.headerActionRow}>
-                  <Pressable onPress={() => setPickerMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} style={styles.secondaryButtonMuted}>
-                    <Text style={styles.secondaryButtonText}>Previous</Text>
+                  <Pressable onPress={() => setPickerMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} style={styles.secondaryButtonMutedCompact}>
+                    <Text style={styles.secondaryButtonText}>Prev</Text>
                   </Pressable>
-                  <Pressable onPress={() => setPickerMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} style={styles.secondaryButtonMuted}>
+                  <Pressable onPress={() => setPickerMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} style={styles.secondaryButtonMutedCompact}>
                     <Text style={styles.secondaryButtonText}>Next</Text>
                   </Pressable>
                 </View>
               </View>
-              <Text style={styles.calendarMonthTitle}>{formatCalendarHeader(pickerMonth)}</Text>
-              <View style={styles.calendarWeekHeaderRow}>
+              <Text style={styles.modalCalendarMonthTitle}>{formatCalendarHeader(pickerMonth)}</Text>
+              <View style={styles.modalCalendarWeekHeaderRow}>
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <Text key={`picker-${day}`} style={styles.calendarWeekHeaderText}>{day}</Text>
+                  <Text key={`picker-${day}`} style={styles.modalCalendarWeekHeaderText}>{day}</Text>
                 ))}
               </View>
-              <View style={styles.calendarGrid}>
+              <View style={styles.modalCalendarGrid}>
                 {calendarDays.map((day) => (
                   <Pressable
                     key={`picker-${day.isoDate}`}
                     onPress={() => setDraft((current) => ({ ...current, date: day.isoDate }))}
                     style={({ pressed }) => [
-                      styles.calendarCell,
-                      !day.isCurrentMonth ? styles.calendarCellMuted : null,
-                      draft.date === day.isoDate ? styles.calendarCellActive : null,
-                      pressed ? styles.calendarCellPressed : null,
+                      styles.modalCalendarCell,
+                      !day.isCurrentMonth ? styles.modalCalendarCellMuted : null,
+                      draft.date === day.isoDate ? styles.modalCalendarCellActive : null,
+                      pressed ? styles.modalCalendarCellPressed : null,
                     ]}
                   >
-                    <Text style={draft.date === day.isoDate ? styles.calendarCellTextActive : styles.calendarCellText}>{day.dayOfMonth}</Text>
+                    <Text style={draft.date === day.isoDate ? styles.modalCalendarCellTextActive : styles.modalCalendarCellText}>{day.dayOfMonth}</Text>
                   </Pressable>
                 ))}
               </View>
