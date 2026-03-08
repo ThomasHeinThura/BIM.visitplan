@@ -116,6 +116,8 @@ export default function App() {
   const [editingVisitPlanId, setEditingVisitPlanId] = useState<number | null>(null);
   const [submittingDraft, setSubmittingDraft] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
+  const [meetingResultDraft, setMeetingResultDraft] = useState('');
+  const [savingMeetingResult, setSavingMeetingResult] = useState(false);
   const [lookupQueries, setLookupQueries] = useState({
     client: '',
     financialYear: '',
@@ -133,11 +135,18 @@ export default function App() {
     });
   }, [session, deferredSearchText, activeStatusFilter]);
 
+  useEffect(() => {
+    setMeetingResultDraft(selectedVisitPlan?.description || '');
+  }, [selectedVisitPlan]);
+
   const visibleClients = filterLookupItems(lookups.clients, lookupQueries.client, 12);
   const visibleYears = filterLookupItems(lookups.financialYears, lookupQueries.financialYear);
   const visibleQuarters = filterLookupItems(lookups.financialQuarters, lookupQueries.financialQuarter);
   const canCreateVisitPlans = session?.permissions.can_create ?? false;
   const isEditingVisitPlan = editingVisitPlanId !== null;
+  const selectedClientLabel = findLookupLabel(lookups.clients, draft.client_id);
+  const selectedFinancialYearLabel = findLookupLabel(lookups.financialYears, draft.financial_year_id);
+  const selectedFinancialQuarterLabel = findLookupLabel(lookups.financialQuarters, draft.financial_quarter_id);
 
   async function handleLogin() {
     if (!loginForm.email || !loginForm.password || !loginForm.baseUrl) {
@@ -265,6 +274,7 @@ export default function App() {
       setEditingVisitPlanId(null);
       setLookupQueries({ client: '', financialYear: '', financialQuarter: '' });
       setSelectedVisitPlan(response.data);
+      setMeetingResultDraft(response.data.description || '');
       setBanner({
         tone: 'success',
         message: editingVisitPlanId
@@ -303,6 +313,37 @@ export default function App() {
     setDraft(createInitialDraft());
     setLookupQueries({ client: '', financialYear: '', financialQuarter: '' });
     setBanner({ tone: 'info', message: 'Edit mode cancelled.' });
+  }
+
+  async function handleSaveMeetingResult() {
+    if (!session || !selectedVisitPlan) {
+      return;
+    }
+
+    setSavingMeetingResult(true);
+
+    try {
+      const response = await updateVisitPlan(
+        session.baseUrl,
+        session.token,
+        selectedVisitPlan.id,
+        {
+          ...buildDraftFromVisitPlan(selectedVisitPlan),
+          description: meetingResultDraft,
+        },
+      );
+
+      setSelectedVisitPlan(response.data);
+      setVisitPlans((current) =>
+        current.map((item) => (item.id === response.data.id ? response.data : item)),
+      );
+      setMeetingResultDraft(response.data.description || '');
+      setBanner({ tone: 'success', message: 'Meeting result updated successfully.' });
+    } catch (error) {
+      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
+    } finally {
+      setSavingMeetingResult(false);
+    }
   }
 
   async function handleStatusUpdate(nextStatus: number) {
@@ -348,6 +389,7 @@ export default function App() {
     setSelectedVisitPlan(null);
     setDraft(createInitialDraft());
     setEditingVisitPlanId(null);
+    setMeetingResultDraft('');
     setBanner({ tone: 'info', message: 'Signed out.' });
   }
 
@@ -355,61 +397,80 @@ export default function App() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
+        <View style={styles.screenBackdrop} pointerEvents="none">
+          <View style={[styles.backgroundOrb, styles.backgroundOrbTop]} />
+          <View style={[styles.backgroundOrb, styles.backgroundOrbMiddle]} />
+          <View style={[styles.backgroundOrb, styles.backgroundOrbBottom]} />
+        </View>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.loginShell}
         >
-          <View style={styles.loginBackdropTop} />
-          <View style={styles.loginBackdropBottom} />
-          <View style={styles.loginCard}>
-            <Text style={styles.eyebrow}>BIM CRM</Text>
-            <Text style={styles.loginTitle}>Visitplan Workspace</Text>
-            <Text style={styles.loginSubtitle}>
-              One Expo codebase for iOS, Android, and web, built on the CRM bearer-token API.
-            </Text>
+          <View style={styles.loginPanel}>
+            <View style={styles.loginCard}>
+              <Text style={styles.eyebrow}>BIM CRM</Text>
+              <Text style={styles.loginTitle}>Visitplan Workspace</Text>
+              <Text style={styles.loginSubtitle}>
+                One Expo codebase for iOS, Android, and web, built on the CRM bearer-token API.
+              </Text>
 
-            <LabeledInput
-              label="API Base URL"
-              value={loginForm.baseUrl}
-              onChangeText={(value) => setLoginForm((current) => ({ ...current, baseUrl: value }))}
-              placeholder="https://uat-crm.bimats.com:10443"
-              autoCapitalize="none"
-            />
-            <LabeledInput
-              label="Email"
-              value={loginForm.email}
-              onChangeText={(value) => setLoginForm((current) => ({ ...current, email: value }))}
-              placeholder="user@company.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <LabeledInput
-              label="Password"
-              value={loginForm.password}
-              onChangeText={(value) => setLoginForm((current) => ({ ...current, password: value }))}
-              placeholder="Enter CRM password"
-              secureTextEntry
-            />
+              <LabeledInput
+                label="API Base URL"
+                value={loginForm.baseUrl}
+                onChangeText={(value) => setLoginForm((current) => ({ ...current, baseUrl: value }))}
+                placeholder="https://uat-crm.bimats.com:10443"
+                autoCapitalize="none"
+              />
+              <LabeledInput
+                label="Email"
+                value={loginForm.email}
+                onChangeText={(value) => setLoginForm((current) => ({ ...current, email: value }))}
+                placeholder="user@company.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <LabeledInput
+                label="Password"
+                value={loginForm.password}
+                onChangeText={(value) => setLoginForm((current) => ({ ...current, password: value }))}
+                placeholder="Enter CRM password"
+                secureTextEntry
+              />
 
-            {banner ? <Banner banner={banner} /> : null}
+              {banner ? <Banner banner={banner} /> : null}
 
-            <Pressable
-              disabled={loggingIn}
-              onPress={() => {
-                void handleLogin();
-              }}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && !loggingIn ? styles.primaryButtonPressed : null,
-                loggingIn ? styles.buttonDisabled : null,
-              ]}
-            >
-              {loggingIn ? (
-                <ActivityIndicator color="#F9F6EE" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Sign In To Visitplan</Text>
-              )}
-            </Pressable>
+              <Pressable
+                disabled={loggingIn}
+                onPress={() => {
+                  void handleLogin();
+                }}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && !loggingIn ? styles.primaryButtonPressed : null,
+                  loggingIn ? styles.buttonDisabled : null,
+                ]}
+              >
+                {loggingIn ? (
+                  <ActivityIndicator color="#F5F7FB" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Sign In To Visitplan</Text>
+                )}
+              </Pressable>
+            </View>
+
+            <View style={styles.loginShowcaseCard}>
+              <Text style={styles.showcaseEyebrow}>Workspace Preview</Text>
+              <Text style={styles.showcaseTitle}>Fast planning, cleaner follow-up, one modern dashboard.</Text>
+              <View style={styles.showcaseChartCard}>
+                <View style={styles.showcaseLine} />
+                <View style={styles.showcaseLineShort} />
+                <View style={styles.showcaseLineDot} />
+              </View>
+              <View style={styles.showcaseMetricRow}>
+                <MetricCard label="Modes" value="Web / iOS / Android" />
+                <MetricCard label="Flow" value="Create / Update / Result" />
+              </View>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -419,6 +480,11 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
+      <View style={styles.screenBackdrop} pointerEvents="none">
+        <View style={[styles.backgroundOrb, styles.backgroundOrbTop]} />
+        <View style={[styles.backgroundOrb, styles.backgroundOrbMiddle]} />
+        <View style={[styles.backgroundOrb, styles.backgroundOrbBottom]} />
+      </View>
       <View style={styles.appShell}>
         <View style={styles.heroHeader}>
           <View>
@@ -441,6 +507,12 @@ export default function App() {
         </View>
 
         {banner ? <Banner banner={banner} /> : null}
+
+        <View style={styles.metricsRow}>
+          <MetricCard label="Visible plans" value={String(visitPlanMeta?.total ?? 0)} />
+          <MetricCard label="Scope" value={session.permissions.can_view_all ? 'Global' : 'Own'} />
+          <MetricCard label="Create access" value={session.permissions.can_create ? 'Enabled' : 'View only'} />
+        </View>
 
         <View style={[styles.contentRow, !isWideLayout ? styles.contentColumn : null]}>
           <View style={[styles.mainColumn, !isWideLayout ? styles.fullWidthColumn : null]}>
@@ -552,6 +624,15 @@ export default function App() {
                   />
                 ) : (
                   <View style={styles.formStack}>
+                    <View style={styles.formHeroStrip}>
+                      <Text style={styles.formHeroTitle}>
+                        {isEditingVisitPlan ? 'Editing selected plan' : 'Plan the meeting'}
+                      </Text>
+                      <Text style={styles.formHeroText}>
+                        Search lookups, set time and location, then save. Use the detail panel to update meeting results later.
+                      </Text>
+                    </View>
+
                     <LabeledInput
                       label="Title"
                       value={draft.title}
@@ -562,39 +643,67 @@ export default function App() {
                     <LookupChooser
                       label="Client"
                       query={lookupQueries.client}
-                      onChangeQuery={(value) =>
-                        setLookupQueries((current) => ({ ...current, client: value }))
-                      }
+                      selectedLabel={selectedClientLabel}
+                      onChangeQuery={(value) => {
+                        setLookupQueries((current) => ({ ...current, client: value }));
+                        setDraft((current) => ({ ...current, client_id: null }));
+                      }}
                       options={visibleClients}
                       selectedId={draft.client_id}
-                      onSelect={(id) => setDraft((current) => ({ ...current, client_id: id }))}
+                      onSelect={(id, label) => {
+                        setDraft((current) => ({ ...current, client_id: id }));
+                        setLookupQueries((current) => ({ ...current, client: label }));
+                      }}
+                      onClear={() => {
+                        setDraft((current) => ({ ...current, client_id: null }));
+                        setLookupQueries((current) => ({ ...current, client: '' }));
+                      }}
                       loading={loadingLookups}
+                      helperText="Type to filter clients, then choose from the scroll list."
                     />
 
                     <LookupChooser
                       label="Financial Year"
                       query={lookupQueries.financialYear}
-                      onChangeQuery={(value) =>
-                        setLookupQueries((current) => ({ ...current, financialYear: value }))
-                      }
+                      selectedLabel={selectedFinancialYearLabel}
+                      onChangeQuery={(value) => {
+                        setLookupQueries((current) => ({ ...current, financialYear: value }));
+                        setDraft((current) => ({ ...current, financial_year_id: null }));
+                      }}
                       options={visibleYears}
                       selectedId={draft.financial_year_id}
-                      onSelect={(id) => setDraft((current) => ({ ...current, financial_year_id: id }))}
+                      onSelect={(id, label) => {
+                        setDraft((current) => ({ ...current, financial_year_id: id }));
+                        setLookupQueries((current) => ({ ...current, financialYear: label }));
+                      }}
+                      onClear={() => {
+                        setDraft((current) => ({ ...current, financial_year_id: null }));
+                        setLookupQueries((current) => ({ ...current, financialYear: '' }));
+                      }}
                       loading={loadingLookups}
+                      helperText="Search and select the year from the dropdown box."
                     />
 
                     <LookupChooser
                       label="Financial Quarter"
                       query={lookupQueries.financialQuarter}
-                      onChangeQuery={(value) =>
-                        setLookupQueries((current) => ({ ...current, financialQuarter: value }))
-                      }
+                      selectedLabel={selectedFinancialQuarterLabel}
+                      onChangeQuery={(value) => {
+                        setLookupQueries((current) => ({ ...current, financialQuarter: value }));
+                        setDraft((current) => ({ ...current, financial_quarter_id: null }));
+                      }}
                       options={visibleQuarters}
                       selectedId={draft.financial_quarter_id}
-                      onSelect={(id) =>
-                        setDraft((current) => ({ ...current, financial_quarter_id: id }))
-                      }
+                      onSelect={(id, label) => {
+                        setDraft((current) => ({ ...current, financial_quarter_id: id }));
+                        setLookupQueries((current) => ({ ...current, financialQuarter: label }));
+                      }}
+                      onClear={() => {
+                        setDraft((current) => ({ ...current, financial_quarter_id: null }));
+                        setLookupQueries((current) => ({ ...current, financialQuarter: '' }));
+                      }}
                       loading={loadingLookups}
+                      helperText="Type any part of the quarter name and choose it below."
                     />
 
                     <View style={styles.rowFields}>
@@ -672,7 +781,7 @@ export default function App() {
                       onChangeText={(value) =>
                         setDraft((current) => ({ ...current, description: value }))
                       }
-                      placeholder="Optional summary for the team"
+                      placeholder="Optional description or expected meeting result"
                       multiline
                     />
 
@@ -743,12 +852,23 @@ export default function App() {
                     <Text style={styles.detailMeta}>
                       Creator: {selectedVisitPlan.creator?.name || 'Unknown'}
                     </Text>
-                    <Text style={styles.detailBody}>{selectedVisitPlan.agenda}</Text>
-                    {selectedVisitPlan.description ? (
-                      <Text style={styles.detailBodyMuted}>{selectedVisitPlan.description}</Text>
-                    ) : null}
+                    <View style={styles.detailSectionCard}>
+                      <Text style={styles.detailSectionTitle}>Agenda</Text>
+                      <Text style={styles.detailBody}>{selectedVisitPlan.agenda}</Text>
+                    </View>
+
+                    <View style={styles.detailSectionCard}>
+                      <Text style={styles.detailSectionTitle}>Description</Text>
+                      <Text style={styles.detailBodyMuted}>
+                        {selectedVisitPlan.description || 'No description added yet.'}
+                      </Text>
+                    </View>
+
                     {selectedVisitPlan.url ? (
-                      <Text style={styles.detailBodyMuted}>Meeting URL: {selectedVisitPlan.url}</Text>
+                      <View style={styles.detailSectionCard}>
+                        <Text style={styles.detailSectionTitle}>Meeting URL</Text>
+                        <Text style={styles.detailBodyMuted}>{selectedVisitPlan.url}</Text>
+                      </View>
                     ) : null}
 
                     {selectedVisitPlan.permissions?.can_edit ? (
@@ -756,6 +876,42 @@ export default function App() {
                         <Text style={styles.secondaryButtonText}>Load Into Edit Form</Text>
                       </Pressable>
                     ) : null}
+
+                    <View style={styles.detailSectionCard}>
+                      <Text style={styles.detailSectionTitle}>Meeting Result Update</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        Update what happened in the meeting, decisions made, and next steps.
+                      </Text>
+                      <TextInput
+                        value={meetingResultDraft}
+                        onChangeText={setMeetingResultDraft}
+                        editable={Boolean(selectedVisitPlan.permissions?.can_edit) && !savingMeetingResult}
+                        multiline
+                        placeholder="Add the meeting result here"
+                        placeholderTextColor="#94A3B8"
+                        style={[styles.input, styles.multilineInput, styles.meetingResultInput]}
+                      />
+                      {selectedVisitPlan.permissions?.can_edit ? (
+                        <Pressable
+                          onPress={() => {
+                            void handleSaveMeetingResult();
+                          }}
+                          disabled={savingMeetingResult}
+                          style={({ pressed }) => [
+                            styles.primaryButton,
+                            styles.inlineActionButton,
+                            pressed && !savingMeetingResult ? styles.primaryButtonPressed : null,
+                            savingMeetingResult ? styles.buttonDisabled : null,
+                          ]}
+                        >
+                          {savingMeetingResult ? (
+                            <ActivityIndicator color="#F5F7FB" />
+                          ) : (
+                            <Text style={styles.primaryButtonText}>Save Meeting Result</Text>
+                          )}
+                        </Pressable>
+                      ) : null}
+                    </View>
 
                     <View style={styles.statusUpdateBlock}>
                       <Text style={styles.statusUpdateLabel}>Update Status</Text>
@@ -841,6 +997,15 @@ function LabeledInput({
   );
 }
 
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metricCard}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
 function SegmentedChoices({
   label,
   options,
@@ -879,51 +1044,71 @@ function SegmentedChoices({
 function LookupChooser({
   label,
   query,
+  selectedLabel,
   onChangeQuery,
   options,
   selectedId,
   onSelect,
+  onClear,
   loading,
+  helperText,
 }: {
   label: string;
   query: string;
+  selectedLabel?: string | null;
   onChangeQuery: (value: string) => void;
   options: LookupItem[];
   selectedId: number | null;
-  onSelect: (id: number) => void;
+  onSelect: (id: number, label: string) => void;
+  onClear: () => void;
   loading: boolean;
+  helperText?: string;
 }) {
   return (
     <View style={styles.fieldBlock}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.lookupTitleRow}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={styles.lookupMetaText}>{selectedId ? 'Selected' : `${options.length} options`}</Text>
+      </View>
       <TextInput
         value={query}
         onChangeText={onChangeQuery}
         placeholder={`Search ${label.toLowerCase()}`}
         placeholderTextColor="#7D7A73"
-        style={styles.input}
+        style={[styles.input, styles.lookupInput]}
       />
+      {selectedLabel ? (
+        <View style={styles.lookupSelectionRow}>
+          <Text style={styles.lookupSelectionLabel}>Chosen: {selectedLabel}</Text>
+          <Pressable onPress={onClear} style={styles.clearSelectionButton}>
+            <Text style={styles.clearSelectionText}>Clear</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={styles.lookupPanel}>
-        {loading ? (
-          <Text style={styles.lookupHint}>Loading options...</Text>
-        ) : options.length === 0 ? (
-          <Text style={styles.lookupHint}>No matching options.</Text>
-        ) : (
-          options.map((option) => (
-            <Pressable
-              key={option.id}
-              onPress={() => onSelect(option.id)}
-              style={({ pressed }) => [
-                styles.lookupOption,
-                selectedId === option.id ? styles.lookupOptionActive : null,
-                pressed ? styles.lookupOptionPressed : null,
-              ]}
-            >
-              <Text style={styles.lookupOptionText}>{option.label}</Text>
-            </Pressable>
-          ))
-        )}
+        <ScrollView nestedScrollEnabled style={styles.lookupScroll}>
+          {loading ? (
+            <Text style={styles.lookupHint}>Loading options...</Text>
+          ) : options.length === 0 ? (
+            <Text style={styles.lookupHint}>No matching options.</Text>
+          ) : (
+            options.map((option) => (
+              <Pressable
+                key={option.id}
+                onPress={() => onSelect(option.id, option.label)}
+                style={({ pressed }) => [
+                  styles.lookupOption,
+                  selectedId === option.id ? styles.lookupOptionActive : null,
+                  pressed ? styles.lookupOptionPressed : null,
+                ]}
+              >
+                <Text style={styles.lookupOptionText}>{option.label}</Text>
+              </Pressable>
+            ))
+          )}
+        </ScrollView>
       </View>
+      {helperText ? <Text style={styles.fieldHelper}>{helperText}</Text> : null}
     </View>
   );
 }
@@ -980,6 +1165,14 @@ function filterLookupItems(items: LookupItem[], query: string, limit?: number) {
     : items;
 
   return typeof limit === 'number' ? filtered.slice(0, limit) : filtered;
+}
+
+function findLookupLabel(items: LookupItem[], selectedId: number | null) {
+  if (!selectedId) {
+    return null;
+  }
+
+  return items.find((item) => item.id === selectedId)?.label || null;
 }
 
 function mapLookupLabel(item: Record<string, unknown>): LookupItem {
@@ -1060,51 +1253,81 @@ function toFriendlyMessage(error: unknown) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F6F1E8',
+    backgroundColor: '#E5EDF4',
+  },
+  screenBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backgroundOrb: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.55,
+  },
+  backgroundOrbTop: {
+    top: -90,
+    right: -60,
+    width: 260,
+    height: 260,
+    backgroundColor: '#C9DBF8',
+  },
+  backgroundOrbMiddle: {
+    top: 220,
+    left: -80,
+    width: 220,
+    height: 220,
+    backgroundColor: '#D9F0F2',
+  },
+  backgroundOrbBottom: {
+    bottom: -100,
+    right: 60,
+    width: 280,
+    height: 280,
+    backgroundColor: '#D8D9FF',
   },
   loginShell: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#F6F1E8',
   },
-  loginBackdropTop: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-    right: 20,
-    height: 180,
-    borderRadius: 32,
-    backgroundColor: '#D8E9D0',
-    transform: [{ rotate: '-4deg' }],
-  },
-  loginBackdropBottom: {
-    position: 'absolute',
-    bottom: 80,
-    left: 48,
-    right: 48,
-    height: 220,
-    borderRadius: 32,
-    backgroundColor: '#F3C49A',
-    transform: [{ rotate: '6deg' }],
+  loginPanel: {
+    width: '100%',
+    maxWidth: 1180,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 24,
   },
   loginCard: {
     width: '100%',
     maxWidth: 560,
-    borderRadius: 28,
-    padding: 28,
-    backgroundColor: '#FFF9F1',
+    flex: 1,
+    borderRadius: 34,
+    padding: 30,
+    backgroundColor: 'rgba(248, 251, 255, 0.82)',
     borderWidth: 1,
-    borderColor: '#D9D0C3',
-    shadowColor: '#433422',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    borderColor: 'rgba(255,255,255,0.75)',
+    shadowColor: '#6B7A90',
+    shadowOpacity: 0.18,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 10,
+  },
+  loginShowcaseCard: {
+    flex: 1,
+    minWidth: 320,
+    borderRadius: 34,
+    padding: 28,
+    backgroundColor: 'rgba(13, 22, 37, 0.86)',
+    borderWidth: 1,
+    borderColor: 'rgba(110, 144, 255, 0.26)',
+    shadowColor: '#1B2437',
+    shadowOpacity: 0.26,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 12,
   },
   eyebrow: {
-    color: '#0E5A63',
+    color: '#3E63FF',
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1.4,
@@ -1112,57 +1335,114 @@ const styles = StyleSheet.create({
   },
   loginTitle: {
     marginTop: 10,
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 32,
     fontWeight: '800',
   },
   loginSubtitle: {
     marginTop: 8,
     marginBottom: 22,
-    color: '#5F5A50',
+    color: '#5B6474',
     fontSize: 15,
     lineHeight: 22,
+  },
+  showcaseEyebrow: {
+    color: '#A5B4FC',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  showcaseTitle: {
+    marginTop: 12,
+    color: '#F8FAFC',
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 36,
+  },
+  showcaseChartCard: {
+    marginTop: 22,
+    borderRadius: 28,
+    padding: 22,
+    minHeight: 170,
+    backgroundColor: 'rgba(30, 41, 59, 0.78)',
+    justifyContent: 'flex-end',
+  },
+  showcaseLine: {
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#3B82F6',
+    width: '88%',
+  },
+  showcaseLineShort: {
+    marginTop: 18,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#60A5FA',
+    width: '62%',
+  },
+  showcaseLineDot: {
+    position: 'absolute',
+    top: 54,
+    right: 64,
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    backgroundColor: '#3B82F6',
+    borderWidth: 4,
+    borderColor: '#BFDBFE',
+  },
+  showcaseMetricRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   appShell: {
     flex: 1,
     padding: 18,
   },
   heroHeader: {
-    borderRadius: 28,
+    borderRadius: 30,
     padding: 22,
-    backgroundColor: '#FFF9F1',
+    backgroundColor: 'rgba(248, 251, 255, 0.84)',
     borderWidth: 1,
-    borderColor: '#D9D0C3',
+    borderColor: 'rgba(255,255,255,0.78)',
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 16,
+    shadowColor: '#7C8AA5',
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
   },
   pageTitle: {
     marginTop: 10,
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 28,
     fontWeight: '800',
   },
   pageSubtitle: {
     marginTop: 8,
-    color: '#5F5A50',
+    color: '#526072',
     fontSize: 14,
   },
   heroMeta: {
     minWidth: 260,
     padding: 16,
-    borderRadius: 20,
-    backgroundColor: '#F4ECE0',
+    borderRadius: 24,
+    backgroundColor: 'rgba(231, 237, 255, 0.88)',
     gap: 4,
   },
   heroMetaTitle: {
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 18,
     fontWeight: '700',
   },
   heroMetaText: {
-    color: '#5F5A50',
+    color: '#526072',
     fontSize: 13,
   },
   ghostButton: {
@@ -1171,10 +1451,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#E7DED1',
+    backgroundColor: '#DCE6FF',
   },
   ghostButtonText: {
-    color: '#3F4B46',
+    color: '#2643B8',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1197,6 +1477,39 @@ const styles = StyleSheet.create({
     color: '#22302D',
     fontSize: 14,
     lineHeight: 20,
+  },
+  metricsRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  metricCard: {
+    minWidth: 180,
+    flexGrow: 1,
+    borderRadius: 24,
+    padding: 18,
+    backgroundColor: 'rgba(244, 248, 255, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.72)',
+    shadowColor: '#8EA0C3',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+  },
+  metricLabel: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  metricValue: {
+    marginTop: 10,
+    color: '#0F172A',
+    fontSize: 24,
+    fontWeight: '800',
   },
   contentRow: {
     flex: 1,
@@ -1221,11 +1534,16 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   sectionCard: {
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 18,
-    backgroundColor: '#FFF9F1',
+    backgroundColor: 'rgba(248, 251, 255, 0.82)',
     borderWidth: 1,
-    borderColor: '#D9D0C3',
+    borderColor: 'rgba(255,255,255,0.76)',
+    shadowColor: '#90A0BC',
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -1234,13 +1552,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 22,
     fontWeight: '800',
   },
   sectionSubtitle: {
     marginTop: 6,
-    color: '#5F5A50',
+    color: '#5B6474',
     fontSize: 13,
     lineHeight: 18,
   },
@@ -1249,7 +1567,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   searchInput: {
-    backgroundColor: '#FCF6EC',
+    backgroundColor: 'rgba(255,255,255,0.88)',
   },
   filterChipRow: {
     gap: 10,
@@ -1259,16 +1577,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#EFE5D8',
+    backgroundColor: '#E7EEFA',
   },
   filterChipActive: {
-    backgroundColor: '#0E5A63',
+    backgroundColor: '#3E63FF',
   },
   filterChipPressed: {
     opacity: 0.82,
   },
   filterChipText: {
-    color: '#4C4A43',
+    color: '#405068',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1292,15 +1610,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   visitPlanCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 16,
-    backgroundColor: '#FBF4E8',
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
-    borderColor: '#E2D8C8',
+    borderColor: '#DBE5F5',
   },
   visitPlanCardActive: {
-    borderColor: '#0E5A63',
-    backgroundColor: '#EEF6F7',
+    borderColor: '#3E63FF',
+    backgroundColor: '#EEF3FF',
   },
   visitPlanCardPressed: {
     opacity: 0.88,
@@ -1318,41 +1636,66 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   visitPlanCardBadge: {
-    color: '#0E5A63',
+    color: '#315BFF',
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   visitPlanCardMeta: {
     marginTop: 6,
-    color: '#5F5A50',
+    color: '#64748B',
     fontSize: 13,
   },
   formStack: {
     marginTop: 16,
     gap: 14,
   },
+  formHeroStrip: {
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: '#E9EEFF',
+  },
+  formHeroTitle: {
+    color: '#2241B6',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  formHeroText: {
+    marginTop: 6,
+    color: '#56657A',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   fieldBlock: {
     gap: 8,
   },
   fieldLabel: {
-    color: '#3E4B47',
+    color: '#334155',
     fontSize: 13,
     fontWeight: '700',
   },
+  fieldHelper: {
+    color: '#64748B',
+    fontSize: 12,
+    lineHeight: 17,
+  },
   input: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#D9D0C3',
-    backgroundColor: '#FFFDF8',
+    borderColor: '#D5E0F2',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 15,
   },
   multilineInput: {
     minHeight: 110,
     textAlignVertical: 'top',
+  },
+  meetingResultInput: {
+    marginTop: 10,
+    minHeight: 130,
   },
   rowFields: {
     flexDirection: 'row',
@@ -1370,16 +1713,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#EFE5D8',
+    backgroundColor: '#E8EEFB',
   },
   segmentOptionActive: {
-    backgroundColor: '#224B52',
+    backgroundColor: '#355CFF',
   },
   segmentOptionPressed: {
     opacity: 0.82,
   },
   segmentOptionText: {
-    color: '#4C4A43',
+    color: '#475569',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1388,41 +1731,87 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  lookupPanel: {
+  lookupTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  lookupMetaText: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  lookupInput: {
+    paddingRight: 18,
+  },
+  lookupSelectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     borderRadius: 16,
-    backgroundColor: '#FBF4E8',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#EEF3FF',
+  },
+  lookupSelectionLabel: {
+    flex: 1,
+    color: '#2643B8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  clearSelectionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#DBE6FF',
+  },
+  clearSelectionText: {
+    color: '#2643B8',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  lookupPanel: {
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.84)',
     borderWidth: 1,
-    borderColor: '#E2D8C8',
+    borderColor: '#D5E0F2',
     overflow: 'hidden',
+  },
+  lookupScroll: {
+    maxHeight: 180,
   },
   lookupHint: {
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#7D7A73',
+    color: '#64748B',
     fontSize: 13,
   },
   lookupOption: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#EDE3D4',
+    borderTopColor: '#E7EEF8',
   },
   lookupOptionActive: {
-    backgroundColor: '#E2F0F1',
+    backgroundColor: '#EEF3FF',
   },
   lookupOptionPressed: {
     opacity: 0.85,
   },
   lookupOptionText: {
-    color: '#2D3935',
+    color: '#1E293B',
     fontSize: 14,
   },
   primaryButton: {
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: '#0E5A63',
+    borderRadius: 18,
+    backgroundColor: '#355CFF',
     paddingHorizontal: 20,
   },
   primaryButtonPressed: {
@@ -1437,23 +1826,26 @@ const styles = StyleSheet.create({
     minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: '#E7DED1',
+    borderRadius: 16,
+    backgroundColor: '#E6EEFF',
     paddingHorizontal: 18,
   },
   secondaryButtonMuted: {
     minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: '#E7DED1',
+    borderRadius: 16,
+    backgroundColor: '#E6EEFF',
     paddingHorizontal: 18,
     marginTop: 12,
   },
   secondaryButtonText: {
-    color: '#34403C',
+    color: '#2643B8',
     fontSize: 13,
     fontWeight: '800',
+  },
+  inlineActionButton: {
+    marginTop: 12,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -1463,36 +1855,48 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyStateTitle: {
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 18,
     fontWeight: '700',
   },
   emptyStateDescription: {
-    color: '#5F5A50',
+    color: '#64748B',
     fontSize: 14,
     lineHeight: 20,
   },
   detailStack: {
     marginTop: 14,
-    gap: 8,
+    gap: 12,
   },
   detailTitle: {
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 24,
     fontWeight: '800',
   },
   detailMeta: {
-    color: '#5F5A50',
+    color: '#64748B',
     fontSize: 13,
   },
+  detailSectionCard: {
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: '#F5F8FF',
+    borderWidth: 1,
+    borderColor: '#E3EAF8',
+  },
+  detailSectionTitle: {
+    color: '#2241B6',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   detailBody: {
-    marginTop: 8,
-    color: '#22302D',
+    color: '#1E293B',
     fontSize: 15,
     lineHeight: 22,
   },
   detailBodyMuted: {
-    color: '#5F5A50',
+    color: '#5B6474',
     fontSize: 14,
     lineHeight: 20,
   },
@@ -1500,10 +1904,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#E2D8C8',
+    borderTopColor: '#E3EAF8',
   },
   statusUpdateLabel: {
-    color: '#1E2C28',
+    color: '#0F172A',
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 10,
@@ -1512,19 +1916,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusAction: {
-    borderRadius: 14,
-    backgroundColor: '#EFE5D8',
+    borderRadius: 16,
+    backgroundColor: '#E8EEFB',
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   statusActionActive: {
-    backgroundColor: '#224B52',
+    backgroundColor: '#355CFF',
   },
   statusActionPressed: {
     opacity: 0.85,
   },
   statusActionText: {
-    color: '#1E2C28',
+    color: '#1E293B',
     fontSize: 13,
     fontWeight: '700',
   },
