@@ -170,8 +170,8 @@
 				ORGANIZATIONNAME = bimgoc;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
+						DevelopmentTeam = BB26RT3JYN;
 						LastSwiftMigration = 1250;
-						DevelopmentTeam = "BB26RT3JYN";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -331,6 +331,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = BB26RT3JYN;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -359,7 +360,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
-				DEVELOPMENT_TEAM = "BB26RT3JYN";
 			};
 			name = Debug;
 		};
@@ -373,6 +373,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = BB26RT3JYN;
 				INFOPLIST_FILE = BIMVisitplan/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = visitplan;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -395,7 +396,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
-				DEVELOPMENT_TEAM = "BB26RT3JYN";
 			};
 			name = Release;
 		};
