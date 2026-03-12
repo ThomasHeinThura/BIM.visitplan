@@ -135,7 +135,12 @@ export function ClientWorkspaceScreen({
   }
 
   return (
-    <View style={styles.pageStack}>
+    <ScrollView
+      style={styles.clientDetailScroll}
+      contentContainerStyle={styles.clientDetailScrollContent}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+    >
       <View style={styles.clientDetailColumn}>
         <View style={styles.clientDetailHeaderRow}>
           <Pressable onPress={() => setViewMode('directory')} style={styles.secondaryButtonMutedCompact}>
@@ -280,7 +285,7 @@ export function ClientWorkspaceScreen({
           </>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

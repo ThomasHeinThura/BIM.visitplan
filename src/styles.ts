@@ -819,6 +819,13 @@ export const styles = StyleSheet.create({
 		minWidth: 320,
 		gap: 16,
 	},
+	clientDetailScroll: {
+		width: '100%',
+	},
+	clientDetailScrollContent: {
+		gap: 16,
+		paddingBottom: 6,
+	},
 	clientDirectoryShell: {
 		width: '100%',
 		maxWidth: 720,

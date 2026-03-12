@@ -482,7 +482,11 @@ export default function App() {
         <View style={[styles.backgroundOrb, styles.backgroundOrbBottom]} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.appScrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.appScrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={activePage !== 'clients'}
+      >
         <View style={styles.appShell}>
           <WorkspaceHeader userName={userName} scopeLabel={scopeLabel} onLogout={handleLogout} />
           {banner ? <Banner banner={banner} /> : null}
