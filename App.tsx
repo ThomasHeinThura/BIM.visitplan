@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useDeferredValue, useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Platform, SafeAreaView, ScrollView, StatusBar as NativeStatusBar, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_API_BASE_URL } from './src/config';
 import { Banner } from './src/components/Banner';
 import { BottomNavigation, type AppPage } from './src/components/BottomNavigation';
@@ -90,6 +90,8 @@ const SESSION_STORAGE_KEY = 'bim.visitplan.session';
 export default function App() {
   const { width } = useWindowDimensions();
   const isCompactLayout = width < 980;
+  const androidTopInset = Platform.OS === 'android' ? (NativeStatusBar.currentHeight ?? 0) : 0;
+  const safeAreaStyle = [styles.safeArea, androidTopInset > 0 ? { paddingTop: androidTopInset } : null];
   const [session, setSession] = useState<SessionState | null>(null);
   const [restoringSession, setRestoringSession] = useState(true);
   const [loginForm, setLoginForm] = useState<LoginFormState>({
@@ -442,7 +444,7 @@ export default function App() {
 
   if (restoringSession) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={safeAreaStyle}>
         <StatusBar style="dark" />
         <View style={styles.screenBackdrop} pointerEvents="none">
           <View style={[styles.backgroundOrb, styles.backgroundOrbTop]} />
@@ -456,7 +458,7 @@ export default function App() {
 
   if (!session) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={safeAreaStyle}>
         <StatusBar style="dark" />
         <LoginScreen
           banner={banner}
@@ -472,7 +474,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={safeAreaStyle}>
       <StatusBar style="dark" />
       <View style={styles.screenBackdrop} pointerEvents="none">
         <View style={[styles.backgroundOrb, styles.backgroundOrbTop]} />
