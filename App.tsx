@@ -482,93 +482,107 @@ export default function App() {
         <View style={[styles.backgroundOrb, styles.backgroundOrbBottom]} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.appScrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={activePage !== 'clients'}
-      >
+      <View style={styles.appOuterShell}>
         <View style={styles.appShell}>
           <WorkspaceHeader userName={userName} scopeLabel={scopeLabel} onLogout={handleLogout} />
           {banner ? <Banner banner={banner} /> : null}
+        </View>
 
-          {activePage === 'visitplans' ? (
-            <View style={styles.pageStack}>
-              <View style={styles.sideColumnFull}>
-                <VisitPlanSummary
-                  userName={userName}
-                  weeklyPlans={weeklyPlans}
-                  scopeLabel={scopeLabel}
-                  weekRangeLabel={weekRangeLabel}
-                  onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                  showSessionBanner={false}
-                />
-              </View>
+        {activePage === 'visitplans' ? (
+          <ScrollView
+            contentContainerStyle={styles.appScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.appShell}>
+              <View style={styles.pageStack}>
+                <View style={styles.sideColumnFull}>
+                  <VisitPlanSummary
+                    userName={userName}
+                    weeklyPlans={weeklyPlans}
+                    scopeLabel={scopeLabel}
+                    weekRangeLabel={weekRangeLabel}
+                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                    showSessionBanner={false}
+                  />
+                </View>
 
-              <View style={styles.mainColumnFull}>
-                <CalendarBoard
-                  selectedDate={selectedDate}
-                  visitPlans={visitPlans}
-                  loading={loadingVisitPlans}
-                  searchText={searchText}
-                  onChangeSearchText={setSearchText}
-                  activeStatusFilter={activeStatusFilter}
-                  onChangeStatusFilter={setActiveStatusFilter}
-                  onPreviousWindow={() => handleShiftScheduleWindow(-3)}
-                  onNextWindow={() => handleShiftScheduleWindow(3)}
-                  onSelectDate={handleSelectDate}
-                  onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                  onRefresh={() => {
-                    void loadVisitPlanData(session, {
-                      search: deferredSearchText,
-                      status: activeStatusFilter,
-                    });
-                  }}
-                  onOpenVisitPlan={(id) => {
-                    const visitPlan = visitPlans.find((item) => item.id === id);
-                    if (visitPlan) {
-                      handleSelectDate(visitPlan.date);
-                    }
-                  }}
-                  onEditVisitPlan={openEditModal}
-                  compactLayout={isCompactLayout}
-                />
+                <View style={styles.mainColumnFull}>
+                  <CalendarBoard
+                    selectedDate={selectedDate}
+                    visitPlans={visitPlans}
+                    loading={loadingVisitPlans}
+                    searchText={searchText}
+                    onChangeSearchText={setSearchText}
+                    activeStatusFilter={activeStatusFilter}
+                    onChangeStatusFilter={setActiveStatusFilter}
+                    onPreviousWindow={() => handleShiftScheduleWindow(-3)}
+                    onNextWindow={() => handleShiftScheduleWindow(3)}
+                    onSelectDate={handleSelectDate}
+                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                    onRefresh={() => {
+                      void loadVisitPlanData(session, {
+                        search: deferredSearchText,
+                        status: activeStatusFilter,
+                      });
+                    }}
+                    onOpenVisitPlan={(id) => {
+                      const visitPlan = visitPlans.find((item) => item.id === id);
+                      if (visitPlan) {
+                        handleSelectDate(visitPlan.date);
+                      }
+                    }}
+                    onEditVisitPlan={openEditModal}
+                    compactLayout={isCompactLayout}
+                  />
+                </View>
               </View>
             </View>
-          ) : null}
+          </ScrollView>
+        ) : null}
 
-          {activePage === 'clients' ? (
-            <ClientWorkspaceScreen
-              clients={clients}
-              loadingClients={loadingClients}
-              loadingWorkspace={loadingClientWorkspace}
-              searchText={clientSearchText}
-              onChangeSearchText={setClientSearchText}
-              selectedClientId={selectedClientId}
-              onSelectClient={(clientId) => {
-                setClientWorkspaceTab('timeline');
-                setSelectedClientId(clientId);
-              }}
-              summary={clientSummary}
-              activeTab={clientWorkspaceTab}
-              onChangeTab={setClientWorkspaceTab}
-              timeline={clientTimeline}
-              contacts={clientContacts}
-              opportunities={clientOpportunities}
-              files={clientFiles}
-              notes={clientNotes}
-              visitPlans={clientVisitPlans}
-            />
-          ) : null}
+        {activePage === 'clients' ? (
+          <View style={styles.clientPageContainer}>
+            <View style={[styles.appShell, { flex: 1, minHeight: 0 }]}>
+              <ClientWorkspaceScreen
+                clients={clients}
+                loadingClients={loadingClients}
+                loadingWorkspace={loadingClientWorkspace}
+                searchText={clientSearchText}
+                onChangeSearchText={setClientSearchText}
+                selectedClientId={selectedClientId}
+                onSelectClient={(clientId) => {
+                  setClientWorkspaceTab('timeline');
+                  setSelectedClientId(clientId);
+                }}
+                summary={clientSummary}
+                activeTab={clientWorkspaceTab}
+                onChangeTab={setClientWorkspaceTab}
+                timeline={clientTimeline}
+                contacts={clientContacts}
+                opportunities={clientOpportunities}
+                files={clientFiles}
+                notes={clientNotes}
+                visitPlans={clientVisitPlans}
+              />
+            </View>
+          </View>
+        ) : null}
 
-          {activePage === 'review' ? (
-            <ReviewScreen
-              visitPlans={visitPlans}
-              onEditVisitPlan={openEditModal}
-              onJumpToPlanDate={handleSelectDate}
-            />
-          ) : null}
-        </View>
-      </ScrollView>
+        {activePage === 'review' ? (
+          <ScrollView
+            contentContainerStyle={styles.appScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.appShell}>
+              <ReviewScreen
+                visitPlans={visitPlans}
+                onEditVisitPlan={openEditModal}
+                onJumpToPlanDate={handleSelectDate}
+              />
+            </View>
+          </ScrollView>
+        ) : null}
+      </View>
 
       <BottomNavigation activePage={activePage} onChangePage={setActivePage} />
 

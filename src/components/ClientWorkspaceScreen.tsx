@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { BackHandler, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { styles } from '../styles';
 import type {
   ClientContact,
@@ -77,6 +77,32 @@ export function ClientWorkspaceScreen({
     }
   }, [selectedClientId]);
 
+  useEffect(() => {
+    if (viewMode !== 'detail') return;
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      setViewMode('directory');
+      return true;
+    });
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setViewMode('directory');
+      }
+    }
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      backHandler.remove();
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+  }, [viewMode]);
+
   function handleOpenClient(clientId: number) {
     onSelectClient(clientId);
     setViewMode('detail');
@@ -84,9 +110,9 @@ export function ClientWorkspaceScreen({
 
   if (viewMode === 'directory') {
     return (
-      <View style={styles.pageStack}>
-        <View style={styles.clientDirectoryShell}>
-          <View style={styles.sectionCard}>
+      <View style={{ flex: 1, minHeight: 0 }}>
+        <View style={[styles.clientDirectoryShell, { flex: 1, minHeight: 0 }]}>
+          <View style={[styles.sectionCard, { flex: 1, minHeight: 0 }]}>
             <Text style={styles.sectionTitle}>Clients</Text>
             <Text style={styles.sectionSubtitle}>Search by company name, status, or source.</Text>
 
@@ -98,7 +124,11 @@ export function ClientWorkspaceScreen({
               style={[styles.input, styles.searchInput, styles.clientSearchInput]}
             />
 
-            <ScrollView style={styles.clientListScroll} contentContainerStyle={styles.clientListStack}>
+            <ScrollView
+              style={styles.clientListScroll}
+              contentContainerStyle={styles.clientListStack}
+              showsVerticalScrollIndicator={true}
+            >
               {loadingClients ? (
                 <Text style={styles.lookupHint}>Loading clients...</Text>
               ) : clients.length === 0 ? (
@@ -135,19 +165,18 @@ export function ClientWorkspaceScreen({
   }
 
   return (
-    <ScrollView
-      style={styles.clientDetailScroll}
-      contentContainerStyle={styles.clientDetailScrollContent}
-      showsVerticalScrollIndicator={false}
-      nestedScrollEnabled
-    >
-      <View style={styles.clientDetailColumn}>
-        <View style={styles.clientDetailHeaderRow}>
-          <Pressable onPress={() => setViewMode('directory')} style={styles.secondaryButtonMutedCompact}>
-            <Text style={styles.secondaryButtonText}>Back to Clients</Text>
-          </Pressable>
-        </View>
+    <View style={{ flex: 1, minHeight: 0 }}>
+      <View style={styles.clientDetailHeaderRow}>
+        <Pressable onPress={() => setViewMode('directory')} style={styles.secondaryButtonMutedCompact}>
+          <Text style={styles.secondaryButtonText}>← Back to Clients</Text>
+        </Pressable>
+      </View>
 
+      <ScrollView
+        style={{ flex: 1, minHeight: 0 }}
+        contentContainerStyle={styles.clientDetailScrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         {!currentSummary ? (
           <View style={styles.sectionCard}>
             <Text style={styles.lookupHint}>Loading client workspace...</Text>
@@ -284,8 +313,8 @@ export function ClientWorkspaceScreen({
             </View>
           </>
         )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

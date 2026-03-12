@@ -143,6 +143,9 @@ export const styles = StyleSheet.create({
 		marginTop: 18,
 		gap: 12,
 	},
+	appOuterShell: {
+		flex: 1,
+	},
 	appShell: {
 		width: '100%',
 		maxWidth: 1280,
@@ -151,6 +154,9 @@ export const styles = StyleSheet.create({
 	},
 	appScrollContent: {
 		paddingBottom: 32,
+	},
+	clientPageContainer: {
+		flex: 1,
 	},
 	heroHeader: {
 		borderRadius: 24,
@@ -820,32 +826,37 @@ export const styles = StyleSheet.create({
 		gap: 16,
 	},
 	clientDetailScroll: {
+		flex: 1,
 		width: '100%',
 	},
 	clientDetailScrollContent: {
 		gap: 16,
-		paddingBottom: 6,
+		paddingBottom: 40,
 	},
 	clientDirectoryShell: {
+		flex: 1,
 		width: '100%',
 		maxWidth: 720,
+		minHeight: 0,
 	},
 	clientDetailHeaderRow: {
 		flexDirection: 'row',
 		justifyContent: 'flex-start',
 		alignItems: 'center',
 		gap: 10,
+		paddingVertical: 8,
 	},
 	clientSearchInput: {
 		marginTop: 14,
 	},
 	clientListScroll: {
 		marginTop: 14,
-		maxHeight: 640,
+		flex: 1,
+		minHeight: 0,
 	},
 	clientListStack: {
 		gap: 10,
-		paddingBottom: 2,
+		paddingBottom: 24,
 	},
 	clientListCard: {
 		borderRadius: 18,
