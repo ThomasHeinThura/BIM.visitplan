@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { styles } from '../styles';
 import type {
@@ -68,17 +68,24 @@ export function ClientWorkspaceScreen({
   notes: ClientNoteRecord[];
   visitPlans: VisitPlan[];
 }) {
-  return (
-    <View style={styles.pageStack}>
-      <View style={styles.pageHeaderCard}>
-        <Text style={styles.pageTitle}>Client Workspace</Text>
-        <Text style={styles.pageSubtitle}>
-          Browse clients, then inspect timeline, contacts, opportunities, files, notes, visit plans, and technology stacks.
-        </Text>
-      </View>
+  const [viewMode, setViewMode] = useState<'directory' | 'detail'>('directory');
+  const currentSummary = summary && summary.id === selectedClientId ? summary : null;
 
-      <View style={styles.clientWorkspaceLayout}>
-        <View style={styles.clientDirectoryColumn}>
+  useEffect(() => {
+    if (!selectedClientId) {
+      setViewMode('directory');
+    }
+  }, [selectedClientId]);
+
+  function handleOpenClient(clientId: number) {
+    onSelectClient(clientId);
+    setViewMode('detail');
+  }
+
+  if (viewMode === 'directory') {
+    return (
+      <View style={styles.pageStack}>
+        <View style={styles.clientDirectoryShell}>
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Clients</Text>
             <Text style={styles.sectionSubtitle}>Search by company name, status, or source.</Text>
@@ -103,7 +110,7 @@ export function ClientWorkspaceScreen({
                   return (
                     <Pressable
                       key={client.id}
-                      onPress={() => onSelectClient(client.id)}
+                      onPress={() => handleOpenClient(client.id)}
                       style={({ pressed }) => [
                         styles.clientListCard,
                         active ? styles.clientListCardActive : null,
@@ -123,148 +130,155 @@ export function ClientWorkspaceScreen({
             </ScrollView>
           </View>
         </View>
+      </View>
+    );
+  }
 
-        <View style={styles.clientDetailColumn}>
-          {!summary ? (
+  return (
+    <View style={styles.pageStack}>
+      <View style={styles.clientDetailColumn}>
+        <View style={styles.clientDetailHeaderRow}>
+          <Pressable onPress={() => setViewMode('directory')} style={styles.secondaryButtonMutedCompact}>
+            <Text style={styles.secondaryButtonText}>Back to Clients</Text>
+          </Pressable>
+        </View>
+
+        {!currentSummary ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.lookupHint}>Loading client workspace...</Text>
+          </View>
+        ) : (
+          <>
             <View style={styles.sectionCard}>
-              <Text style={styles.emptyStateTitle}>Select a client</Text>
-              <Text style={styles.emptyStateDescription}>
-                Pick a client from the directory to load the workspace tabs.
+              <Text style={styles.sectionTitle}>{currentSummary.name}</Text>
+              <Text style={styles.sectionSubtitle}>
+                {currentSummary.status || 'No status'} | {currentSummary.source || 'No source'}
               </Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>{summary.name}</Text>
-                <Text style={styles.sectionSubtitle}>
-                  {summary.status || 'No status'} | {summary.source || 'No source'}
-                </Text>
 
-                <View style={styles.clientSummaryGrid}>
-                  <View style={styles.summaryStatCard}>
-                    <Text style={styles.summaryStatLabel}>Contacts</Text>
-                    <Text style={styles.summaryStatValue}>{summary.counts.contacts || 0}</Text>
-                  </View>
-                  <View style={styles.summaryStatCard}>
-                    <Text style={styles.summaryStatLabel}>Visit Plans</Text>
-                    <Text style={styles.summaryStatValue}>{summary.counts.visit_plans || 0}</Text>
-                  </View>
-                  <View style={styles.summaryStatCard}>
-                    <Text style={styles.summaryStatLabel}>Opportunities</Text>
-                    <Text style={styles.summaryStatValue}>{summary.counts.opportunities || 0}</Text>
-                  </View>
-                  <View style={styles.summaryStatCard}>
-                    <Text style={styles.summaryStatLabel}>Open Tickets</Text>
-                    <Text style={styles.summaryStatValue}>{summary.counts.tickets_open || 0}</Text>
-                  </View>
+              <View style={styles.clientSummaryGrid}>
+                <View style={styles.summaryStatCard}>
+                  <Text style={styles.summaryStatLabel}>Contacts</Text>
+                  <Text style={styles.summaryStatValue}>{currentSummary.counts.contacts || 0}</Text>
+                </View>
+                <View style={styles.summaryStatCard}>
+                  <Text style={styles.summaryStatLabel}>Visit Plans</Text>
+                  <Text style={styles.summaryStatValue}>{currentSummary.counts.visit_plans || 0}</Text>
+                </View>
+                <View style={styles.summaryStatCard}>
+                  <Text style={styles.summaryStatLabel}>Opportunities</Text>
+                  <Text style={styles.summaryStatValue}>{currentSummary.counts.opportunities || 0}</Text>
+                </View>
+                <View style={styles.summaryStatCard}>
+                  <Text style={styles.summaryStatLabel}>Open Tickets</Text>
+                  <Text style={styles.summaryStatValue}>{currentSummary.counts.tickets_open || 0}</Text>
                 </View>
               </View>
+            </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipRow}>
-                {CLIENT_TABS.map((tab) => {
-                  const active = tab.id === activeTab;
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipRow}>
+              {CLIENT_TABS.map((tab) => {
+                const active = tab.id === activeTab;
 
-                  return (
-                    <Pressable
-                      key={tab.id}
-                      onPress={() => onChangeTab(tab.id)}
-                      style={({ pressed }) => [
-                        styles.workspaceTabButton,
-                        active ? styles.workspaceTabButtonActive : null,
-                        pressed ? styles.filterChipPressed : null,
-                      ]}
-                    >
-                      <Text style={active ? styles.workspaceTabButtonTextActive : styles.workspaceTabButtonText}>
-                        {tab.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <View style={styles.sectionCard}>
-                {loadingWorkspace ? (
-                  <Text style={styles.lookupHint}>Loading client workspace...</Text>
-                ) : activeTab === 'timeline' ? (
-                  <EntityList
-                    emptyTitle="No timeline activity"
-                    emptyDescription="There are no timeline events for this client yet."
-                    items={timeline.map((event) => ({
-                      id: event.id,
-                      title: event.parent_title || event.item_lang || event.item || 'Activity',
-                      meta: `${event.created_at || 'Unknown date'}${event.creator?.name ? ` | ${event.creator.name}` : ''}`,
-                      body: event.content || event.content_secondary || 'No event details available.',
-                    }))}
-                  />
-                ) : activeTab === 'details' ? (
-                  <ClientDetails summary={summary} />
-                ) : activeTab === 'contacts' ? (
-                  <EntityList
-                    emptyTitle="No contacts"
-                    emptyDescription="No client contacts were returned for this account."
-                    items={contacts.map((contact) => ({
-                      id: contact.id,
-                      title: contact.name,
-                      meta: `${contact.position || 'No position'}${contact.account_owner ? ' | Account owner' : ''}`,
-                      body: `${contact.email || 'No email'}${contact.phone ? ` | ${contact.phone}` : ''}`,
-                    }))}
-                  />
-                ) : activeTab === 'opportunities' ? (
-                  <EntityList
-                    emptyTitle="No opportunities"
-                    emptyDescription="No renewal opportunities were returned for this client."
-                    items={opportunities.map((opportunity) => ({
-                      id: opportunity.id,
-                      title: opportunity.title || 'Untitled opportunity',
-                      meta: `${opportunity.status || 'No status'}${opportunity.probability != null ? ` | Probability ${opportunity.probability}` : ''}`,
-                      body: opportunity.description || 'No opportunity description available.',
-                    }))}
-                  />
-                ) : activeTab === 'files' ? (
-                  <EntityList
-                    emptyTitle="No files"
-                    emptyDescription="No files were returned for this client."
-                    items={files.map((file) => ({
-                      id: file.id,
-                      title: file.title || file.filename || 'Untitled file',
-                      meta: `${file.mime || 'Unknown type'}${file.created_at ? ` | ${file.created_at}` : ''}`,
-                      body: file.filename || 'No filename available.',
-                    }))}
-                  />
-                ) : activeTab === 'notes' ? (
-                  <EntityList
-                    emptyTitle="No notes"
-                    emptyDescription="No notes were returned for this client."
-                    items={notes.map((note) => ({
-                      id: note.id,
-                      title: note.title || 'Untitled note',
-                      meta: `${note.created_at || 'Unknown date'}${note.creator?.name ? ` | ${note.creator.name}` : ''}`,
-                      body: note.description || 'No note body available.',
-                    }))}
-                  />
-                ) : activeTab === 'visitplan' ? (
-                  <EntityList
-                    emptyTitle="No visit plans"
-                    emptyDescription="No visit plans were returned for this client."
-                    items={visitPlans.map((visitPlan) => ({
-                      id: visitPlan.id,
-                      title: visitPlan.title,
-                      meta: `${visitPlan.date} | ${visitPlan.start_time} - ${visitPlan.end_time}`,
-                      body: visitPlan.agenda,
-                    }))}
-                  />
-                ) : (
-                  <View style={styles.detailSectionCard}>
-                    <Text style={styles.detailSectionTitle}>Technology Stack</Text>
-                    <Text style={styles.detailBodyMuted}>
-                      {summary.technology_stack?.trim() || 'No technology stack recorded for this client.'}
+                return (
+                  <Pressable
+                    key={tab.id}
+                    onPress={() => onChangeTab(tab.id)}
+                    style={({ pressed }) => [
+                      styles.workspaceTabButton,
+                      active ? styles.workspaceTabButtonActive : null,
+                      pressed ? styles.filterChipPressed : null,
+                    ]}
+                  >
+                    <Text style={active ? styles.workspaceTabButtonTextActive : styles.workspaceTabButtonText}>
+                      {tab.label}
                     </Text>
-                  </View>
-                )}
-              </View>
-            </>
-          )}
-        </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.sectionCard}>
+              {loadingWorkspace ? (
+                <Text style={styles.lookupHint}>Loading client workspace...</Text>
+              ) : activeTab === 'timeline' ? (
+                <EntityList
+                  emptyTitle="No timeline activity"
+                  emptyDescription="There are no timeline events for this client yet."
+                  items={timeline.map((event) => ({
+                    id: event.id,
+                    title: event.parent_title || event.item_lang || event.item || 'Activity',
+                    meta: `${event.created_at || 'Unknown date'}${event.creator?.name ? ` | ${event.creator.name}` : ''}`,
+                    body: event.content || event.content_secondary || 'No event details available.',
+                  }))}
+                />
+              ) : activeTab === 'details' ? (
+                <ClientDetails summary={currentSummary} />
+              ) : activeTab === 'contacts' ? (
+                <EntityList
+                  emptyTitle="No contacts"
+                  emptyDescription="No client contacts were returned for this account."
+                  items={contacts.map((contact) => ({
+                    id: contact.id,
+                    title: contact.name,
+                    meta: `${contact.position || 'No position'}${contact.account_owner ? ' | Account owner' : ''}`,
+                    body: `${contact.email || 'No email'}${contact.phone ? ` | ${contact.phone}` : ''}`,
+                  }))}
+                />
+              ) : activeTab === 'opportunities' ? (
+                <EntityList
+                  emptyTitle="No opportunities"
+                  emptyDescription="No renewal opportunities were returned for this client."
+                  items={opportunities.map((opportunity) => ({
+                    id: opportunity.id,
+                    title: opportunity.title || 'Untitled opportunity',
+                    meta: `${opportunity.status || 'No status'}${opportunity.probability != null ? ` | Probability ${opportunity.probability}` : ''}`,
+                    body: opportunity.description || 'No opportunity description available.',
+                  }))}
+                />
+              ) : activeTab === 'files' ? (
+                <EntityList
+                  emptyTitle="No files"
+                  emptyDescription="No files were returned for this client."
+                  items={files.map((file) => ({
+                    id: file.id,
+                    title: file.title || file.filename || 'Untitled file',
+                    meta: `${file.mime || 'Unknown type'}${file.created_at ? ` | ${file.created_at}` : ''}`,
+                    body: file.filename || 'No filename available.',
+                  }))}
+                />
+              ) : activeTab === 'notes' ? (
+                <EntityList
+                  emptyTitle="No notes"
+                  emptyDescription="No notes were returned for this client."
+                  items={notes.map((note) => ({
+                    id: note.id,
+                    title: note.title || 'Untitled note',
+                    meta: `${note.created_at || 'Unknown date'}${note.creator?.name ? ` | ${note.creator.name}` : ''}`,
+                    body: note.description || 'No note body available.',
+                  }))}
+                />
+              ) : activeTab === 'visitplan' ? (
+                <EntityList
+                  emptyTitle="No visit plans"
+                  emptyDescription="No visit plans were returned for this client."
+                  items={visitPlans.map((visitPlan) => ({
+                    id: visitPlan.id,
+                    title: visitPlan.title,
+                    meta: `${visitPlan.date} | ${visitPlan.start_time} - ${visitPlan.end_time}`,
+                    body: visitPlan.agenda,
+                  }))}
+                />
+              ) : (
+                <View style={styles.detailSectionCard}>
+                  <Text style={styles.detailSectionTitle}>Technology Stack</Text>
+                  <Text style={styles.detailBodyMuted}>
+                    {currentSummary.technology_stack?.trim() || 'No technology stack recorded for this client.'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </View>
     </View>
   );

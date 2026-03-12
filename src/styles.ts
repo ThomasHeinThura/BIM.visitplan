@@ -819,6 +819,16 @@ export const styles = StyleSheet.create({
 		minWidth: 320,
 		gap: 16,
 	},
+	clientDirectoryShell: {
+		width: '100%',
+		maxWidth: 720,
+	},
+	clientDetailHeaderRow: {
+		flexDirection: 'row',
+		justifyContent: 'flex-start',
+		alignItems: 'center',
+		gap: 10,
+	},
 	clientSearchInput: {
 		marginTop: 14,
 	},

@@ -1,69 +1,60 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { styles } from '../styles';
 import type { VisitPlan } from '../types';
-import { VisitPlanSummary } from './VisitPlanSummary';
 
 export function ReviewScreen({
   visitPlans,
-  weeklyPlans,
-  weekRangeLabel,
-  selectedDate,
-  scopeLabel,
-  userName,
   onEditVisitPlan,
   onJumpToPlanDate,
-  onCreateVisitPlan,
 }: {
   visitPlans: VisitPlan[];
-  weeklyPlans: number;
-  weekRangeLabel: string;
-  selectedDate: string;
-  scopeLabel: string;
-  userName: string;
   onEditVisitPlan: (visitPlan: VisitPlan) => void;
   onJumpToPlanDate: (date: string) => void;
-  onCreateVisitPlan: () => void;
 }) {
-  const completedPlans = visitPlans.filter((visitPlan) => visitPlan.status_id === 2).length;
-  const inProgressPlans = visitPlans.filter((visitPlan) => visitPlan.status_id === 1).length;
+  const sortedPlans = [...visitPlans].sort((left, right) => {
+    const leftKey = `${left.date} ${left.start_time}`;
+    const rightKey = `${right.date} ${right.start_time}`;
+    return leftKey.localeCompare(rightKey);
+  });
 
   return (
     <View style={styles.pageStack}>
-      <View style={styles.pageHeaderCard}>
-        <Text style={styles.pageTitle}>Review</Text>
-        <Text style={styles.pageSubtitle}>
-          Reporting and loaded summary views for the current visit plan dataset.
-        </Text>
-      </View>
-
-      <View style={styles.reviewMetricGrid}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Loaded plans</Text>
-          <Text style={styles.metricValue}>{visitPlans.length}</Text>
+      {sortedPlans.length === 0 ? (
+        <View style={styles.sectionCard}>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>No visit plans found</Text>
+            <Text style={styles.emptyStateDescription}>There are no loaded visit plans to review.</Text>
+          </View>
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>In progress</Text>
-          <Text style={styles.metricValue}>{inProgressPlans}</Text>
+      ) : (
+        <View style={styles.entityListStack}>
+          {sortedPlans.map((visitPlan) => (
+            <View key={visitPlan.id} style={styles.summaryListCard}>
+              <View style={styles.visitPlanCardHeader}>
+                <View style={styles.visitPlanCardTitleWrap}>
+                  <Text style={styles.visitPlanCardTitle} numberOfLines={2}>{visitPlan.title}</Text>
+                  <Text style={styles.visitPlanCardMeta} numberOfLines={1}>{visitPlan.client_name || 'No client selected'}</Text>
+                </View>
+                <Text style={styles.visitPlanCardBadge}>{visitPlan.status}</Text>
+              </View>
+              <Text style={styles.visitPlanCardMeta}>{visitPlan.date} | {visitPlan.start_time} - {visitPlan.end_time}</Text>
+              <Text style={styles.visitPlanCardMeta}>Creator: {visitPlan.creator?.name || 'Unknown'}</Text>
+              <Text style={styles.detailBodyMuted} numberOfLines={2}>{visitPlan.agenda}</Text>
+              <View style={styles.inlineButtonRowCompact}>
+                <Pressable onPress={() => onJumpToPlanDate(visitPlan.date)} style={styles.secondaryButtonMuted}>
+                  <Text style={styles.secondaryButtonText}>Show Day</Text>
+                </Pressable>
+                {visitPlan.permissions?.can_edit ? (
+                  <Pressable onPress={() => onEditVisitPlan(visitPlan)} style={styles.primaryButtonSmall}>
+                    <Text style={styles.primaryButtonText}>Edit</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ))}
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Completed</Text>
-          <Text style={styles.metricValue}>{completedPlans}</Text>
-        </View>
-      </View>
-
-      <VisitPlanSummary
-        visitPlans={visitPlans}
-        userName={userName}
-        weeklyPlans={weeklyPlans}
-        scopeLabel={scopeLabel}
-        selectedDate={selectedDate}
-        weekRangeLabel={weekRangeLabel}
-        onEditVisitPlan={onEditVisitPlan}
-        onJumpToPlanDate={onJumpToPlanDate}
-        onCreateVisitPlan={onCreateVisitPlan}
-        showSessionBanner={false}
-      />
+      )}
     </View>
   );
 }

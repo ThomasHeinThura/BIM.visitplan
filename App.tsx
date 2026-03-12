@@ -486,8 +486,19 @@ export default function App() {
           {banner ? <Banner banner={banner} /> : null}
 
           {activePage === 'visitplans' ? (
-            <View style={[styles.contentRow, isCompactLayout ? styles.contentRowStacked : null]}>
-              <View style={styles.mainColumn}>
+            <View style={styles.pageStack}>
+              <View style={styles.sideColumnFull}>
+                <VisitPlanSummary
+                  userName={userName}
+                  weeklyPlans={weeklyPlans}
+                  scopeLabel={scopeLabel}
+                  weekRangeLabel={weekRangeLabel}
+                  onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                  showSessionBanner={false}
+                />
+              </View>
+
+              <View style={styles.mainColumnFull}>
                 <CalendarBoard
                   selectedDate={selectedDate}
                   visitPlans={visitPlans}
@@ -516,21 +527,6 @@ export default function App() {
                   compactLayout={isCompactLayout}
                 />
               </View>
-
-              <View style={styles.sideColumn}>
-                <VisitPlanSummary
-                  visitPlans={visitPlans}
-                  userName={userName}
-                  weeklyPlans={weeklyPlans}
-                  scopeLabel={scopeLabel}
-                  selectedDate={selectedDate}
-                  weekRangeLabel={weekRangeLabel}
-                  onEditVisitPlan={openEditModal}
-                  onJumpToPlanDate={handleSelectDate}
-                  onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                  showSessionBanner={false}
-                />
-              </View>
             </View>
           ) : null}
 
@@ -542,7 +538,10 @@ export default function App() {
               searchText={clientSearchText}
               onChangeSearchText={setClientSearchText}
               selectedClientId={selectedClientId}
-              onSelectClient={setSelectedClientId}
+              onSelectClient={(clientId) => {
+                setClientWorkspaceTab('timeline');
+                setSelectedClientId(clientId);
+              }}
               summary={clientSummary}
               activeTab={clientWorkspaceTab}
               onChangeTab={setClientWorkspaceTab}
@@ -558,14 +557,8 @@ export default function App() {
           {activePage === 'review' ? (
             <ReviewScreen
               visitPlans={visitPlans}
-              weeklyPlans={weeklyPlans}
-              weekRangeLabel={weekRangeLabel}
-              selectedDate={selectedDate}
-              scopeLabel={scopeLabel}
-              userName={userName}
               onEditVisitPlan={openEditModal}
               onJumpToPlanDate={handleSelectDate}
-              onCreateVisitPlan={() => openCreateModal(selectedDate)}
             />
           ) : null}
         </View>
