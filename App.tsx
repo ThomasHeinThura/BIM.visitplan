@@ -4,14 +4,26 @@ import React, { useDeferredValue, useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_API_BASE_URL } from './src/config';
 import { Banner } from './src/components/Banner';
+import { BottomNavigation, type AppPage } from './src/components/BottomNavigation';
 import { CalendarBoard } from './src/components/CalendarBoard';
+import { ClientWorkspaceScreen, type ClientWorkspaceTab } from './src/components/ClientWorkspaceScreen';
 import { LoginScreen } from './src/components/LoginScreen';
+import { ReviewScreen } from './src/components/ReviewScreen';
 import { VisitPlanModal } from './src/components/VisitPlanModal';
 import { VisitPlanSummary } from './src/components/VisitPlanSummary';
+import { WorkspaceHeader } from './src/components/WorkspaceHeader';
 import {
   ApiError,
   createVisitPlan,
+  getClientWorkspace,
   getMe,
+  listClientContacts,
+  listClientFiles,
+  listClientNotes,
+  listClientOpportunities,
+  listClients,
+  listClientTimeline,
+  listClientVisitPlans,
   listResource,
   listVisitPlans,
   login,
@@ -20,6 +32,13 @@ import {
 import { styles } from './src/styles';
 import type {
   AuthUser,
+  ClientContact,
+  ClientFileRecord,
+  ClientListItem,
+  ClientNoteRecord,
+  ClientOpportunity,
+  ClientTimelineEvent,
+  ClientWorkspaceSummary,
   LookupItem,
   VisitPlan,
   VisitPlanDraft,
@@ -35,7 +54,6 @@ import {
   formatDateForApi,
   formatWeekRange,
   getWeekBounds,
-  mapLookupItem,
   toFriendlyMessage,
   validateDraft,
 } from './src/utils/visitplan';
@@ -66,6 +84,7 @@ type LoginFormState = {
 };
 
 type ModalMode = 'create' | 'edit';
+
 const SESSION_STORAGE_KEY = 'bim.visitplan.session';
 
 export default function App() {
@@ -80,6 +99,8 @@ export default function App() {
   });
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [activePage, setActivePage] = useState<AppPage>('visitplans');
+
   const [visitPlans, setVisitPlans] = useState<VisitPlan[]>([]);
   const [visitPlanMeta, setVisitPlanMeta] = useState<VisitPlanListResponse['meta'] | null>(null);
   const [loadingVisitPlans, setLoadingVisitPlans] = useState(false);
@@ -106,6 +127,21 @@ export default function App() {
   });
   const [submittingDraft, setSubmittingDraft] = useState(false);
 
+  const [clientSearchText, setClientSearchText] = useState('');
+  const deferredClientSearchText = useDeferredValue(clientSearchText);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [clientWorkspaceTab, setClientWorkspaceTab] = useState<ClientWorkspaceTab>('timeline');
+  const [loadingClientWorkspace, setLoadingClientWorkspace] = useState(false);
+  const [clientSummary, setClientSummary] = useState<ClientWorkspaceSummary | null>(null);
+  const [clientTimeline, setClientTimeline] = useState<ClientTimelineEvent[]>([]);
+  const [clientContacts, setClientContacts] = useState<ClientContact[]>([]);
+  const [clientOpportunities, setClientOpportunities] = useState<ClientOpportunity[]>([]);
+  const [clientFiles, setClientFiles] = useState<ClientFileRecord[]>([]);
+  const [clientNotes, setClientNotes] = useState<ClientNoteRecord[]>([]);
+  const [clientVisitPlans, setClientVisitPlans] = useState<VisitPlan[]>([]);
+
   useEffect(() => {
     void restorePersistedSession();
   }, []);
@@ -115,11 +151,27 @@ export default function App() {
       return;
     }
 
-    void loadDashboardData(session, {
+    void loadVisitPlanData(session, {
       search: deferredSearchText,
       status: activeStatusFilter,
     });
   }, [session, deferredSearchText, activeStatusFilter]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    void loadClientDirectory(session, deferredClientSearchText);
+  }, [session, deferredClientSearchText]);
+
+  useEffect(() => {
+    if (!session || !selectedClientId) {
+      return;
+    }
+
+    void loadClientWorkspaceData(session, selectedClientId);
+  }, [session, selectedClientId]);
 
   const canAssignMembers = Boolean(session?.permissions.can_create || session?.permissions.can_edit);
   const visibleClients = filterLookupItems(lookups.clients, lookupQueries.client, 25);
@@ -134,6 +186,8 @@ export default function App() {
     (visitPlan) => visitPlan.date >= currentWeek.start && visitPlan.date <= currentWeek.end,
   ).length;
   const weekRangeLabel = formatWeekRange(currentWeek.start, currentWeek.end);
+  const userName = session ? `${session.user.first_name} ${session.user.last_name}`.trim() : '';
+  const scopeLabel = session?.permissions.can_view_all ? 'Global' : 'Own';
 
   async function handleLogin() {
     if (!loginForm.email || !loginForm.password || !loginForm.baseUrl) {
@@ -165,8 +219,9 @@ export default function App() {
       };
 
       setSession(nextSession);
+      setActivePage('visitplans');
       await persistSession(nextSession);
-      setBanner({ tone: 'success', message: 'Signed in. Loading visit plan workspace...' });
+      setBanner({ tone: 'success', message: 'Signed in. Loading workspace...' });
     } catch (error) {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
     } finally {
@@ -174,7 +229,7 @@ export default function App() {
     }
   }
 
-  async function loadDashboardData(
+  async function loadVisitPlanData(
     currentSession: SessionState,
     filters: { search: string; status: number | null },
   ) {
@@ -182,13 +237,15 @@ export default function App() {
     setLoadingLookups(true);
 
     try {
-      const [visitPlanResponse, clients, years, quarters, team] = await Promise.all([
+      const [visitPlanResponse, clientsResponse, years, quarters, team] = await Promise.all([
         listVisitPlans(currentSession.baseUrl, currentSession.token, {
           q: filters.search.trim() || undefined,
           status: filters.status ?? undefined,
           per_page: 250,
         }),
-        listResource(currentSession.baseUrl, currentSession.token, 'clients', 250),
+        listClients(currentSession.baseUrl, currentSession.token, {
+          q: clientSearchText.trim() || undefined,
+        }),
         listResource(currentSession.baseUrl, currentSession.token, 'financial-years', 50),
         listResource(currentSession.baseUrl, currentSession.token, 'financial-quarters', 30),
         listResource(currentSession.baseUrl, currentSession.token, 'team', 250),
@@ -197,16 +254,85 @@ export default function App() {
       setVisitPlans(visitPlanResponse.data);
       setVisitPlanMeta(visitPlanResponse.meta);
       setLookups({
-        clients: clients.map((item) => mapLookupItem(item, 'client')),
-        financialYears: years.map((item) => mapLookupItem(item, 'financialYear')),
-        financialQuarters: quarters.map((item) => mapLookupItem(item, 'financialQuarter')),
-        team: team.map((item) => mapLookupItem(item, 'team')),
+        clients: clientsResponse.data.map((item) => ({
+          id: item.id,
+          label: item.name,
+          subtitle: item.status || undefined,
+        })),
+        financialYears: years.map((item) => ({ id: Number(item.id ?? 0), label: String(item.name ?? 'Unknown') })),
+        financialQuarters: quarters.map((item) => ({ id: Number(item.id ?? 0), label: String(item.name ?? 'Unknown') })),
+        team: team.map((item) => ({
+          id: Number(item.id ?? 0),
+          label: `${String(item.first_name ?? '')} ${String(item.last_name ?? '')}`.trim() || String(item.email ?? 'Unknown team member'),
+          subtitle: String((item.role as { role_name?: string } | undefined)?.role_name ?? item.email ?? ''),
+        })),
       });
     } catch (error) {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
     } finally {
       setLoadingVisitPlans(false);
       setLoadingLookups(false);
+    }
+  }
+
+  async function loadClientDirectory(currentSession: SessionState, query: string) {
+    setLoadingClients(true);
+
+    try {
+      const response = await listClients(currentSession.baseUrl, currentSession.token, {
+        q: query.trim() || undefined,
+      });
+
+      setClients(response.data);
+      setSelectedClientId((current) => {
+        if (current && response.data.some((client) => client.id === current)) {
+          return current;
+        }
+
+        return response.data[0]?.id ?? null;
+      });
+
+      if (response.data.length === 0) {
+        setClientSummary(null);
+        setClientTimeline([]);
+        setClientContacts([]);
+        setClientOpportunities([]);
+        setClientFiles([]);
+        setClientNotes([]);
+        setClientVisitPlans([]);
+      }
+    } catch (error) {
+      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
+    } finally {
+      setLoadingClients(false);
+    }
+  }
+
+  async function loadClientWorkspaceData(currentSession: SessionState, clientId: number) {
+    setLoadingClientWorkspace(true);
+
+    try {
+      const [summary, timeline, contacts, opportunities, files, notes, visitPlansResponse] = await Promise.all([
+        getClientWorkspace(currentSession.baseUrl, currentSession.token, clientId),
+        listClientTimeline(currentSession.baseUrl, currentSession.token, clientId, { per_page: 15 }),
+        listClientContacts(currentSession.baseUrl, currentSession.token, clientId, { per_page: 20 }),
+        listClientOpportunities(currentSession.baseUrl, currentSession.token, clientId, { per_page: 20 }),
+        listClientFiles(currentSession.baseUrl, currentSession.token, clientId, { per_page: 20 }),
+        listClientNotes(currentSession.baseUrl, currentSession.token, clientId, { per_page: 20 }),
+        listClientVisitPlans(currentSession.baseUrl, currentSession.token, clientId, { per_page: 50 }),
+      ]);
+
+      setClientSummary(summary.data);
+      setClientTimeline(timeline.data);
+      setClientContacts(contacts.data);
+      setClientOpportunities(opportunities.data);
+      setClientFiles(files.data);
+      setClientNotes(notes.data);
+      setClientVisitPlans(visitPlansResponse.data);
+    } catch (error) {
+      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
+    } finally {
+      setLoadingClientWorkspace(false);
     }
   }
 
@@ -259,6 +385,7 @@ export default function App() {
         description: draft.description?.trim() || undefined,
         location_others: draft.location === 3 ? draft.location_others?.trim() || undefined : undefined,
       };
+
       const response = editingVisitPlanId
         ? await updateVisitPlan(session.baseUrl, session.token, editingVisitPlanId, payload)
         : await createVisitPlan(session.baseUrl, session.token, payload);
@@ -270,10 +397,14 @@ export default function App() {
         message: modalMode === 'edit' ? 'Visit plan updated successfully.' : 'Visit plan created successfully.',
       });
 
-      await loadDashboardData(session, {
+      await loadVisitPlanData(session, {
         search: deferredSearchText,
         status: activeStatusFilter,
       });
+
+      if (selectedClientId && draft.client_id === selectedClientId) {
+        await loadClientWorkspaceData(session, selectedClientId);
+      }
     } catch (error) {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
     } finally {
@@ -287,6 +418,16 @@ export default function App() {
     setVisitPlanMeta(null);
     setDraft(createInitialDraft());
     setIsModalVisible(false);
+    setClients([]);
+    setSelectedClientId(null);
+    setClientSummary(null);
+    setClientTimeline([]);
+    setClientContacts([]);
+    setClientOpportunities([]);
+    setClientFiles([]);
+    setClientNotes([]);
+    setClientVisitPlans([]);
+    setActivePage('visitplans');
     setBanner({ tone: 'info', message: 'Signed out.' });
     void clearPersistedSession();
   }
@@ -296,8 +437,7 @@ export default function App() {
   }
 
   function handleShiftScheduleWindow(offset: number) {
-    const nextDate = shiftIsoDate(selectedDate, offset);
-    setSelectedDate(nextDate);
+    setSelectedDate(shiftIsoDate(selectedDate, offset));
   }
 
   if (restoringSession) {
@@ -342,107 +482,96 @@ export default function App() {
 
       <ScrollView contentContainerStyle={styles.appScrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.appShell}>
+          <WorkspaceHeader userName={userName} scopeLabel={scopeLabel} onLogout={handleLogout} />
           {banner ? <Banner banner={banner} /> : null}
 
-          <View style={[styles.contentRow, isCompactLayout ? styles.contentRowStacked : null]}>
-            {isCompactLayout ? (
-              <>
-                <View style={styles.sideColumnFull}>
-                  <VisitPlanSummary
-                    visitPlans={visitPlans}
-                    userName={`${session.user.first_name} ${session.user.last_name}`.trim()}
-                    weeklyPlans={weeklyPlans}
-                    scopeLabel={session.permissions.can_view_all ? 'Global' : 'Own'}
-                    selectedDate={selectedDate}
-                    weekRangeLabel={weekRangeLabel}
-                    onEditVisitPlan={openEditModal}
-                    onJumpToPlanDate={handleSelectDate}
-                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                    onLogout={handleLogout}
-                  />
-                </View>
+          {activePage === 'visitplans' ? (
+            <View style={[styles.contentRow, isCompactLayout ? styles.contentRowStacked : null]}>
+              <View style={styles.mainColumn}>
+                <CalendarBoard
+                  selectedDate={selectedDate}
+                  visitPlans={visitPlans}
+                  loading={loadingVisitPlans}
+                  searchText={searchText}
+                  onChangeSearchText={setSearchText}
+                  activeStatusFilter={activeStatusFilter}
+                  onChangeStatusFilter={setActiveStatusFilter}
+                  onPreviousWindow={() => handleShiftScheduleWindow(-3)}
+                  onNextWindow={() => handleShiftScheduleWindow(3)}
+                  onSelectDate={handleSelectDate}
+                  onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                  onRefresh={() => {
+                    void loadVisitPlanData(session, {
+                      search: deferredSearchText,
+                      status: activeStatusFilter,
+                    });
+                  }}
+                  onOpenVisitPlan={(id) => {
+                    const visitPlan = visitPlans.find((item) => item.id === id);
+                    if (visitPlan) {
+                      handleSelectDate(visitPlan.date);
+                    }
+                  }}
+                  onEditVisitPlan={openEditModal}
+                  compactLayout={isCompactLayout}
+                />
+              </View>
 
-                <View style={styles.mainColumnFull}>
-                  <CalendarBoard
-                    selectedDate={selectedDate}
-                    visitPlans={visitPlans}
-                    loading={loadingVisitPlans}
-                    searchText={searchText}
-                    onChangeSearchText={setSearchText}
-                    activeStatusFilter={activeStatusFilter}
-                    onChangeStatusFilter={setActiveStatusFilter}
-                    onPreviousWindow={() => handleShiftScheduleWindow(-3)}
-                    onNextWindow={() => handleShiftScheduleWindow(3)}
-                    onSelectDate={handleSelectDate}
-                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                    onRefresh={() => {
-                      void loadDashboardData(session, {
-                        search: deferredSearchText,
-                        status: activeStatusFilter,
-                      });
-                    }}
-                    onOpenVisitPlan={(id) => {
-                      const visitPlan = visitPlans.find((item) => item.id === id);
-                      if (visitPlan) {
-                        handleSelectDate(visitPlan.date);
-                      }
-                    }}
-                    onEditVisitPlan={openEditModal}
-                    compactLayout={true}
-                  />
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.mainColumn}>
-                  <CalendarBoard
-                    selectedDate={selectedDate}
-                    visitPlans={visitPlans}
-                    loading={loadingVisitPlans}
-                    searchText={searchText}
-                    onChangeSearchText={setSearchText}
-                    activeStatusFilter={activeStatusFilter}
-                    onChangeStatusFilter={setActiveStatusFilter}
-                    onPreviousWindow={() => handleShiftScheduleWindow(-3)}
-                    onNextWindow={() => handleShiftScheduleWindow(3)}
-                    onSelectDate={handleSelectDate}
-                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                    onRefresh={() => {
-                      void loadDashboardData(session, {
-                        search: deferredSearchText,
-                        status: activeStatusFilter,
-                      });
-                    }}
-                    onOpenVisitPlan={(id) => {
-                      const visitPlan = visitPlans.find((item) => item.id === id);
-                      if (visitPlan) {
-                        handleSelectDate(visitPlan.date);
-                      }
-                    }}
-                    onEditVisitPlan={openEditModal}
-                    compactLayout={false}
-                  />
-                </View>
+              <View style={styles.sideColumn}>
+                <VisitPlanSummary
+                  visitPlans={visitPlans}
+                  userName={userName}
+                  weeklyPlans={weeklyPlans}
+                  scopeLabel={scopeLabel}
+                  selectedDate={selectedDate}
+                  weekRangeLabel={weekRangeLabel}
+                  onEditVisitPlan={openEditModal}
+                  onJumpToPlanDate={handleSelectDate}
+                  onCreateVisitPlan={() => openCreateModal(selectedDate)}
+                  showSessionBanner={false}
+                />
+              </View>
+            </View>
+          ) : null}
 
-                <View style={styles.sideColumn}>
-                  <VisitPlanSummary
-                    visitPlans={visitPlans}
-                    userName={`${session.user.first_name} ${session.user.last_name}`.trim()}
-                    weeklyPlans={weeklyPlans}
-                    scopeLabel={session.permissions.can_view_all ? 'Global' : 'Own'}
-                    selectedDate={selectedDate}
-                    weekRangeLabel={weekRangeLabel}
-                    onEditVisitPlan={openEditModal}
-                    onJumpToPlanDate={handleSelectDate}
-                    onCreateVisitPlan={() => openCreateModal(selectedDate)}
-                    onLogout={handleLogout}
-                  />
-                </View>
-              </>
-            )}
-          </View>
+          {activePage === 'clients' ? (
+            <ClientWorkspaceScreen
+              clients={clients}
+              loadingClients={loadingClients}
+              loadingWorkspace={loadingClientWorkspace}
+              searchText={clientSearchText}
+              onChangeSearchText={setClientSearchText}
+              selectedClientId={selectedClientId}
+              onSelectClient={setSelectedClientId}
+              summary={clientSummary}
+              activeTab={clientWorkspaceTab}
+              onChangeTab={setClientWorkspaceTab}
+              timeline={clientTimeline}
+              contacts={clientContacts}
+              opportunities={clientOpportunities}
+              files={clientFiles}
+              notes={clientNotes}
+              visitPlans={clientVisitPlans}
+            />
+          ) : null}
+
+          {activePage === 'review' ? (
+            <ReviewScreen
+              visitPlans={visitPlans}
+              weeklyPlans={weeklyPlans}
+              weekRangeLabel={weekRangeLabel}
+              selectedDate={selectedDate}
+              scopeLabel={scopeLabel}
+              userName={userName}
+              onEditVisitPlan={openEditModal}
+              onJumpToPlanDate={handleSelectDate}
+              onCreateVisitPlan={() => openCreateModal(selectedDate)}
+            />
+          ) : null}
         </View>
       </ScrollView>
+
+      <BottomNavigation activePage={activePage} onChangePage={setActivePage} />
 
       <VisitPlanModal
         visible={isModalVisible}

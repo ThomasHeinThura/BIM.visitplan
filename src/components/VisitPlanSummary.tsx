@@ -14,6 +14,7 @@ export function VisitPlanSummary({
   onJumpToPlanDate,
   onCreateVisitPlan,
   onLogout,
+  showSessionBanner = true,
 }: {
   visitPlans: VisitPlan[];
   userName: string;
@@ -24,7 +25,8 @@ export function VisitPlanSummary({
   onEditVisitPlan: (visitPlan: VisitPlan) => void;
   onJumpToPlanDate: (date: string) => void;
   onCreateVisitPlan: () => void;
-  onLogout: () => void;
+  onLogout?: () => void;
+  showSessionBanner?: boolean;
 }) {
   const sortedPlans = [...visitPlans].sort((left, right) => {
     const leftKey = `${left.date} ${left.start_time}`;
@@ -40,20 +42,24 @@ export function VisitPlanSummary({
 
   return (
     <View style={styles.sideColumnStack}>
-      <View style={styles.sessionBanner}>
-        <View style={styles.sessionIdentityRow}>
-          <View style={styles.sessionAvatar}>
-            <Text style={styles.sessionAvatarText}>{initials || 'VP'}</Text>
+      {showSessionBanner ? (
+        <View style={styles.sessionBanner}>
+          <View style={styles.sessionIdentityRow}>
+            <View style={styles.sessionAvatar}>
+              <Text style={styles.sessionAvatarText}>{initials || 'VP'}</Text>
+            </View>
+            <View style={styles.sessionIdentityText}>
+              <Text style={styles.sessionUserName}>{userName}</Text>
+              <Text style={styles.sessionUserMeta}>Scope {scopeLabel}</Text>
+            </View>
           </View>
-          <View style={styles.sessionIdentityText}>
-            <Text style={styles.sessionUserName}>{userName}</Text>
-            <Text style={styles.sessionUserMeta}>Scope {scopeLabel}</Text>
-          </View>
+          {onLogout ? (
+            <Pressable onPress={onLogout} style={styles.secondaryButtonMuted}>
+              <Text style={styles.secondaryButtonText}>Logout</Text>
+            </Pressable>
+          ) : null}
         </View>
-        <Pressable onPress={onLogout} style={styles.secondaryButtonMuted}>
-          <Text style={styles.secondaryButtonText}>Logout</Text>
-        </Pressable>
-      </View>
+      ) : null}
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Your Visit Plans</Text>

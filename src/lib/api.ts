@@ -1,6 +1,14 @@
 import type {
   AuthUser,
+  ClientContact,
+  ClientFileRecord,
+  ClientListItem,
+  ClientNoteRecord,
+  ClientOpportunity,
+  ClientTimelineEvent,
+  ClientWorkspaceSummary,
   LoginResponse,
+  PaginatedResponse,
   VisitPlan,
   VisitPlanDraft,
   VisitPlanListResponse,
@@ -112,6 +120,100 @@ export async function listResource(
   );
 
   return response.data;
+}
+
+export async function listClients(
+  baseUrl: string,
+  token: string,
+  params: Record<string, string | number | undefined>,
+): Promise<PaginatedResponse<ClientListItem>> {
+  return requestJson(baseUrl, `/api/v1/client-workspace/clients${toQueryString(params)}`, { token });
+}
+
+export async function getClientWorkspace(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+): Promise<{ data: ClientWorkspaceSummary }> {
+  return requestJson(baseUrl, `/api/v1/client-workspace/clients/${clientId}`, { token });
+}
+
+export async function listClientTimeline(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+  params: Record<string, string | number | undefined> = {},
+): Promise<PaginatedResponse<ClientTimelineEvent>> {
+  return requestJson(
+    baseUrl,
+    `/api/v1/client-workspace/clients/${clientId}/timeline${toQueryString(params)}`,
+    { token },
+  );
+}
+
+export async function listClientContacts(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+  params: Record<string, string | number | undefined> = {},
+): Promise<PaginatedResponse<ClientContact>> {
+  return requestJson(
+    baseUrl,
+    `/api/v1/client-workspace/clients/${clientId}/contacts${toQueryString(params)}`,
+    { token },
+  );
+}
+
+export async function listClientOpportunities(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+  params: Record<string, string | number | undefined> = {},
+): Promise<PaginatedResponse<ClientOpportunity>> {
+  return requestJson(
+    baseUrl,
+    `/api/v1/client-workspace/clients/${clientId}/opportunities${toQueryString(params)}`,
+    { token },
+  );
+}
+
+export async function listClientFiles(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+  params: Record<string, string | number | undefined> = {},
+): Promise<PaginatedResponse<ClientFileRecord>> {
+  return requestJson(
+    baseUrl,
+    `/api/v1/client-workspace/clients/${clientId}/files${toQueryString(params)}`,
+    { token },
+  );
+}
+
+export async function listClientNotes(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+  params: Record<string, string | number | undefined> = {},
+): Promise<PaginatedResponse<ClientNoteRecord>> {
+  return requestJson(
+    baseUrl,
+    `/api/v1/client-workspace/clients/${clientId}/notes${toQueryString(params)}`,
+    { token },
+  );
+}
+
+export async function listClientVisitPlans(
+  baseUrl: string,
+  token: string,
+  clientId: number,
+  params: Record<string, string | number | undefined> = {},
+): Promise<VisitPlanListResponse> {
+  return requestJson(
+    baseUrl,
+    `/api/v1/client-workspace/clients/${clientId}/visit-plans${toQueryString(params)}`,
+    { token },
+  );
 }
 
 async function requestJson<T>(baseUrl: string, path: string, options: RequestOptions = {}): Promise<T> {
