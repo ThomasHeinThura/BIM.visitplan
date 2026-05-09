@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts } from '../context/ThemeContext';
+import { Avatar, Icon } from './ui';
 
 type Props = {
   userName: string;
@@ -8,39 +9,37 @@ type Props = {
   title?: string;
 };
 
-export function AppHeader({ userName, onLogout, title = 'BIM Visitplan' }: Props) {
+export function AppHeader({ userName, title = 'VisitPlan' }: Props) {
   const { theme, isDark, setMode } = useTheme();
 
-  const initials = userName
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
-
   return (
-    <View style={[s.bar, { backgroundColor: theme.primary }]}>
-      <Text style={s.title}>{title}</Text>
+    <View style={[s.bar, {
+      backgroundColor: theme.surface,
+      borderBottomColor: theme.border,
+    }]}>
+      {/* Left: brand mark + title */}
+      <View style={s.left}>
+        <View style={[s.brandSquare, { backgroundColor: theme.primary }]}>
+          <Icon.BrandMark size={20} color="#fff" />
+        </View>
+        <Text style={[s.title, { color: theme.text, fontFamily: fonts.display }]}>
+          {title}
+        </Text>
+      </View>
+
+      {/* Right: theme toggle, bell, avatar */}
       <View style={s.right}>
         <Pressable
           onPress={() => setMode(isDark ? 'light' : 'dark')}
-          style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-          hitSlop={8}
-          accessibilityLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.6 }]}
+          hitSlop={6}
         >
-          <Text style={s.iconText}>{isDark ? '☀️' : '🌙'}</Text>
+          {isDark ? <Icon.Sun size={18} color={theme.textSecondary} /> : <Icon.Moon size={18} color={theme.textSecondary} />}
         </Pressable>
-        <View style={[s.avatar, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-          <Text style={s.avatarText}>{initials}</Text>
-        </View>
-        <Text style={s.userName} numberOfLines={1}>{userName.split(' ')[0]}</Text>
-        <Pressable
-          onPress={onLogout}
-          style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-          hitSlop={8}
-          accessibilityLabel="Log out"
-        >
-          <Text style={s.logoutIcon}>⏻</Text>
+        <Pressable style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.6 }]} hitSlop={6}>
+          <Icon.Bell size={18} color={theme.textSecondary} />
         </Pressable>
+        <Avatar name={userName} size={32} />
       </View>
     </View>
   );
@@ -48,52 +47,22 @@ export function AppHeader({ userName, onLogout, title = 'BIM Visitplan' }: Props
 
 const s = StyleSheet.create({
   bar: {
-    height: 52,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
+  left: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  right: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandSquare: {
+    width: 32, height: 32, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
   },
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  userName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.75)',
-    maxWidth: 80,
-  },
+  title: { fontSize: 17, fontWeight: '700', letterSpacing: 0.2 },
   iconBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  pressed: { opacity: 0.6 },
-  logoutIcon: {
-    fontSize: 15,
-    color: '#FFFFFF',
-  },
-  iconText: {
-    fontSize: 14,
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
   },
 });

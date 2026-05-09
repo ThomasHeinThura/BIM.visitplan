@@ -35,9 +35,9 @@ function UserCard({
     <View style={[styles.card, { backgroundColor: theme.surface, shadowColor: theme.cardShadow }]}>
       <Text style={[styles.cardName, { color: theme.text }]}>{u.name}</Text>
       <Text style={[styles.cardEmail, { color: theme.textSecondary }]}>{u.email}</Text>
-      {(u.job_title || u.team) && (
+      {(u.team) && (
         <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>
-          {[u.job_title, u.team].filter(Boolean).join('  ·  ')}
+          {u.team}
         </Text>
       )}
       {onApprove && onReject && (

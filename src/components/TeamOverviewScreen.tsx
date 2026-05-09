@@ -119,9 +119,9 @@ export default function TeamOverviewScreen({ currentUser }: Props) {
               <Text style={s.totalText}>{item.total} visits</Text>
             </View>
           </View>
-          {(item.user.job_title || item.user.team) && (
+          {(item.user.team) && (
             <Text style={s.meta}>
-              {[item.user.job_title, item.user.team].filter(Boolean).join('  ·  ')}
+              {item.user.team}
             </Text>
           )}
           <View style={s.statsRow}>

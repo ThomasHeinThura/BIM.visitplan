@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { useAuth } from './src/hooks/useAuth';
-import type { CockpitClient, CockpitVisit } from './src/types';
+import type { CockpitClient, CockpitVisit, UserRole } from './src/types';
 
 import { LoginScreen } from './src/components/LoginScreen';
 import PendingApprovalScreen from './src/components/PendingApprovalScreen';
@@ -20,9 +20,11 @@ import TodayDashboard from './src/components/TodayDashboard';
 import VisitListScreen from './src/components/VisitListScreen';
 import ClientListScreen from './src/components/ClientListScreen';
 import AdminScreen from './src/components/AdminScreen';
-import TeamOverviewScreen from './src/components/TeamOverviewScreen';
 import ReportsScreen from './src/components/ReportsScreen';
-import { AppHeader } from './src/components/AppHeader';
+import ProfileScreen from './src/components/ProfileScreen';
+import TeamReportScreen, { type AmKey } from './src/components/TeamReportScreen';
+import AmVisitListScreen from './src/components/AmVisitListScreen';
+import EditVisitModal, { type EditVisitContext, type VisitStatus } from './src/components/EditVisitModal';
 import CreateVisitModal from './src/components/CreateVisitModal';
 import VisitDetailModal from './src/components/VisitDetailModal';
 import ClientWorkspaceScreen from './src/components/ClientWorkspaceScreen';
@@ -38,20 +40,29 @@ function AppShell() {
   const { theme } = useTheme();
   const { status, user, role, login, logout, loginReady, error } = useAuth();
   const [activePage, setActivePage] = useState<AppPage>("today");
+  // v2.4 sub-screens reachable from Profile or Reports → Teams
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [teamReportOpen, setTeamReportOpen] = useState(false);
+  const [amDrilldown, setAmDrilldown] = useState<AmKey | null>(null);
+  // Dev role override for web preview
+  const [previewRole, setPreviewRole] = useState<UserRole | null>(null);
 
   // Modal state
   const [selectedVisit, setSelectedVisit] = useState<CockpitVisit | null>(null);
   const [selectedClient, setSelectedClient] = useState<CockpitClient | null>(null);
   const [showCreateVisit, setShowCreateVisit] = useState(false);
   const [createVisitForClient, setCreateVisitForClient] = useState<CockpitClient | null>(null);
+  const [editVisitCtx, setEditVisitCtx] = useState<EditVisitContext | null>(null);
 
   useEffect(() => {
     setActivePage("today");
   }, [status]);
 
   const handleNavigate = (page: AppPage) => {
-    if (role !== "admin" && (page === "admin" || page === "team")) return;
     setActivePage(page);
+    setAdminOpen(false);
+    setTeamReportOpen(false);
+    setAmDrilldown(null);
   };
 
   const statusBarStyle = theme.bg === "#F8FAFC" ? "dark" : "light";
@@ -101,45 +112,92 @@ function AppShell() {
     );
   }
 
-  const currentRole = role ?? "am";
+  const toEditCtx = (v: CockpitVisit): EditVisitContext => {
+    const status: VisitStatus =
+      v.status === 'completed' ? 'done'
+      : v.status === 'in_progress' ? 'active'
+      : v.status === 'missed' ? 'noshow'
+      : 'planned';
+    return {
+      id: v._id,
+      client: v.client?.name ?? v.title ?? '—',
+      date: v.date ?? '',
+      time: (v.start_time ?? '').slice(0, 5),
+      status,
+    };
+  };
+
+  const currentRole: UserRole = previewRole ?? (role ?? "am");
+  const isMgmt = currentRole === "admin" || currentRole === "management";
+
+  // Sub-screen overlays take priority over the active page content.
+  const showAdmin = adminOpen && isMgmt;
+  const showAmDrill = amDrilldown !== null && isMgmt;
+  const showTeamReport = teamReportOpen && isMgmt && !showAmDrill;
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: theme.bg }]}>
       <StatusBar style={statusBarStyle} />
       <View style={[s.content, { paddingTop: Platform.OS === "android" ? topInset : 0 }]}>
-        <AppHeader
-          userName={user.name}
-          onLogout={logout}
-        />
         <View style={{ flex: 1 }}>
-          {activePage === "today" && (
-            <TodayDashboard
-              user={user}
-              onOpenVisit={setSelectedVisit}
-              onAddVisit={() => setShowCreateVisit(true)}
+          {showAmDrill ? (
+            <AmVisitListScreen
+              amKey={amDrilldown!}
+              onBack={() => setAmDrilldown(null)}
             />
-          )}
-          {activePage === "visits" && (
-            <VisitListScreen
-              user={user}
-              onOpenVisit={setSelectedVisit}
-              onAddVisit={() => setShowCreateVisit(true)}
+          ) : showTeamReport ? (
+            <TeamReportScreen
+              onBack={() => setTeamReportOpen(false)}
+              onOpenAm={(k) => setAmDrilldown(k)}
             />
-          )}
-          {activePage === "clients" && (
-            <ClientListScreen
-              user={user}
-              onOpenClient={setSelectedClient}
-            />
-          )}
-          {activePage === "admin" && currentRole === "admin" && (
+          ) : showAdmin ? (
             <AdminScreen currentUser={user} />
-          )}
-          {activePage === "team" && currentRole === "admin" && (
-            <TeamOverviewScreen currentUser={user} />
-          )}
-          {activePage === "reports" && (
-            <ReportsScreen user={user} />
+          ) : (
+            <>
+              {activePage === "today" && (
+                <TodayDashboard
+                  user={user}
+                  onOpenVisit={setSelectedVisit}
+                  onAddVisit={() => setShowCreateVisit(true)}
+                  onEditVisit={(v) => setEditVisitCtx(toEditCtx(v))}
+                  onOpenPlan={() => setActivePage("visits")}
+                />
+              )}
+              {activePage === "visits" && (
+                <VisitListScreen
+                  user={user}
+                  onOpenVisit={setSelectedVisit}
+                  onAddVisit={() => setShowCreateVisit(true)}
+                  onEditVisit={(v) => setEditVisitCtx(toEditCtx(v))}
+                />
+              )}
+              {activePage === "clients" && (
+                <ClientListScreen
+                  user={user}
+                  onOpenClient={setSelectedClient}
+                />
+              )}
+              {activePage === "reports" && (
+                <ReportsScreen
+                  user={user}
+                  role={currentRole}
+                  onOpenTeamReport={() => setTeamReportOpen(true)}
+                />
+              )}
+              {activePage === "profile" && (
+                <ProfileScreen
+                  user={user}
+                  role={currentRole}
+                  onOpenAdmin={() => setAdminOpen(true)}
+                  onOpenTeamOverview={() => {
+                    setActivePage("reports");
+                    setTeamReportOpen(true);
+                  }}
+                  onLogout={logout}
+                  onSwitchRole={(r: UserRole) => setPreviewRole(r)}
+                />
+              )}
+            </>
           )}
         </View>
       </View>
@@ -170,6 +228,12 @@ function AppShell() {
         onClose={() => setSelectedClient(null)}
         onOpenVisit={setSelectedVisit}
         onAddVisit={(c) => { setCreateVisitForClient(c); setShowCreateVisit(true); }}
+      />
+      <EditVisitModal
+        visible={editVisitCtx !== null}
+        visit={editVisitCtx}
+        onClose={() => setEditVisitCtx(null)}
+        onSave={() => setEditVisitCtx(null)}
       />
     </SafeAreaView>
   );

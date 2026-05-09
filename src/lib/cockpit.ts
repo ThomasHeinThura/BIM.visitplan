@@ -88,6 +88,17 @@ export async function upsertUser(data: Partial<CockpitUser> & { _id?: string }) 
   return res.data;
 }
 
+/** Patch a user by id — used by Profile for editing meeting_group + target_usd. */
+export async function updateUser(
+  id: string,
+  patch: Partial<Pick<CockpitUser, 'meeting_group' | 'target_usd' | 'team' | 'seniority' | 'name'>>,
+): Promise<CockpitUser> {
+  const res = await cockpit.post<CockpitUser>('/content/item/users', {
+    data: { _id: id, ...patch },
+  });
+  return res.data;
+}
+
 /** Returns all users with approval_status = 'pending'. Admin only. */
 export async function getPendingUsers(): Promise<CockpitUser[]> {
   const res = await cockpit.get<CollectionResponse<CockpitUser>>('/content/items/users', {

@@ -1,292 +1,315 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
+  ScrollView,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts, radii } from '../context/ThemeContext';
 import { getVisits, getVisitsByAm } from '../lib/cockpit';
 import type { CockpitUser, CockpitVisit } from '../types';
-
-type Period = 'today' | 'week' | 'month' | 'all';
+import { Badge, Card, FAB, Icon, SectionHead, VisitItem } from './ui';
 
 type Props = {
   user: CockpitUser;
   onOpenVisit?: (visit: CockpitVisit) => void;
   onAddVisit?: () => void;
+  onEditVisit?: (visit: CockpitVisit) => void;
 };
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+const DAY_HDR = ['M','T','W','T','F','S','S'];
 
-function weekStart() {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().slice(0, 10);
+function pad(n: number) { return String(n).padStart(2, '0'); }
+function toISO(y: number, m: number, d: number) {
+  return `${y}-${pad(m + 1)}-${pad(d)}`;
 }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 
-function monthStart() {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
-
-function fmtDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' });
-}
-
-function fmtTime(t: string | null | undefined) {
+function fmtTime(t?: string | null) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
   const ampm = h < 12 ? 'AM' : 'PM';
   const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+  return `${hour}:${pad(m)} ${ampm}`;
 }
 
-function statusColor(theme: ReturnType<typeof useTheme>['theme'], status: CockpitVisit['status']) {
-  switch (status) {
-    case 'scheduled': return theme.info;
-    case 'in_progress': return theme.warning;
-    case 'completed': return theme.success;
-    case 'missed': return theme.error;
+/** Build 6-row x 7-col grid starting at Monday for the given month. */
+function buildGrid(year: number, month: number): { iso: string; day: number; otherMonth: boolean }[] {
+  const first = new Date(year, month, 1);
+  // 0=Sun..6=Sat — convert to Mon=0..Sun=6
+  const startOffset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: { iso: string; day: number; otherMonth: boolean }[] = [];
+
+  // leading days from previous month
+  const prevDays = new Date(year, month, 0).getDate();
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const d = prevDays - i;
+    const dt = new Date(year, month - 1, d);
+    cells.push({
+      iso: toISO(dt.getFullYear(), dt.getMonth(), dt.getDate()),
+      day: d, otherMonth: true,
+    });
   }
+  // current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ iso: toISO(year, month, d), day: d, otherMonth: false });
+  }
+  // trailing days to fill 6 weeks
+  while (cells.length < 42) {
+    const idx = cells.length - (startOffset + daysInMonth);
+    const d = idx + 1;
+    const dt = new Date(year, month + 1, d);
+    cells.push({
+      iso: toISO(dt.getFullYear(), dt.getMonth(), dt.getDate()),
+      day: d, otherMonth: true,
+    });
+  }
+  return cells;
 }
 
-const PERIOD_LABELS: { id: Period; label: string }[] = [
-  { id: 'today', label: 'Today' },
-  { id: 'week', label: 'This Week' },
-  { id: 'month', label: 'This Month' },
-  { id: 'all', label: 'All' },
-];
-
-export default function VisitListScreen({ user, onOpenVisit, onAddVisit }: Props) {
+export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditVisit }: Props) {
   const { theme } = useTheme();
+  const today = todayISO();
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [selected, setSelected] = useState<string>(today);
   const [visits, setVisits] = useState<CockpitVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [period, setPeriod] = useState<Period>('week');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
-    try {
-      const filter: Record<string, string> = {};
-      if (period === 'today') {
-        filter['date'] = todayStr();
-      } else if (period === 'week') {
-        filter['date[$gte]'] = weekStart();
-      } else if (period === 'month') {
-        filter['date[$gte]'] = monthStart();
-      }
+  const monthStartISO = toISO(year, month, 1);
+  const monthEndISO   = toISO(year, month, new Date(year, month + 1, 0).getDate());
 
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const filter: Record<string, string> = {
+        'date[$gte]': monthStartISO,
+        'date[$lte]': monthEndISO,
+      };
       let data: CockpitVisit[];
-      if (user.role === 'am') {
-        data = await getVisitsByAm(user._id, { limit: 100 });
-        // client-side date filter for am
-        if (period === 'today') {
-          data = data.filter((v) => v.date === todayStr());
-        } else if (period === 'week') {
-          data = data.filter((v) => v.date != null && v.date >= weekStart());
-        } else if (period === 'month') {
-          data = data.filter((v) => v.date != null && v.date >= monthStart());
-        }
+      if (user.role === 'am' || user.role === 'sales' || user.role === 'solution') {
+        const all = await getVisitsByAm(user._id, { limit: 200 });
+        data = all.filter(v => v.date != null && v.date >= monthStartISO && v.date <= monthEndISO);
       } else {
-        const apiFilter: Record<string, string> = {};
-        if (period === 'today') apiFilter['date'] = todayStr();
-        else if (period === 'week') apiFilter['date[$gte]'] = weekStart();
-        else if (period === 'month') apiFilter['date[$gte]'] = monthStart();
-        data = await getVisits({ filter: apiFilter, limit: 200, sort: { date: -1 } });
+        data = await getVisits({ filter, limit: 300, sort: { date: 1, start_time: 1 } });
       }
       setVisits(data);
+      setError(null);
     } catch {
       setError('Could not load visits.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user._id, user.role, period]);
+  }, [user._id, user.role, monthStartISO, monthEndISO]);
 
   useEffect(() => { load(); }, [load]);
 
-  const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.bg },
-    periodRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      gap: 6,
-      backgroundColor: theme.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.border,
-    },
-    chip: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.bg,
-    },
-    chipActive: {
-      backgroundColor: theme.primary,
-      borderColor: theme.primary,
-    },
-    chipText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
-    chipTextActive: { color: '#FFFFFF', fontWeight: '700' },
-    visitItem: {
-      marginHorizontal: 12,
-      marginTop: 8,
-      backgroundColor: theme.surface,
-      borderRadius: 12,
-      padding: 14,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    visitTitle: { fontSize: 14, fontWeight: '600', color: theme.text, flex: 1, marginRight: 8 },
-    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-    statusText: { fontSize: 11, fontWeight: '600', color: '#FFFFFF' },
-    clientName: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
-    visitMeta: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
-    amName: { fontSize: 11, color: theme.info, marginTop: 2 },
-    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-    emptyText: { fontSize: 15, color: theme.textSecondary, textAlign: 'center' },
-    emptyHint: { fontSize: 13, color: theme.textSecondary, marginTop: 8, textAlign: 'center' },
-    errText: { color: theme.error, textAlign: 'center', margin: 12 },
-    fab: {
-      position: 'absolute',
-      right: 20,
-      bottom: 100,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: theme.accent,
-      alignItems: 'center',
-      justifyContent: 'center',
-      elevation: 6,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-    },
-    fabText: { fontSize: 28, color: '#FFFFFF', lineHeight: 30 },
-    sectionHeader: {
-      paddingHorizontal: 16,
-      paddingTop: 14,
-      paddingBottom: 4,
-      fontSize: 12,
-      fontWeight: '700',
-      color: theme.textSecondary,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
-    },
-    countText: {
-      paddingHorizontal: 16,
-      paddingTop: 6,
-      fontSize: 12,
-      color: theme.textSecondary,
-    },
-  });
+  const grid = useMemo(() => buildGrid(year, month), [year, month]);
+  const hasVisitSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const v of visits) if (v.date) s.add(v.date);
+    return s;
+  }, [visits]);
+
+  const dayVisits = useMemo(
+    () => visits.filter(v => v.date === selected)
+                .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
+    [visits, selected],
+  );
+
+  const goPrev = () => {
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else setMonth(m => m - 1);
+  };
+  const goNext = () => {
+    if (month === 11) { setYear(y => y + 1); setMonth(0); }
+    else setMonth(m => m + 1);
+  };
+
+  const selectedLabel = (() => {
+    const d = new Date(selected + 'T00:00:00');
+    const same = selected === today;
+    const lbl = d.toLocaleDateString('en-US', { day: 'numeric', month: 'long' });
+    return same ? `${lbl} · Today` : lbl;
+  })();
 
   if (loading) {
     return (
-      <View style={[s.container, { alignItems: 'center', justifyContent: 'center' }]}>
+      <View style={{ flex: 1, backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={theme.primary} size="large" />
       </View>
     );
   }
 
+  const cellSize = 40;
+
   return (
-    <View style={s.container}>
-      {/* Period filter chips */}
-      <View style={s.periodRow}>
-        {PERIOD_LABELS.map(({ id, label }) => (
-          <Pressable
-            key={id}
-            style={[s.chip, period === id && s.chipActive]}
-            onPress={() => setPeriod(id)}
-          >
-            <Text style={[s.chipText, period === id && s.chipTextActive]}>{label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <FlatList
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <ScrollView
         style={{ flex: 1 }}
-        data={visits}
-        keyExtractor={(item) => item._id}
-        ListHeaderComponent={
-          <>
-            {error && <Text style={s.errText}>{error}</Text>}
-            {!error && (
-              <Text style={s.countText}>{visits.length} visit{visits.length !== 1 ? 's' : ''}</Text>
-            )}
-          </>
-        }
-        renderItem={({ item: v }) => (
-          <TouchableOpacity
-            style={s.visitItem}
-            onPress={() => onOpenVisit?.(v)}
-            activeOpacity={0.75}
-          >
-            <View style={s.topRow}>
-              <Text style={s.visitTitle} numberOfLines={1}>{v.title}</Text>
-              <View style={[s.statusBadge, { backgroundColor: statusColor(theme, v.status) }]}>
-                <Text style={s.statusText}>{v.status.replace('_', ' ')}</Text>
-              </View>
-            </View>
-            {v.client?.name && (
-              <Text style={s.clientName}>🏢 {v.client.name}</Text>
-            )}
-            <Text style={s.visitMeta}>
-              📅 {fmtDate(v.date)}
-              {v.start_time ? `  ·  ${fmtTime(v.start_time)}` : ''}
-              {v.end_time ? ` – ${fmtTime(v.end_time)}` : ''}
-            </Text>
-            {v.location ? <Text style={s.visitMeta}>📍 {v.location}</Text> : null}
-            {user.role === 'admin' && v.assigned_am?.name && (
-              <Text style={s.amName}>👤 {v.assigned_am.name}</Text>
-            )}
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={() => (
-          <View style={s.empty}>
-            <Text style={s.emptyText}>No visits for this period.</Text>
-            {onAddVisit && (
-              <Text style={s.emptyHint}>Tap + to schedule a visit.</Text>
-            )}
-          </View>
-        )}
+        contentContainerStyle={{ paddingBottom: 140, paddingTop: 12 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-            tintColor={theme.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={theme.primary} />
         }
-        contentContainerStyle={{ paddingBottom: 120 }}
-      />
+      >
+        {/* Calendar card */}
+        <View style={{ paddingHorizontal: 16 }}>
+          <Card>
+            {/* header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Pressable
+                onPress={goPrev}
+                hitSlop={10}
+                style={({ pressed }) => [{
+                  width: 32, height: 32, borderRadius: radii.full,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: theme.surfaceOffset,
+                }, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={{ fontSize: 16, color: theme.text, fontWeight: '700' }}>‹</Text>
+              </Pressable>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
+                {MONTHS[month]} {year}
+              </Text>
+              <Pressable
+                onPress={goNext}
+                hitSlop={10}
+                style={({ pressed }) => [{
+                  width: 32, height: 32, borderRadius: radii.full,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: theme.surfaceOffset,
+                }, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={{ fontSize: 16, color: theme.text, fontWeight: '700' }}>›</Text>
+              </Pressable>
+            </View>
 
-      {/* FAB */}
-      {onAddVisit && (
-        <Pressable
-          style={({ pressed }) => [s.fab, pressed && { opacity: 0.8 }]}
-          onPress={onAddVisit}
-          accessibilityLabel="Add new visit"
-        >
-          <Text style={s.fabText}>+</Text>
-        </Pressable>
-      )}
+            {/* day headers */}
+            <View style={{ flexDirection: 'row' }}>
+              {DAY_HDR.map((h, i) => (
+                <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textFaint, letterSpacing: 0.5 }}>
+                    {h}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* day grid */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {grid.map((c) => {
+                const isToday = c.iso === today;
+                const isSelected = c.iso === selected;
+                const hasVisit = hasVisitSet.has(c.iso);
+                return (
+                  <Pressable
+                    key={c.iso + (c.otherMonth ? '-o' : '')}
+                    onPress={() => setSelected(c.iso)}
+                    style={({ pressed }) => [{
+                      width: `${100/7}%`,
+                      height: cellSize,
+                      alignItems: 'center', justifyContent: 'center',
+                    }, pressed && { opacity: 0.7 }]}
+                  >
+                    <View style={{
+                      width: cellSize - 6,
+                      height: cellSize - 6,
+                      borderRadius: radii.full,
+                      alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: isSelected ? theme.primary
+                        : isToday ? theme.primaryLight
+                        : 'transparent',
+                      borderWidth: isToday && !isSelected ? 1 : 0,
+                      borderColor: theme.primary,
+                    }}>
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: isSelected || isToday ? '700' : '500',
+                        color: isSelected ? '#fff'
+                          : c.otherMonth ? theme.textFaint
+                          : isToday ? theme.primary
+                          : theme.text,
+                      }}>
+                        {c.day}
+                      </Text>
+                    </View>
+                    {hasVisit && !isSelected ? (
+                      <View style={{
+                        width: 4, height: 4, borderRadius: 2,
+                        backgroundColor: isToday ? theme.primary : theme.accent,
+                        position: 'absolute', bottom: 4,
+                      }} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Card>
+        </View>
+
+        {/* Selected day section */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: 20, marginTop: 22, marginBottom: 8,
+        }}>
+          <Text style={{
+            fontSize: 14, fontWeight: '700', color: theme.text,
+            fontFamily: fonts.display,
+          }}>
+            {selectedLabel}
+          </Text>
+          <Badge tone="muted">
+            {dayVisits.length} visit{dayVisits.length !== 1 ? 's' : ''}
+          </Badge>
+        </View>
+
+        {error ? (
+          <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
+            <Card><Text style={{ color: theme.error, fontSize: 13 }}>{error}</Text></Card>
+          </View>
+        ) : null}
+
+        <View style={{ paddingHorizontal: 16 }}>
+          {dayVisits.length === 0 ? (
+            <Card>
+              <Text style={{
+                fontSize: 14, color: theme.textSecondary,
+                textAlign: 'center', paddingVertical: 16,
+              }}>
+                No visits scheduled for this day.
+              </Text>
+            </Card>
+          ) : (
+            <Card padded={false}>
+              {dayVisits.map((v) => (
+                <VisitItem
+                  key={v._id}
+                  time={fmtTime(v.start_time)}
+                  title={v.title}
+                  client={v.client?.name ?? undefined}
+                  location={v.location ?? undefined}
+                  status={v.status}
+                  onPress={() => onOpenVisit?.(v)}
+                  onMore={onEditVisit ? () => onEditVisit(v) : undefined}
+                />
+              ))}
+            </Card>
+          )}
+        </View>
+      </ScrollView>
+
+      {onAddVisit ? <FAB onPress={onAddVisit} /> : null}
     </View>
   );
 }

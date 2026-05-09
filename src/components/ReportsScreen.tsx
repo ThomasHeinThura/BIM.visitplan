@@ -11,12 +11,14 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { getVisits, getVisitsByAm } from '../lib/cockpit';
 import type { FilterRecord } from '../lib/cockpit';
-import type { CockpitUser, CockpitVisit } from '../types';
+import type { CockpitUser, CockpitVisit, UserRole } from '../types';
 
 type Period = 'week' | 'month' | 'quarter' | 'all';
 
 type Props = {
   user: CockpitUser;
+  role?: UserRole;
+  onOpenTeamReport?: () => void;
 };
 
 function getDateRange(period: Period) {
@@ -60,8 +62,11 @@ function computeStats(visits: CockpitVisit[]): Stats {
   };
 }
 
-export default function ReportsScreen({ user }: Props) {
+export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
   const { theme } = useTheme();
+  const effectiveRole: UserRole = role ?? (user.role as UserRole);
+  const isMgmt = effectiveRole === 'admin' || effectiveRole === 'management';
+  const [tab, setTab] = useState<'mine' | 'team'>('mine');
   const [period, setPeriod] = useState<Period>('month');
   const [visits, setVisits] = useState<CockpitVisit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,6 +157,27 @@ export default function ReportsScreen({ user }: Props) {
     >
       <View style={s.header}>
         <Text style={s.title}>Reports</Text>
+      </View>
+
+      {/* v2.4: Mine / Teams sub-tabs (Teams gated to admin/management) */}
+      <View style={s.periodRow}>
+        <TouchableOpacity
+          style={[s.chip, tab === 'mine' && s.chipActive]}
+          onPress={() => setTab('mine')}
+        >
+          <Text style={tab === 'mine' ? s.chipTextActive : s.chipText}>My Reports</Text>
+        </TouchableOpacity>
+        {isMgmt && (
+          <TouchableOpacity
+            style={[s.chip, tab === 'team' && s.chipActive]}
+            onPress={() => {
+              setTab('team');
+              onOpenTeamReport?.();
+            }}
+          >
+            <Text style={tab === 'team' ? s.chipTextActive : s.chipText}>Teams</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Period selector */}

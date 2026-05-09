@@ -230,7 +230,7 @@ export type ClientNoteRecord = {
 
 // ─── Domain enums ────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'am';
+export type UserRole = 'admin' | 'management' | 'sales' | 'solution' | 'am';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type ClientStatus = 'Active' | 'Hold' | 'Inactive' | 'Churned' | 'Prospect';
 export type AccountType = 'Named Account' | 'Key Account';
@@ -253,9 +253,27 @@ export type CockpitUser = {
   ms_id?: string | null;
   role: UserRole;
   approval_status: ApprovalStatus;
-  job_title?: string | null;
+  seniority?: 'junior' | 'senior' | null;
+  meeting_group?: 'infra' | 'es' | 'app' | 'ms' | null;
+  target_usd?: number | null;
   team?: string | null;
   active: boolean;
+};
+
+export type CockpitSector = {
+  _id: string;
+  name: string;
+  owner_am?: Pick<CockpitUser, '_id' | 'name'> | null;
+  active: boolean;
+};
+
+export type CockpitAgendaItem = {
+  _id: string;
+  visit?: Pick<CockpitVisit, '_id' | 'title'> | null;
+  title: string;
+  order?: number | null;
+  completed: boolean;
+  created_by?: Pick<CockpitUser, '_id' | 'name'> | null;
 };
 
 export type CockpitClient = {
@@ -286,6 +304,8 @@ export type CockpitVisit = {
   client?: Pick<CockpitClient, '_id' | 'name'> | null;
   contact?: Pick<CockpitContact, '_id' | 'name'> | null;
   assigned_am?: Pick<CockpitUser, '_id' | 'name'> | null;
+  participants?: Array<Pick<CockpitUser, '_id' | 'name'>> | null;
+  meeting_group?: 'infra' | 'es' | 'app' | 'ms' | null;
   date?: string | null;
   start_time?: string | null;
   end_time?: string | null;
