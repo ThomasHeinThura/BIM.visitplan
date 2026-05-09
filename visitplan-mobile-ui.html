@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisitPlan — Mobile UI Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Plus+Jakarta+Sans:wght@400..700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+/* ============================================================
+   ART DIRECTION: Field ops tool → precise, trustworthy, action-first
+   Palette: Deep navy + electric teal accent. Dense but breathable.
+   Typography: Plus Jakarta Sans (display) + Inter (body)
+   Density: Dense (field app, glanceable data)
+============================================================ */
+
+:root, [data-theme="light"] {
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #f9fafb;
+  --color-surface-offset: #eef0f3;
+  --color-border: rgba(15,20,40,0.1);
+  --color-divider: rgba(15,20,40,0.07);
+  --color-text: #0f1428;
+  --color-text-muted: #5c6378;
+  --color-text-faint: #9ba3b8;
+  --color-text-inverse: #ffffff;
+  --color-primary: #0a8a7c;
+  --color-primary-hover: #077068;
+  --color-primary-light: #e0f5f3;
+  --color-accent: #0ea5e9;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fef3c7;
+  --color-error: #ef4444;
+  --color-error-light: #fee2e2;
+  --color-success: #22c55e;
+  --color-success-light: #dcfce7;
+  --color-purple: #8b5cf6;
+  --color-purple-light: #ede9fe;
+  --color-orange: #f97316;
+  --color-orange-light: #ffedd5;
+
+  --phone-bg: #e8eaee;
+  --phone-frame: #1a1d2e;
+  --phone-screen-bg: var(--color-bg);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 3px rgba(15,20,40,0.08);
+  --shadow-md: 0 4px 16px rgba(15,20,40,0.1);
+  --shadow-lg: 0 12px 40px rgba(15,20,40,0.15);
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --transition: 200ms cubic-bezier(0.16,1,0.3,1);
+}
+
+[data-theme="dark"] {
+  --color-bg: #0d1117;
+  --color-surface: #161b27;
+  --color-surface-2: #1e2536;
+  --color-surface-offset: #252d40;
+  --color-border: rgba(255,255,255,0.08);
+  --color-divider: rgba(255,255,255,0.05);
+  --color-text: #e8eaf0;
+  --color-text-muted: #8892a4;
+  --color-text-faint: #4a5568;
+  --color-text-inverse: #0d1117;
+  --color-primary: #14c0ae;
+  --color-primary-hover: #0fa898;
+  --color-primary-light: rgba(20,192,174,0.15);
+  --color-accent: #38bdf8;
+  --color-warning: #fbbf24;
+  --color-warning-light: rgba(251,191,36,0.15);
+  --color-error: #f87171;
+  --color-error-light: rgba(248,113,113,0.15);
+  --color-success: #4ade80;
+  --color-success-light: rgba(74,222,128,0.15);
+  --color-purple: #a78bfa;
+  --color-purple-light: rgba(167,139,250,0.15);
+  --color-orange: #fb923c;
+  --color-orange-light: rgba(249,115,60,0.15);
+  --phone-bg: #0a0d16;
+  --phone-frame: #0a0d16;
+  --phone-screen-bg: var(--color-bg);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.6);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--phone-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ============================================================  OUTER LAYOUT */
+.outer-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 60px;
+  gap: 40px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-logo {
+  width: 36px; height: 36px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+}
+.brand-name span { color: var(--color-primary); }
+
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.btn-toggle {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-toggle:hover { color: var(--color-text); background: var(--color-surface-2); }
+
+/* SCREEN LABEL */
+.screen-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.screen-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* SCREENS GRID */
+.screens-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* PHONE FRAME */
+.phone-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.phone-frame {
+  width: 320px;
+  background: var(--phone-frame);
+  border-radius: 44px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06),
+    0 32px 80px rgba(0,0,0,0.5),
+    inset 0 0 0 1px rgba(255,255,255,0.04);
+  position: relative;
+}
+.phone-notch {
+  width: 100px; height: 26px;
+  background: var(--phone-frame);
+  border-radius: 0 0 18px 18px;
+  margin: 0 auto 0;
+  position: absolute;
+  top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.notch-cam {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #1e2536;
+  border: 1.5px solid rgba(255,255,255,0.1);
+}
+.notch-sensor { width: 28px; height: 4px; background: #1e2536; border-radius: 4px; }
+
+.phone-screen {
+  width: 100%;
+  height: 640px;
+  background: var(--phone-screen-bg);
+  border-radius: 34px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================================  STATUS BAR */
+.status-bar {
+  height: 44px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 20px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+  flex-shrink: 0;
+}
+.status-left { font-size: 12px; font-weight: 700; }
+.status-right { display: flex; gap: 4px; align-items: center; }
+
+/* ============================================================  SCREEN CONTENT */
+.screen-content {
+  height: calc(640px - 44px - 64px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.screen-content::-webkit-scrollbar { display: none; }
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 64px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-divider);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 8px 8px;
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-width: 48px;
+}
+.nav-item.active .nav-icon { color: var(--color-primary); }
+.nav-item.active .nav-label { color: var(--color-primary); font-weight: 600; }
+.nav-icon { color: var(--color-text-faint); }
+.nav-label { font-size: 10px; color: var(--color-text-faint); font-weight: 500; }
+
+/* ============================================================  SHARED COMPONENTS */
+.screen-pad { padding: 12px 16px; }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.2px;
+}
+.section-link {
+  font-size: 11px;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.card-pad { padding: 14px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.badge-teal { background: var(--color-primary-light); color: var(--color-primary); }
+.badge-warn { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-success { background: var(--color-success-light); color: var(--color-success); }
+.badge-error { background: var(--color-error-light); color: var(--color-error); }
+.badge-purple { background: var(--color-purple-light); color: var(--color-purple); }
+.badge-orange { background: var(--color-orange-light); color: var(--color-orange); }
+.badge-muted { background: var(--color-surface-offset); color: var(--color-text-muted); }
+
+.avatar {
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-family: var(--font-display);
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-inverse);
+}
+.av-sm { width: 32px; height: 32px; font-size: 11px; }
+.av-md { width: 40px; height: 40px; }
+.av-lg { width: 48px; height: 48px; font-size: 16px; }
+
+.divider { height: 1px; background: var(--color-divider); margin: 0 16px; }
+
+/* ============================================================  SCREEN 1: TODAY / HOME */
+.home-header {
+  background: linear-gradient(160deg, #0a8a7c 0%, #065f55 100%);
+  padding: 12px 16px 20px;
+}
+[data-theme="dark"] .home-header {
+  background: linear-gradient(160deg, #0d2e2b 0%, #0a1e1c 100%);
+  border-bottom: 1px solid rgba(20,192,174,0.15);
+}
+.home-greeting { font-size: 11px; color: rgba(255,255,255,0.7); margin-bottom: 2px; }
+.home-name { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.4px; }
+[data-theme="dark"] .home-name { color: var(--color-text); }
+[data-theme="dark"] .home-greeting { color: var(--color-text-muted); }
+
+.kpi-row {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px 4px;
+}
+.kpi-card {
+  flex: 1;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kpi-val {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-label { font-size: 10px; color: var(--color-text-muted); font-weight: 500; }
+.kpi-delta { font-size: 10px; font-weight: 600; }
+.kpi-delta.up { color: var(--color-success); }
+.kpi-delta.down { color: var(--color-error); }
+
+.visit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-divider);
+  cursor: pointer;
+}
+.visit-item:last-child { border-bottom: none; }
+.visit-time-col { width: 44px; text-align: right; flex-shrink: 0; }
+.visit-time { font-size: 11px; font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.visit-time-label { font-size: 9px; color: var(--color-text-faint); }
+.visit-line { width: 2px; height: 44px; background: var(--color-divider); border-radius: 2px; flex-shrink: 0; position: relative; }
+.visit-line.active { background: var(--color-primary); }
+.visit-line .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); box-shadow: 0 0 0 3px var(--color-primary-light); }
+.visit-body { flex: 1; min-width: 0; }
+.visit-company { font-size: 13px; font-weight: 600; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.visit-meta { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+
+.fab {
+  position: absolute;
+  bottom: 76px; right: 16px;
+  width: 48px; height: 48px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(10,138,124,0.4);
+  color: white;
+  cursor: pointer;
+}
+
+/* ============================================================  SCREEN 2: PLAN VISIT */
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 14px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.form-header-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+}
+.back-btn {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-offset);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.progress-bar {
+  height: 3px;
+  background: var(--color-surface-offset);
+  margin: 0 16px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 16px;
+  margin-bottom: 8px;
+}
+.step-dot {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.step-circle {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface-offset);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  color: var(--color-text-faint);
+}
+.step-circle.done { background: var(--color-primary); color: #fff; }
+.step-circle.active { background: var(--color-primary-light); color: var(--color-primary); border: 1.5px solid var(--color-primary); }
+.step-name { font-size: 8px; color: var(--color-text-faint); }
+.step-name.active { color: var(--color-primary); }
+
+.form-group { padding: 0 16px; margin-bottom: 14px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+.form-input {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  display: flex; align-items: center; gap: 8px;
+}
+.form-input.filled { border-color: var(--color-primary); background: var(--color-primary-light); }
+.input-placeholder { color: var(--color-text-faint); }
+.input-value { color: var(--color-text); font-weight: 500; }
+.input-icon { color: var(--color-text-faint); flex-shrink: 0; }
+.input-arrow { margin-left: auto; color: var(--color-text-faint); }
+
+.agenda-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.agenda-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.agenda-text { font-size: 12px; color: var(--color-text); line-height: 1.4; }
+.agenda-sub { font-size: 10px; color: var(--color-text-muted); margin-top: 2px; }
+
+.btn-primary {
+  width: calc(100% - 32px);
+  margin: 14px 16px;
+  height: 46px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(10,138,124,0.35);
+}
+
+/* ============================================================  SCREEN 3: ACTIVE VISIT (Check-in) */
+.checkin-hero {
+  background: linear-gradient(160deg, #065f55, #0a3d36);
+  padding: 16px 16px 20px;
+}
+[data-theme="dark"] .checkin-hero {
+  background: linear-gradient(160deg, #0a2420, #060f0d);
+  border-bottom: 1px solid rgba(20,192,174,0.12);
+}
+.checkin-status { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--color-primary); text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+.live-dot { width: 6px; height: 6px; background: var(--color-success); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+.checkin-company { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--color-text); letter-spacing: -0.3px; }
+[data-theme="light"] .checkin-company { color: #fff; }
+.checkin-addr { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+[data-theme="light"] .checkin-addr { color: rgba(255,255,255,0.75); }
+.checkin-timer { font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--color-primary); margin-top: 10px; font-variant-numeric: tabular-nums; }
+
+.checklist-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.check-box {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-border);
+  flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+}
+.check-box.checked { background: var(--color-primary); border-color: var(--color-primary); }
+.check-label { font-size: 12px; color: var(--color-text); line-height: 1.4; }
+.check-label.done { color: var(--color-text-faint); text-decoration: line-through; }
+.check-sub { font-size: 10px; color: var(--color-text-faint); margin-top: 2px; }
+
+.btn-danger {
+  width: calc(100% - 32px);
+  margin: 14px 16px 0;
+  height: 46px;
+  background: var(--color-error-light);
+  color: var(--color-error);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+
+/* ============================================================  SCREEN 4: OUTCOME */
+.outcome-section { padding: 12px 16px 0; }
+.outcome-label { font-size: 11px; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 8px; }
+.result-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.result-chip {
+  padding: 7px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 600;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.result-chip.selected { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary); }
+.text-area-mock {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  min-height: 64px;
+  margin-bottom: 10px;
+}
+.attachment-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.attach-thumb {
+  width: 52px; height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-offset);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-faint);
+  border: 1px solid var(--color-border);
+}
+.attach-thumb.add { border-style: dashed; cursor: pointer; }
+
+.next-action {
+  display: flex; gap: 10px; align-items: center;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+}
+.next-action-text { font-size: 12px; color: var(--color-text); }
+.next-action-date { font-size: 10px; color: var(--color-primary); font-weight: 600; margin-top: 2px; }
+
+/* ============================================================  SCREEN 5: MANAGER DASHBOARD */
+.mgr-header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--color-divider);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mgr-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--color-text); letter-spacing: -0.3px; }
+.chart-bar-row { display: flex; gap: 5px; align-items: flex-end; height: 52px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bar { border-radius: 4px 4px 0 0; width: 100%; background: var(--color-primary-light); min-height: 4px; }
+.bar.active { background: var(--color-primary); }
+.bar-day { font-size: 8px; color: var(--color-text-faint); }
+
+.team-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.team-info { flex: 1; min-width: 0; }
+.team-name { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.team-meta { font-size: 10px; color: var(--color-text-muted); margin-top: 1px; }
+.team-stats { text-align: right; }
+.team-count { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.team-count-label { font-size: 9px; color: var(--color-text-faint); }
+.mini-bar { height: 3px; background: var(--color-surface-offset); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 3px; background: var(--color-primary); }
+
+/* ============================================================  SCREEN 6: REPORT / HISTORY */
+.history-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-divider);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.history-date {
+  width: 34px; flex-shrink: 0; text-align: center;
+  background: var(--color-surface-offset);
+  border-radius: var(--radius-md);
+  padding: 5px 2px;
+}
+.history-date .day { font-size: 16px; font-weight: 700; font-family: var(--font-display); color: var(--color-text); line-height: 1; }
+.history-date .mon { font-size: 9px; color: var(--color-text-muted); text-transform: uppercase; font-weight: 600; }
+.history-body { flex: 1; min-width: 0; }
+.history-company { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.history-rep { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+.history-outcome { font-size: 10px; margin-top: 4px; }
+
+/* Scrollbar for screen-content on desktop - still hidden on frame */
+</style>
+</head>
+<body>
+
+<div class="outer-wrap">
+
+  <!-- PAGE HEADER -->
+  <header class="page-header">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <span class="brand-name">Visit<span>Plan</span></span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-toggle" onclick="toggleTheme()" data-theme-toggle>
+        <span id="theme-icon">☀️</span>
+        <span id="theme-label">Light</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ROW 1: Today Home + Plan Visit -->
+  <div class="screens-row">
+
+    <!-- SCREEN 1: TODAY HOME (AM View) -->
+    <div class="phone-wrap">
+      <div class="screen-label">Screen 01</div>
+      <div class="screen-title">Today — AM Dashboard</div>
+      <div class="phone-frame">
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-cam"></div>
+        </div>
+        <div class="phone-screen">
+          <!-- status bar -->
+          <div class="status-bar">
+            <span class="status-left">9:41</span>
+            <div class="status-right">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+            </div>
+          </div>
+          <div class="screen-content">
+            <!-- HEADER HERO -->
+            <div class="home-header">
+              <div class="home-greeting">Good morning</div>
+              <div class="home-name">Aung Kyaw Zin 👋</div>
+              <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                <span class="badge badge-teal">6 visits today</span>
+                <span class="badge badge-warn">2 unconfirmed</span>
+              </div>
+            </div>
+            <!-- KPI ROW -->
+            <div class="kpi-row">
+              <div class="kpi-card">
+                <div class="kpi-val">4</div>
+                <div class="kpi-label">Done this week</div>
+                <div class="kpi-delta up">↑ +1 vs last</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-val">87%</div>
+                <div class="kpi-label">Plan coverage</div>
+                <div class="kpi-delta up">↑ On track</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-val">2</div>
+                <div class="kpi-label">Pending outcomes</div>
+                <div class="kpi-delta down">↓ Fill now</div>
+              </div>
+            </div>
+            <!-- TODAY SCHEDULE -->
+            <div style="padding:12px 16px 4px;">
+              <div class="section-head">
+                <span class="section-title">Today's Schedule</span>
+                <span class="section-link">See all</span>
+              </div>
+            </div>
+            <div class="card" style="margin:0 16px;border-radius:var(--radius-lg);">
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">09:30</div><div class="visit-time-label">AM</div></div>
+                <div class="visit-line active"><div class="dot"></div></div>
+                <div class="visit-body">
+                  <div class="visit-company">Shwe Taung Co., Ltd</div>
+                  <div class="visit-meta">🏢 Yankin · Account review</div>
+                </div>
+                <span class="badge badge-teal">Now</span>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">11:00</div><div class="visit-time-label">AM</div></div>
+                <div class="visit-line"></div>
+                <div class="visit-body">
+                  <div class="visit-company">Dagon Beer Myanmar</div>
+                  <div class="visit-meta">🏢 Hlaing · Product demo</div>
+                </div>
+                <span class="badge badge-warn">Next</span>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">14:00</div><div class="visit-time-label">PM</div></div>
+                <div class="visit-line"></div>
+                <div class="visit-body">
+                  <div class="visit-company">KBZ Bank HQ</div>
+                  <div class="visit-meta">🏢 Kyauktada · Follow up</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">16:30</div><div class="visit-time-label">PM</div></div>
+                <div class="visit-line"></div>
+                <div class="visit-body">
+                  <div class="visit-company">Myanmar Plaza Retail</div>
+                  <div class="visit-meta">🏢 Bahan · New pitch</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+              </div>
+            </div>
+            <!-- PENDING OUTCOME ALERT -->
+            <div style="margin:12px 16px 0;background:var(--color-warning-light);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-lg);padding:12px;">
+              <div style="font-size:12px;font-weight:600;color:var(--color-warning);display:flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                2 outcomes pending
+              </div>
+              <div style="font-size:11px;color:var(--color-text-muted);margin-top:3px;">Fill in visit results for yesterday's visits before 6PM</div>
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+          <!-- FAB -->
+          <div class="fab">
+            <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <!-- BOTTOM NAV -->
+          <div class="bottom-nav">
+            <div class="nav-item active">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span class="nav-label">Today</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Plan</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="nav-label">Active</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span class="nav-label">Reports</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: PLAN VISIT (Create) -->
+    <div class="phone-wrap">
+      <div class="screen-label">Screen 02</div>
+      <div class="screen-title">Plan Visit — Step 2 of 3</div>
+      <div class="phone-frame">
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-cam"></div>
+        </div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="status-left">9:41</span>
+            <div class="status-right">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+            </div>
+          </div>
+          <div class="screen-content">
+            <!-- FORM HEADER -->
+            <div class="form-header">
+              <div class="back-btn">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <span class="form-header-title">Plan a Visit</span>
+            </div>
+            <!-- PROGRESS -->
+            <div style="padding:10px 16px 0;">
+              <div class="progress-steps">
+                <div class="step-dot"><div class="step-circle done"><svg width="10" height="10" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span class="step-name">Client</span></div>
+                <div class="step-dot"><div class="step-circle active">2</div><span class="step-name active">Agenda</span></div>
+                <div class="step-dot"><div class="step-circle">3</div><span class="step-name">Schedule</span></div>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div>
+            </div>
+            <!-- SELECTED CLIENT (Done step) -->
+            <div style="padding:12px 16px 0;">
+              <div class="form-input filled" style="margin-bottom:0;">
+                <svg class="input-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="input-value">Shwe Taung Co., Ltd</span>
+                <svg class="input-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <!-- VISIT TYPE -->
+            <div class="form-group" style="padding-top:12px;">
+              <span class="form-label">Visit Purpose</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <span class="result-chip selected">Account Review</span>
+                <span class="result-chip">New Pitch</span>
+                <span class="result-chip">Follow-up</span>
+                <span class="result-chip">Issue</span>
+              </div>
+            </div>
+            <!-- AGENDA ITEMS -->
+            <div style="padding:0 16px;margin-bottom:8px;">
+              <div class="section-head">
+                <span class="section-title">Agenda Items</span>
+                <span class="section-link">+ Add</span>
+              </div>
+            </div>
+            <div class="card" style="margin:0 16px;border-radius:var(--radius-md);">
+              <div class="agenda-item">
+                <div class="agenda-num">1</div>
+                <div>
+                  <div class="agenda-text">Review Q1 sales performance</div>
+                  <div class="agenda-sub">Target: MMK 45M achieved / 60M</div>
+                </div>
+              </div>
+              <div class="agenda-item">
+                <div class="agenda-num">2</div>
+                <div>
+                  <div class="agenda-text">Discuss new product catalogue 2026</div>
+                  <div class="agenda-sub">Bring printed catalogue + pricing sheet</div>
+                </div>
+              </div>
+              <div class="agenda-item">
+                <div class="agenda-num">3</div>
+                <div>
+                  <div class="agenda-text">Confirm next order volume</div>
+                  <div class="agenda-sub">Manager note: push for +20% uplift</div>
+                </div>
+              </div>
+              <div class="agenda-item" style="border-bottom:none;">
+                <div class="agenda-num" style="background:var(--color-surface-offset);color:var(--color-text-faint);">+</div>
+                <div class="agenda-text" style="color:var(--color-text-faint);">Add another agenda point…</div>
+              </div>
+            </div>
+            <!-- MANAGER NOTE -->
+            <div style="margin:10px 16px 0;padding:10px 12px;background:var(--color-purple-light);border-radius:var(--radius-md);border:1px solid rgba(139,92,246,0.2);">
+              <div style="font-size:10px;font-weight:700;color:var(--color-purple);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Manager Instruction</div>
+              <div style="font-size:11px;color:var(--color-text);">Prioritise stock discussion — KPI target at risk. Must confirm by this visit.</div>
+            </div>
+            <div class="btn-primary">
+              Continue to Schedule
+              <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+          <div class="bottom-nav">
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="nav-label">Today</span>
+            </div>
+            <div class="nav-item active">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Plan</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="nav-label">Active</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span class="nav-label">Reports</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: ACTIVE VISIT (Check-in) -->
+    <div class="phone-wrap">
+      <div class="screen-label">Screen 03</div>
+      <div class="screen-title">Active Visit — In Progress</div>
+      <div class="phone-frame">
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-cam"></div>
+        </div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="status-left">10:14</span>
+            <div class="status-right">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+            </div>
+          </div>
+          <div class="screen-content">
+            <!-- VISIT HERO -->
+            <div class="checkin-hero">
+              <div class="checkin-status"><div class="live-dot"></div> VISIT IN PROGRESS</div>
+              <div class="checkin-company">Shwe Taung Co., Ltd</div>
+              <div class="checkin-addr">📍 Yankin Township, Yangon · Checked in 09:32</div>
+              <div class="checkin-timer">00:42:17</div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
+                <span class="badge badge-teal">Account Review</span>
+                <span class="badge badge-success">GPS Verified ✓</span>
+              </div>
+            </div>
+            <!-- CONTACT INFO -->
+            <div style="padding:10px 16px 0;">
+              <div class="section-head">
+                <span class="section-title">Key Contact</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);">
+                <div class="avatar av-md" style="background:linear-gradient(135deg,#0ea5e9,#0a8a7c);">MZ</div>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:600;color:var(--color-text);">U Myo Zaw</div>
+                  <div style="font-size:11px;color:var(--color-text-muted);">Sales Manager · +95 9 765 432 100</div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <div style="width:32px;height:32px;background:var(--color-primary-light);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--color-primary);">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.29 6.29l.74-.74a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- AGENDA CHECKLIST -->
+            <div style="padding:10px 16px 4px;">
+              <div class="section-head">
+                <span class="section-title">Agenda Checklist</span>
+                <span style="font-size:11px;color:var(--color-text-muted);">1 / 3 done</span>
+              </div>
+            </div>
+            <div class="card" style="margin:0 16px;">
+              <div class="checklist-item">
+                <div class="check-box checked">
+                  <svg width="10" height="10" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div><div class="check-label done">Review Q1 sales performance</div><div class="check-sub">Completed · Q1 at 75% of target</div></div>
+              </div>
+              <div class="checklist-item">
+                <div class="check-box" style="background:var(--color-primary-light);border-color:var(--color-primary);">
+                  <div style="width:6px;height:6px;background:var(--color-primary);border-radius:50%;"></div>
+                </div>
+                <div><div class="check-label">Discuss new product catalogue 2026</div><div class="check-sub">In progress — client reviewing pricing</div></div>
+              </div>
+              <div class="checklist-item" style="border-bottom:none;">
+                <div class="check-box"></div>
+                <div><div class="check-label">Confirm next order volume</div><div class="check-sub">Pending</div></div>
+              </div>
+            </div>
+            <!-- QUICK NOTE -->
+            <div style="margin:10px 16px 0;padding:10px 12px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);">
+              <div style="font-size:10px;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:4px;">Quick Note</div>
+              <div style="font-size:11px;color:var(--color-text-faint);">Tap to add note during visit…</div>
+            </div>
+            <div class="btn-danger">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              End Visit & Fill Outcome
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+          <div class="bottom-nav">
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="nav-label">Today</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Plan</span>
+            </div>
+            <div class="nav-item active">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="nav-label">Active</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span class="nav-label">Reports</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end row 1 -->
+
+  <!-- ROW 2: Outcome + Manager Dashboard + History/Report -->
+  <div class="screens-row">
+
+    <!-- SCREEN 4: OUTCOME FORM -->
+    <div class="phone-wrap">
+      <div class="screen-label">Screen 04</div>
+      <div class="screen-title">Visit Outcome Form</div>
+      <div class="phone-frame">
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-cam"></div>
+        </div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="status-left">11:04</span>
+            <div class="status-right">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+            </div>
+          </div>
+          <div class="screen-content">
+            <div class="form-header">
+              <div class="back-btn">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <span class="form-header-title">Visit Outcome</span>
+              <span class="badge badge-teal" style="margin-left:auto;">Shwe Taung</span>
+            </div>
+            <!-- VISIT SUMMARY -->
+            <div style="padding:10px 16px 0;display:flex;gap:8px;align-items:center;">
+              <div style="flex:1;padding:10px 12px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);">
+                <div style="font-size:10px;color:var(--color-text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Duration</div>
+                <div style="font-size:16px;font-weight:700;font-family:var(--font-display);color:var(--color-text);">1h 04m</div>
+              </div>
+              <div style="flex:1;padding:10px 12px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);">
+                <div style="font-size:10px;color:var(--color-text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Agenda Done</div>
+                <div style="font-size:16px;font-weight:700;font-family:var(--font-display);color:var(--color-text);">2 / 3</div>
+              </div>
+            </div>
+            <!-- VISIT RESULT -->
+            <div class="outcome-section">
+              <div class="outcome-label">Visit Result</div>
+              <div class="result-options">
+                <span class="result-chip selected">✓ Successful</span>
+                <span class="result-chip">Partial</span>
+                <span class="result-chip">Rescheduled</span>
+                <span class="result-chip">No Contact</span>
+              </div>
+              <!-- ORDER PLACED -->
+              <div class="outcome-label">Order / Deal</div>
+              <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:10px 12px;">
+                  <div style="font-size:10px;color:var(--color-text-muted);">Order Value (MMK)</div>
+                  <div style="font-size:16px;font-weight:700;color:var(--color-text);">12,500,000</div>
+                </div>
+                <div style="flex:1;background:var(--color-success-light);border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-md);padding:10px 12px;">
+                  <div style="font-size:10px;color:var(--color-success);">vs Target</div>
+                  <div style="font-size:16px;font-weight:700;color:var(--color-success);">+8%</div>
+                </div>
+              </div>
+              <!-- NOTES -->
+              <div class="outcome-label">Visit Notes</div>
+              <div class="text-area-mock">Client confirmed Q2 order — 500 units product A, 200 units product B. Requested special pricing for bulk. Follow up needed on delivery timeline by end of month…</div>
+              <!-- ATTACHMENTS -->
+              <div class="outcome-label">Attachments</div>
+              <div class="attachment-row">
+                <div class="attach-thumb" style="background:var(--color-primary-light);border-color:var(--color-primary);">
+                  <svg width="18" height="18" fill="none" stroke="var(--color-primary)" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div class="attach-thumb" style="background:var(--color-warning-light);border-color:var(--color-warning);">
+                  <svg width="18" height="18" fill="none" stroke="var(--color-warning)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+                <div class="attach-thumb add">
+                  <svg width="18" height="18" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
+              </div>
+              <!-- NEXT ACTION -->
+              <div class="outcome-label">Next Action</div>
+              <div class="next-action">
+                <svg width="16" height="16" fill="none" stroke="var(--color-primary)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <div>
+                  <div class="next-action-text">Send delivery schedule + pricing proposal</div>
+                  <div class="next-action-date">Due: May 15, 2026</div>
+                </div>
+              </div>
+            </div>
+            <div class="btn-primary" style="background:var(--color-success);box-shadow:0 4px 14px rgba(34,197,94,0.3);">
+              <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              Submit Outcome (Final)
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+          <div class="bottom-nav">
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="nav-label">Today</span>
+            </div>
+            <div class="nav-item active">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="nav-label">Active</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Plan</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span class="nav-label">Reports</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: MANAGER DASHBOARD -->
+    <div class="phone-wrap">
+      <div class="screen-label">Screen 05</div>
+      <div class="screen-title">Manager — Team Overview</div>
+      <div class="phone-frame">
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-cam"></div>
+        </div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="status-left">9:41</span>
+            <div class="status-right">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+            </div>
+          </div>
+          <div class="screen-content">
+            <div class="mgr-header">
+              <div>
+                <div style="font-size:11px;color:var(--color-text-muted);">Sales Manager</div>
+                <div class="mgr-title">Team Overview</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <span class="badge badge-muted">Week 19</span>
+                <div style="width:32px;height:32px;background:var(--color-surface-offset);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </div>
+              </div>
+            </div>
+            <!-- KPI SUMMARY -->
+            <div style="padding:10px 16px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="background:var(--color-primary-light);border:1px solid rgba(20,192,174,0.2);border-radius:var(--radius-lg);padding:12px;">
+                  <div style="font-size:10px;font-weight:600;color:var(--color-primary);text-transform:uppercase;letter-spacing:0.5px;">Visits Done</div>
+                  <div style="font-size:28px;font-weight:800;font-family:var(--font-display);color:var(--color-primary);line-height:1.1;">42</div>
+                  <div style="font-size:10px;color:var(--color-text-muted);">of 58 planned</div>
+                </div>
+                <div style="background:var(--color-success-light);border:1px solid rgba(74,222,128,0.2);border-radius:var(--radius-lg);padding:12px;">
+                  <div style="font-size:10px;font-weight:600;color:var(--color-success);text-transform:uppercase;letter-spacing:0.5px;">Coverage</div>
+                  <div style="font-size:28px;font-weight:800;font-family:var(--font-display);color:var(--color-success);line-height:1.1;">72%</div>
+                  <div style="font-size:10px;color:var(--color-text-muted);">↑ +5% vs last week</div>
+                </div>
+                <div style="background:var(--color-warning-light);border:1px solid rgba(251,191,36,0.2);border-radius:var(--radius-lg);padding:12px;">
+                  <div style="font-size:10px;font-weight:600;color:var(--color-warning);text-transform:uppercase;letter-spacing:0.5px;">Pending</div>
+                  <div style="font-size:28px;font-weight:800;font-family:var(--font-display);color:var(--color-warning);line-height:1.1;">6</div>
+                  <div style="font-size:10px;color:var(--color-text-muted);">Outcomes overdue</div>
+                </div>
+                <div style="background:var(--color-orange-light);border:1px solid rgba(249,115,60,0.2);border-radius:var(--radius-lg);padding:12px;">
+                  <div style="font-size:10px;font-weight:600;color:var(--color-orange);text-transform:uppercase;letter-spacing:0.5px;">Revenue</div>
+                  <div style="font-size:20px;font-weight:800;font-family:var(--font-display);color:var(--color-orange);line-height:1.2;">240M</div>
+                  <div style="font-size:10px;color:var(--color-text-muted);">MMK confirmed orders</div>
+                </div>
+              </div>
+            </div>
+            <!-- WEEK BAR CHART -->
+            <div style="padding:0 16px;margin-bottom:10px;">
+              <div class="section-head"><span class="section-title">Visits This Week</span></div>
+              <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px;">
+                <div class="chart-bar-row">
+                  <div class="bar-col"><div class="bar" style="height:30px;"></div><span class="bar-day">M</span></div>
+                  <div class="bar-col"><div class="bar" style="height:42px;"></div><span class="bar-day">T</span></div>
+                  <div class="bar-col"><div class="bar active" style="height:48px;"></div><span class="bar-day">W</span></div>
+                  <div class="bar-col"><div class="bar" style="height:22px;"></div><span class="bar-day">T</span></div>
+                  <div class="bar-col"><div class="bar" style="height:36px;"></div><span class="bar-day">F</span></div>
+                  <div class="bar-col"><div class="bar" style="height:8px;opacity:0.3;"></div><span class="bar-day">S</span></div>
+                </div>
+              </div>
+            </div>
+            <!-- TEAM LIST -->
+            <div style="padding:0 16px 4px;">
+              <div class="section-head"><span class="section-title">Team Members</span><span class="section-link">All 8</span></div>
+            </div>
+            <div class="card" style="margin:0 16px;">
+              <div class="team-row">
+                <div class="avatar av-md" style="background:linear-gradient(135deg,#0ea5e9,#0a8a7c);">AK</div>
+                <div class="team-info">
+                  <div class="team-name">Aung Kyaw Zin</div>
+                  <div class="team-meta">🟢 Active — Shwe Taung</div>
+                  <div class="mini-bar"><div class="mini-fill" style="width:87%;"></div></div>
+                </div>
+                <div class="team-stats">
+                  <div class="team-count">7</div>
+                  <div class="team-count-label">visits</div>
+                </div>
+              </div>
+              <div class="team-row">
+                <div class="avatar av-md" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);">TM</div>
+                <div class="team-info">
+                  <div class="team-name">Thida Myint</div>
+                  <div class="team-meta">🟢 Active — KBZ Bank</div>
+                  <div class="mini-bar"><div class="mini-fill" style="width:72%;background:var(--color-purple);"></div></div>
+                </div>
+                <div class="team-stats">
+                  <div class="team-count">6</div>
+                  <div class="team-count-label">visits</div>
+                </div>
+              </div>
+              <div class="team-row">
+                <div class="avatar av-md" style="background:linear-gradient(135deg,#f97316,#b45309);">KK</div>
+                <div class="team-info">
+                  <div class="team-name">Kyaw Ko Ko</div>
+                  <div class="team-meta" style="color:var(--color-warning);">⚠️ 2 outcomes overdue</div>
+                  <div class="mini-bar"><div class="mini-fill" style="width:45%;background:var(--color-warning);"></div></div>
+                </div>
+                <div class="team-stats">
+                  <div class="team-count" style="color:var(--color-warning);">3</div>
+                  <div class="team-count-label">visits</div>
+                </div>
+              </div>
+              <div class="team-row" style="border-bottom:none;">
+                <div class="avatar av-md" style="background:linear-gradient(135deg,#22c55e,#166534);">NL</div>
+                <div class="team-info">
+                  <div class="team-name">Nilar Lwin</div>
+                  <div class="team-meta">🟡 Planning — next at 2PM</div>
+                  <div class="mini-bar"><div class="mini-fill" style="width:60%;background:var(--color-success);"></div></div>
+                </div>
+                <div class="team-stats">
+                  <div class="team-count">5</div>
+                  <div class="team-count-label">visits</div>
+                </div>
+              </div>
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+          <div class="bottom-nav">
+            <div class="nav-item active">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="nav-label">Overview</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span class="nav-label">Team</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span class="nav-label">KPIs</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Plan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 6: HISTORY / REPORT LOG -->
+    <div class="phone-wrap">
+      <div class="screen-label">Screen 06</div>
+      <div class="screen-title">Visit History & Reports</div>
+      <div class="phone-frame">
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-cam"></div>
+        </div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="status-left">9:41</span>
+            <div class="status-right">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+            </div>
+          </div>
+          <div class="screen-content">
+            <!-- FILTER ROW -->
+            <div style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;gap:6px;align-items:center;">
+              <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);flex:1;letter-spacing:-0.3px;">Visit History</div>
+              <div style="display:flex;gap:4px;">
+                <div style="padding:5px 10px;background:var(--color-primary);border-radius:var(--radius-full);font-size:11px;font-weight:600;color:white;">All</div>
+                <div style="padding:5px 10px;background:var(--color-surface-offset);border-radius:var(--radius-full);font-size:11px;font-weight:500;color:var(--color-text-muted);">Mine</div>
+                <div style="padding:5px 10px;background:var(--color-surface-offset);border-radius:var(--radius-full);font-size:11px;font-weight:500;color:var(--color-text-muted);">Team</div>
+              </div>
+            </div>
+            <!-- SEARCH BAR -->
+            <div style="padding:10px 16px 0;">
+              <div style="display:flex;align-items:center;gap:8px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:9px 12px;">
+                <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <span style="font-size:13px;color:var(--color-text-faint);">Search visits, clients…</span>
+              </div>
+            </div>
+            <!-- DATE GROUP: May 9 -->
+            <div style="padding:10px 16px 4px;font-size:10px;font-weight:700;color:var(--color-text-faint);text-transform:uppercase;letter-spacing:0.8px;">Today · May 9</div>
+            <div class="history-item">
+              <div class="history-date"><div class="day">09</div><div class="mon">May</div></div>
+              <div class="history-body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                  <div class="history-company">Shwe Taung Co., Ltd</div>
+                  <span class="badge badge-success">Done</span>
+                </div>
+                <div class="history-rep">Aung Kyaw Zin · 09:32 – 10:36</div>
+                <div class="history-outcome"><span style="color:var(--color-success);font-weight:600;">✓ Successful</span> · Order: 12.5M MMK · 1h 04m</div>
+              </div>
+            </div>
+            <!-- DATE GROUP: May 8 -->
+            <div style="padding:10px 16px 4px;font-size:10px;font-weight:700;color:var(--color-text-faint);text-transform:uppercase;letter-spacing:0.8px;">Yesterday · May 8</div>
+            <div class="history-item">
+              <div class="history-date"><div class="day">08</div><div class="mon">May</div></div>
+              <div class="history-body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                  <div class="history-company">KBZ Bank HQ</div>
+                  <span class="badge badge-success">Done</span>
+                </div>
+                <div class="history-rep">Thida Myint · 10:00 – 11:15</div>
+                <div class="history-outcome"><span style="color:var(--color-success);font-weight:600;">✓ Successful</span> · Service renewal confirmed</div>
+              </div>
+            </div>
+            <div class="history-item">
+              <div class="history-date"><div class="day">08</div><div class="mon">May</div></div>
+              <div class="history-body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                  <div class="history-company">Dagon Beer Myanmar</div>
+                  <span class="badge badge-warn">Partial</span>
+                </div>
+                <div class="history-rep">Kyaw Ko Ko · 14:00 – 14:45</div>
+                <div class="history-outcome"><span style="color:var(--color-warning);font-weight:600;">⚡ Partial</span> · Pricing not agreed · Follow up set</div>
+              </div>
+            </div>
+            <div class="history-item">
+              <div class="history-date"><div class="day">08</div><div class="mon">May</div></div>
+              <div class="history-body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                  <div class="history-company">Myanmar Plaza Retail</div>
+                  <span class="badge badge-error">No Contact</span>
+                </div>
+                <div class="history-rep">Aung Kyaw Zin · 16:30</div>
+                <div class="history-outcome"><span style="color:var(--color-error);font-weight:600;">✗ No Contact</span> · Rescheduled to May 12</div>
+              </div>
+            </div>
+            <!-- DATE GROUP: May 7 -->
+            <div style="padding:10px 16px 4px;font-size:10px;font-weight:700;color:var(--color-text-faint);text-transform:uppercase;letter-spacing:0.8px;">May 7</div>
+            <div class="history-item">
+              <div class="history-date"><div class="day">07</div><div class="mon">May</div></div>
+              <div class="history-body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                  <div class="history-company">Asia Green Development</div>
+                  <span class="badge badge-success">Done</span>
+                </div>
+                <div class="history-rep">Nilar Lwin · 09:00 – 10:20</div>
+                <div class="history-outcome"><span style="color:var(--color-success);font-weight:600;">✓ Successful</span> · Contract renewed · 35M MMK</div>
+              </div>
+            </div>
+            <div style="height:80px;"></div>
+          </div>
+          <!-- BOTTOM NAV -->
+          <div class="bottom-nav">
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="nav-label">Today</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="nav-label">Plan</span>
+            </div>
+            <div class="nav-item">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="nav-label">Active</span>
+            </div>
+            <div class="nav-item active">
+              <svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span class="nav-label">Reports</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end row 2 -->
+
+  <!-- LEGEND / DESIGN NOTES -->
+  <div style="max-width:1100px;width:100%;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:24px 28px;">
+    <div style="font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--color-text);margin-bottom:16px;letter-spacing:-0.3px;">Design System Notes</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--color-text-faint);margin-bottom:8px;">Palette</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--color-primary);"></div>
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--color-success);"></div>
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--color-warning);"></div>
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--color-error);"></div>
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--color-purple);"></div>
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--color-orange);"></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--color-text-faint);margin-bottom:8px;">Typography</div>
+        <div style="font-size:12px;color:var(--color-text);">
+          <div style="font-family:var(--font-display);font-weight:700;">Plus Jakarta Sans</div>
+          <div style="color:var(--color-text-muted);font-size:11px;">Display / Headings</div>
+          <div style="margin-top:4px;">Inter</div>
+          <div style="color:var(--color-text-muted);font-size:11px;">Body / UI</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--color-text-faint);margin-bottom:8px;">Roles</div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--color-text-muted);">
+          <div><span style="font-weight:600;color:var(--color-text);">AM (Field Rep)</span> — Screens 1, 2, 3, 4</div>
+          <div><span style="font-weight:600;color:var(--color-text);">Manager</span> — Screen 5</div>
+          <div><span style="font-weight:600;color:var(--color-text);">All Roles</span> — Screen 6 (History)</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--color-text-faint);margin-bottom:8px;">Key UX Decisions</div>
+        <div style="font-size:11px;color:var(--color-text-muted);line-height:1.6;">
+          Bottom nav · 4 tabs max<br>
+          GPS auto-verify on check-in<br>
+          Outcome locked on submit<br>
+          Manager annotation separate layer
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end outer-wrap -->
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('theme-icon').textContent = next === 'dark' ? '☀️' : '🌙';
+  document.getElementById('theme-label').textContent = next === 'dark' ? 'Light' : 'Dark';
+}
+</script>
+</body>
+</html>

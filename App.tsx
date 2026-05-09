@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useDeferredValue, useEffect, useState } from 'react';
+import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useAuth } from './src/hooks/useAuth';
 import { Platform, SafeAreaView, ScrollView, StatusBar as NativeStatusBar, useWindowDimensions, View } from 'react-native';
 import { DEFAULT_API_BASE_URL } from './src/config';
 import { Banner } from './src/components/Banner';
@@ -10,6 +12,7 @@ import { ClientWorkspaceScreen, type ClientWorkspaceTab } from './src/components
 import { LoginScreen } from './src/components/LoginScreen';
 import { ReviewScreen } from './src/components/ReviewScreen';
 import { VisitPlanModal } from './src/components/VisitPlanModal';
+import { AdminQuickActions } from './src/components/AdminQuickActions';
 import { VisitPlanSummary } from './src/components/VisitPlanSummary';
 import { WorkspaceHeader } from './src/components/WorkspaceHeader';
 import {
@@ -30,6 +33,12 @@ import {
   updateVisitPlan,
 } from './src/lib/api';
 import { styles } from './src/styles';
+import {
+  getClients,
+  getFinancialYears,
+  getFinancialQuarters,
+  upsertVisit,
+} from './src/lib/cockpit';
 import type {
   AuthUser,
   ClientContact,
@@ -44,6 +53,7 @@ import type {
   VisitPlanDraft,
   VisitPlanListResponse,
   VisitPlanPermissions,
+  CockpitVisit,
 } from './src/types';
 import {
   buildDraftFromVisitPlan,
@@ -87,11 +97,34 @@ type ModalMode = 'create' | 'edit';
 
 const SESSION_STORAGE_KEY = 'bim.visitplan.session';
 
+const _queryClient = new QueryClient();
+
 export default function App() {
+  return (
+    <QueryClientProvider client={_queryClient}>
+      <AppContent />
+    </QueryClientProvider>
+  );
+}
+
+function AppContent() {
   const { width } = useWindowDimensions();
   const isCompactLayout = width < 980;
   const androidTopInset = Platform.OS === 'android' ? (NativeStatusBar.currentHeight ?? 0) : 0;
   const safeAreaStyle = [styles.safeArea, androidTopInset > 0 ? { paddingTop: androidTopInset } : null];
+  const {
+    status: authStatus,
+    user: authUser,
+    role: authRole,
+    error: authError,
+    loginReady,
+    login: authLogin,
+    logout: authLogout,
+    pendingEmail,
+    pendingName,
+    createPendingAccount,
+    createAccountLoading,
+  } = useAuth();
   const [session, setSession] = useState<SessionState | null>(null);
   const [restoringSession, setRestoringSession] = useState(true);
   const [loginForm, setLoginForm] = useState<LoginFormState>({
@@ -128,6 +161,13 @@ export default function App() {
     team: '',
   });
   const [submittingDraft, setSubmittingDraft] = useState(false);
+
+  // Cockpit pseudo-ID ↔ Cockpit _id reverse map (populated by loadCockpitLookups)
+  const cockpitIdMapRef = useRef<{
+    clients: Map<number, string>;
+    years: Map<number, string>;
+    quarters: Map<number, string>;
+  }>({ clients: new Map(), years: new Map(), quarters: new Map() });
 
   const [clientSearchText, setClientSearchText] = useState('');
   const deferredClientSearchText = useDeferredValue(clientSearchText);
@@ -175,7 +215,19 @@ export default function App() {
     void loadClientWorkspaceData(session, selectedClientId);
   }, [session, selectedClientId]);
 
-  const canAssignMembers = Boolean(session?.permissions.can_create || session?.permissions.can_edit);
+  // Load clients / financial years / quarters from Cockpit CMS for MS-auth users
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return;
+    void loadCockpitLookups();
+  }, [authStatus]);
+
+  const canAssignMembers = Boolean(
+    session?.permissions.can_create ||
+      session?.permissions.can_edit ||
+      authRole === 'admin' ||
+      authRole === 'director' ||
+      authRole === 'sales_manager',
+  );
   const visibleClients = filterLookupItems(lookups.clients, lookupQueries.client, 25);
   const visibleYears = filterLookupItems(lookups.financialYears, lookupQueries.financialYear, 25);
   const visibleQuarters = filterLookupItems(lookups.financialQuarters, lookupQueries.financialQuarter, 25);
@@ -188,8 +240,8 @@ export default function App() {
     (visitPlan) => visitPlan.date >= currentWeek.start && visitPlan.date <= currentWeek.end,
   ).length;
   const weekRangeLabel = formatWeekRange(currentWeek.start, currentWeek.end);
-  const userName = session ? `${session.user.first_name} ${session.user.last_name}`.trim() : '';
-  const scopeLabel = session?.permissions.can_view_all ? 'Global' : 'Own';
+  const userName = authUser?.name ?? (session ? `${session.user.first_name} ${session.user.last_name}`.trim() : '');
+  const scopeLabel = (authRole === 'sales_manager' || authRole === 'director' || authRole === 'admin') ? 'Global' : (session?.permissions.can_view_all ? 'Global' : 'Own');
 
   async function handleLogin() {
     if (!loginForm.email || !loginForm.password || !loginForm.baseUrl) {
@@ -273,6 +325,37 @@ export default function App() {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
     } finally {
       setLoadingVisitPlans(false);
+      setLoadingLookups(false);
+    }
+  }
+
+  async function loadCockpitLookups() {
+    setLoadingLookups(true);
+    try {
+      const [cockpitClients, cockpitYears, cockpitQuarters] = await Promise.all([
+        getClients({ limit: 500 }),
+        getFinancialYears({ limit: 50 }),
+        getFinancialQuarters({ limit: 100 }),
+      ]);
+
+      // Build pseudo-ID → Cockpit _id maps so we can resolve on submit
+      cockpitIdMapRef.current.clients = new Map(cockpitClients.map((c, i) => [i + 1, c._id]));
+      cockpitIdMapRef.current.years = new Map(cockpitYears.map((y, i) => [i + 1, y._id]));
+      cockpitIdMapRef.current.quarters = new Map(cockpitQuarters.map((q, i) => [i + 1, q._id]));
+
+      setLookups((prev) => ({
+        ...prev,
+        clients: cockpitClients.map((c, i) => ({
+          id: i + 1,
+          label: c.name,
+          subtitle: c.tier ? `Tier ${c.tier}` : (c.sector ?? undefined),
+        })),
+        financialYears: cockpitYears.map((y, i) => ({ id: i + 1, label: y.name })),
+        financialQuarters: cockpitQuarters.map((q, i) => ({ id: i + 1, label: q.name })),
+      }));
+    } catch (error) {
+      setBanner({ tone: 'error', message: toFriendlyMessage(error) });
+    } finally {
       setLoadingLookups(false);
     }
   }
@@ -367,10 +450,6 @@ export default function App() {
   }
 
   async function handleSubmitVisitPlan() {
-    if (!session) {
-      return;
-    }
-
     const validationError = validateDraft(draft);
     if (validationError) {
       setBanner({ tone: 'error', message: validationError });
@@ -380,32 +459,64 @@ export default function App() {
     setSubmittingDraft(true);
 
     try {
-      const payload = {
-        ...draft,
-        date: formatDateForApi(draft.date),
-        url: draft.url?.trim() || undefined,
-        description: draft.description?.trim() || undefined,
-        location_others: draft.location === 3 ? draft.location_others?.trim() || undefined : undefined,
-      };
+      if (session) {
+        // ── Old CRM API path ──────────────────────────────────────
+        const payload = {
+          ...draft,
+          date: formatDateForApi(draft.date),
+          url: draft.url?.trim() || undefined,
+          description: draft.description?.trim() || undefined,
+          location_others:
+            draft.location === 3 ? draft.location_others?.trim() || undefined : undefined,
+        };
 
-      const response = editingVisitPlanId
-        ? await updateVisitPlan(session.baseUrl, session.token, editingVisitPlanId, payload)
-        : await createVisitPlan(session.baseUrl, session.token, payload);
+        const response = editingVisitPlanId
+          ? await updateVisitPlan(session.baseUrl, session.token, editingVisitPlanId, payload)
+          : await createVisitPlan(session.baseUrl, session.token, payload);
 
-      setSelectedDate(response.data.date);
-      closeVisitPlanModal();
-      setBanner({
-        tone: 'success',
-        message: modalMode === 'edit' ? 'Visit plan updated successfully.' : 'Visit plan created successfully.',
-      });
+        setSelectedDate(response.data.date);
+        closeVisitPlanModal();
+        setBanner({
+          tone: 'success',
+          message:
+            modalMode === 'edit' ? 'Visit plan updated successfully.' : 'Visit plan created successfully.',
+        });
 
-      await loadVisitPlanData(session, {
-        search: deferredSearchText,
-        status: activeStatusFilter,
-      });
+        await loadVisitPlanData(session, {
+          search: deferredSearchText,
+          status: activeStatusFilter,
+        });
 
-      if (selectedClientId && draft.client_id === selectedClientId) {
-        await loadClientWorkspaceData(session, selectedClientId);
+        if (selectedClientId && draft.client_id === selectedClientId) {
+          await loadClientWorkspaceData(session, selectedClientId);
+        }
+      } else if (authUser) {
+        // ── Cockpit CMS path ──────────────────────────────────────
+        const clientCockpitId =
+          draft.client_id ? cockpitIdMapRef.current.clients.get(draft.client_id) : undefined;
+        const clientLabel = findLookupLabel(lookups.clients, draft.client_id);
+
+        const visitData: Partial<CockpitVisit> = {
+          title: `Visit – ${clientLabel || 'Client'}`,
+          client: clientCockpitId
+            ? { _id: clientCockpitId, name: clientLabel ?? '' }
+            : undefined,
+          assigned_am: { _id: authUser._id, name: authUser.name },
+          date: formatDateForApi(draft.date),
+          start_time: draft.start_time || undefined,
+          location:
+            draft.location === 1 ? 'Online'
+            : draft.location === 2 ? 'In-person'
+            : draft.location_others?.trim() || undefined,
+          agenda: draft.description?.trim() ?? undefined,
+          status: 'scheduled',
+        };
+
+        await upsertVisit(visitData);
+        closeVisitPlanModal();
+        setBanner({ tone: 'success', message: 'Visit planned successfully.' });
+      } else {
+        setBanner({ tone: 'error', message: 'Not authenticated. Please sign in again.' });
       }
     } catch (error) {
       setBanner({ tone: 'error', message: toFriendlyMessage(error) });
@@ -415,6 +526,7 @@ export default function App() {
   }
 
   function handleLogout() {
+    void authLogout();
     setSession(null);
     setVisitPlans([]);
     setVisitPlanMeta(null);
@@ -442,7 +554,7 @@ export default function App() {
     setSelectedDate(shiftIsoDate(selectedDate, offset));
   }
 
-  if (restoringSession) {
+  if (authStatus === 'restoring' || restoringSession) {
     return (
       <SafeAreaView style={safeAreaStyle}>
         <StatusBar style="dark" />
@@ -456,18 +568,19 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (authStatus !== 'authenticated') {
     return (
       <SafeAreaView style={safeAreaStyle}>
         <StatusBar style="dark" />
         <LoginScreen
-          banner={banner}
-          loggingIn={loggingIn}
-          loginForm={loginForm}
-          onChangeLoginForm={setLoginForm}
-          onSubmit={() => {
-            void handleLogin();
-          }}
+          status={authStatus}
+          loginReady={loginReady}
+          error={authError}
+          onLogin={authLogin}
+          pendingEmail={pendingEmail}
+          pendingName={pendingName}
+          onCreateAccount={createPendingAccount}
+          createAccountLoading={createAccountLoading}
         />
       </SafeAreaView>
     );
@@ -504,6 +617,11 @@ export default function App() {
                     onCreateVisitPlan={() => openCreateModal(selectedDate)}
                     showSessionBanner={false}
                   />
+                  <AdminQuickActions
+                    authRole={authRole}
+                    onSuccess={() => void loadCockpitLookups()}
+                    onBanner={(tone, message) => setBanner({ tone, message })}
+                  />
                 </View>
 
                 <View style={styles.mainColumnFull}>
@@ -520,6 +638,7 @@ export default function App() {
                     onSelectDate={handleSelectDate}
                     onCreateVisitPlan={() => openCreateModal(selectedDate)}
                     onRefresh={() => {
+                      if (!session) { return; }
                       void loadVisitPlanData(session, {
                         search: deferredSearchText,
                         status: activeStatusFilter,

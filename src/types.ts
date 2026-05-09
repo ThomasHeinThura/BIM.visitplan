@@ -225,3 +225,84 @@ export type ClientNoteRecord = {
   created_at?: string | null;
   creator?: ClientWorkspacePerson | null;
 };
+
+// ─── Cockpit CMS Types ─────────────────────────────────────────────────────
+
+export type CockpitUser = {
+  _id: string;
+  name: string;
+  email: string;
+  role: 'am' | 'sales_manager' | 'director' | 'admin';
+  team?: string | null;
+  ms_email?: string | null;
+  ms_id?: string | null;
+  active: boolean;
+};
+
+export type CockpitClient = {
+  _id: string;
+  name: string;
+  sector?: string | null;
+  tier?: 'A' | 'B' | 'C' | null;
+  address?: string | null;
+  phone?: string | null;
+  status: 'active' | 'inactive';
+};
+
+export type CockpitContact = {
+  _id: string;
+  name: string;
+  client?: Pick<CockpitClient, '_id' | 'name'> | null;
+  email?: string | null;
+  phone?: string | null;
+  position?: string | null;
+};
+
+export type CockpitVisit = {
+  _id: string;
+  title: string;
+  client?: Pick<CockpitClient, '_id' | 'name'> | null;
+  contact?: Pick<CockpitContact, '_id' | 'name'> | null;
+  assigned_am?: Pick<CockpitUser, '_id' | 'name'> | null;
+  date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  location?: string | null;
+  agenda?: string | null;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'missed';
+  checkin_at?: string | null;
+  checkout_at?: string | null;
+  checkin_lat?: number | null;
+  checkin_lng?: number | null;
+};
+
+export type CockpitVisitOutcome = {
+  _id: string;
+  visit?: Pick<CockpitVisit, '_id' | 'title'> | null;
+  result: 'positive' | 'neutral' | 'negative' | 'no_show';
+  summary?: string | null;
+  next_action?: string | null;
+  next_visit_date?: string | null;
+  attachments?: string[] | null;
+  submitted_by?: Pick<CockpitUser, '_id' | 'name'> | null;
+  submitted_at?: string | null;
+};
+
+export type CockpitFinancialYear = {
+  _id: string;
+  name: string; // e.g. "FY 2026"
+  year: number; // e.g. 2026
+  start_date?: string | null;
+  end_date?: string | null;
+  active: boolean;
+};
+
+export type CockpitFinancialQuarter = {
+  _id: string;
+  name: string; // e.g. "Q1 FY2026"
+  year?: Pick<CockpitFinancialYear, '_id' | 'name'> | null;
+  quarter_number: 1 | 2 | 3 | 4;
+  start_date?: string | null;
+  end_date?: string | null;
+  active: boolean;
+};

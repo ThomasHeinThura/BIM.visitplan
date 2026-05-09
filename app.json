@@ -11,6 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "scheme": "msauth.com.heinthura.bimvisitplan",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.heinthura.bimvisitplan",
@@ -32,6 +33,10 @@
     },
     "extra": {
       "project": "BIM.Visitplan"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser"
+    ]
   }
 }

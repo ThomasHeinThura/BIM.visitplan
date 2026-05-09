@@ -556,6 +556,35 @@ export const styles = StyleSheet.create({
 	secondaryButtonText: { color: '#2643B8', fontSize: 13, fontWeight: '800' },
 	inlineActionButton: { marginTop: 12 },
 	buttonDisabled: { opacity: 0.6 },
+	// ── Microsoft login button ──────────────────────────────────────────────
+	msButton: {
+		marginTop: 8,
+		backgroundColor: '#0078D4',
+	},
+	msButtonInner: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 10,
+	},
+	msLogo: {
+		width: 20,
+		height: 20,
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: 2,
+	},
+	msLogoQuad: {
+		width: 9,
+		height: 9,
+	},
+	loginHint: {
+		marginTop: 14,
+		color: '#7B8AA0',
+		fontSize: 12,
+		textAlign: 'center',
+		lineHeight: 18,
+	},
+	// ── End Microsoft login button ──────────────────────────────────────────
 	emptyState: { paddingVertical: 24, gap: 8 },
 	emptyStateTitle: { color: '#13203B', fontSize: 18, fontWeight: '700' },
 	emptyStateDescription: { color: '#64748B', fontSize: 14, lineHeight: 20 },

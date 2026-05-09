@@ -170,7 +170,6 @@
 				ORGANIZATIONNAME = bimgoc;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						DevelopmentTeam = BB26RT3JYN;
 						LastSwiftMigration = 1250;
 						ProvisioningStyle = Automatic;
 					};
@@ -280,9 +279,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-BIMVisitplan/Pods-BIMVisitplan-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-BIMVisitplan/Pods-BIMVisitplan-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -297,9 +300,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-BIMVisitplan/Pods-BIMVisitplan-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-BIMVisitplan/Pods-BIMVisitplan-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -331,7 +338,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = BB26RT3JYN;
+				DEVELOPMENT_TEAM = P6HM822KD4;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -352,13 +359,17 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.heinthura.bimvisitplan;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bim.visitplan;
 				PRODUCT_NAME = BIMVisitplan;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "BIMVisitplan/BIMVisitplan-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -373,7 +384,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = BB26RT3JYN;
+				DEVELOPMENT_TEAM = P6HM822KD4;
 				INFOPLIST_FILE = BIMVisitplan/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = visitplan;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -389,12 +400,16 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.heinthura.bimvisitplan;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bim.visitplan;
 				PRODUCT_NAME = BIMVisitplan;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "BIMVisitplan/BIMVisitplan-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
