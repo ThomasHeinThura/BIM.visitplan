@@ -1,17 +1,17 @@
 # VisitPlan MVP — Product & Development Plan
 
-**Stack:** Expo React Native (existing repo) + Cockpit CMS (already deployed at cms.bimats.com)  
+**Version:** 2.0 (May 2026)  
+**Stack:** Expo React Native (SDK 55) + Cockpit CMS (cms.bimats.com)  
 **Repo:** https://github.com/ThomasHeinThura/BIM.visitplan  
-**Goal:** Unblock sales team — visit tracking + management report. Nothing else.
+**Goal:** Unblock sales team — visit tracking + client management + management reports.
 
 ---
 
 ## What We Are Building
 
-Two things only:
-
-1. **Mobile App** (iOS + Android) — for Area Managers to plan and log visits
-2. **Report Screen** (in-app, manager view) — visit counts per AM, weekly and monthly
+1. **Mobile App** (iOS + Android + Web) — for Area Managers to plan and log visits
+2. **Client Directory** — admin-managed, AM-viewable, with sector/status/type metadata
+3. **Report Screen** (in-app) — visit counts per AM, weekly and monthly
 
 Pipeline tracking is a **separate app**. Not in this MVP.
 
@@ -21,8 +21,23 @@ Pipeline tracking is a **separate app**. Not in this MVP.
 
 | Role | Access | Assignment | Platform |
 |------|--------|------------|----------|
-| `admin` | Full access — manage users, approve accounts, create clients/quarters, all visits + reports | Director job title → auto-assigned; or manually assigned by existing admin | Mobile |
-| `am` | Account Manager — own visits only: create, check-in, log outcome | Assigned by admin after approval | Mobile |
+| `admin` | Full: create clients/sectors, approve users, all visits + reports, manage AMs | Director job title → auto-assigned; or manually assigned by existing admin | Mobile + Web |
+| `am` | Create visit plans for existing clients only; change client account_type & status; own visits; reports | Assigned by admin after approval | Mobile + Web |
+
+### Permission Matrix
+
+| Action | Admin | AM |
+|--------|-------|----|
+| Create client | ✅ | ❌ |
+| Create sector | ✅ | ❌ |
+| Edit client name/sector | ✅ | ❌ |
+| Edit client account_type / status | ✅ | ✅ |
+| Assign AM to client | ✅ | ❌ |
+| Create visit plan | ✅ (any) | ✅ (existing clients only) |
+| View all visits / team | ✅ | ❌ (own only) |
+| Approve / reject users | ✅ | ❌ |
+| Access Admin screen (S-09) | ✅ | ❌ |
+| Access Team Overview (S-05) | ✅ | ❌ |
 
 ---
 
@@ -32,17 +47,17 @@ Users log in with their **Microsoft work account** (BIM Group Entra ID).
 Cockpit CMS stores user profile + role. Microsoft handles identity only.
 
 **Flow:**
-1. User taps "Login with Microsoft" → MSAL redirects to Entra ID
+1. User taps "Login with Microsoft" → PKCE OAuth redirects to Entra ID
 2. Microsoft returns token + user email + job title
 3. App queries Cockpit `users` collection by `ms_email`
-4. Not found → create pending record → show **Pending Approval** screen (S-08)
+4. Not found → create pending record (`approval_status: pending`) → show **Pending Approval** screen (S-08)
 5. Found, `approval_status = pending` → show **Pending Approval** screen (S-08)
 6. Found, `role = am`, `approval_status = approved` → enter AM Dashboard (S-01)
-7. Found, `role = admin`, `approval_status = approved` → enter Admin Dashboard (S-07)
-8. Special case: job title contains "Director" → auto-assign `admin` role, skip approval
+7. Found, `role = admin`, `approval_status = approved` → enter Admin Dashboard (S-01)
+8. Special case: job title contains "Director" → auto-assign `admin` role + `approval_status: approved`
 
 **Admin approves users via:**
-- **In-app**: Admin screen (S-07) → Approvals tab → assign role (AM or Admin)
+- **In-app**: Admin screen (S-09) → Approvals tab → assign role (AM or Admin)
 - **Cockpit CMS**: `users` collection → update `role` + `approval_status` fields directly
 
 No passwords. No separate registration. Users sign in with Microsoft; admin assigns roles.
@@ -77,16 +92,35 @@ Go to **cms.bimats.com → Content → Add Collection** and create each one belo
 
 ---
 
+#### Collection: `sectors`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `name` | Text | Required — e.g. Microfinance, Banking, Healthcare |
+| `active` | Boolean | Default: true |
+
+**Seeded values:** Microfinance, MDR, Healthcare, Insurance, Banking, Telecom, Media, Software, Government  
+Admin can add new sectors from the Admin screen. AMs cannot create sectors.
+
+---
+
 #### Collection: `clients`
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `name` | Text | Required |
-| `sector` | Text | Industry |
-| `tier` | Select | Options: `A`, `B`, `C` |
+| `sector` | Collection Link | Links to `sectors` — required |
+| `account_type` | Select | Options: `Named Account`, `Key Account` |
+| `status` | Select | Options: `Active`, `Hold`, `Inactive`, `Churned`, `Prospect`; Default: `Prospect` |
+| `am` | Collection Link | Links to `users` — assigned AM |
 | `address` | Text | |
 | `phone` | Text | |
-| `status` | Select | Options: `active`, `inactive` |
+| `website` | Text | |
+| `notes` | Textarea | Internal notes |
+
+**Who can do what:**
+- Admin: create clients, edit all fields, assign sector and AM
+- AM: edit only `account_type` and `status` on existing clients
 
 ---
 
@@ -154,21 +188,23 @@ Add your app's domain and `*` for development.
 
 ---
 
-## Mobile App — 9 Screens
+## Mobile App — 11 Screens
 
 ### Screens by Role
 
 | # | Screen | Role | Purpose |
 |---|--------|------|---------|
 | S-00 | Login | All | Microsoft SSO only — no email/password |
-| S-01 | Today Dashboard | AM | Today's visits, pending outcomes, KPIs |
-| S-02 | Plan Visit | AM | Create new visit — client, agenda, schedule |
-| S-03 | Active Visit | AM | Live check-in/out timer, GPS verify, agenda checklist |
-| S-04 | Outcome Form | AM | Post-visit result + notes (locks on submit) |
-| S-05 | Team Overview | Admin | Team visit stats, AM activity feed, bar chart |
-| S-06 | Visit History | AM + Admin | Filter visits by date/status/team/AM |
-| S-07 | Admin Dashboard | Admin | Tools tab (Create Client, Add Quarter) + Approvals tab (assign AM/Admin role) |
-| S-08 | Pending Approval | New user | Shown after MS login if account not yet approved by admin |
+| S-01 | Today Dashboard | AM + Admin | Today's visits, pending outcomes, weekly KPIs |
+| S-02 | Visit Plan List | AM + Admin | Calendar + list; AM sees own, Admin sees all |
+| S-03 | Create / Edit Visit | AM + Admin | Pick existing client, agenda, schedule; AM limited to existing clients |
+| S-04 | Visit Detail | AM + Admin | Check-in/out timer, GPS, agenda, outcome form |
+| S-05 | Team Overview | Admin only | AM activity feed, visit stats by AM, period selector |
+| S-06 | Client List | AM + Admin | Full client directory; filter by sector/status/AM |
+| S-07 | Client Workspace | AM + Admin | Client detail; AM can edit account_type/status; Admin edits all fields |
+| S-08 | Pending Approval | New user | Shown after MS login if account not yet approved |
+| S-09 | Admin Screen | Admin only | Tools tab (Create Client, Create Sector, Add Quarter) + Approvals tab |
+| S-10 | Reports | AM + Admin | Visit counts per AM; AM sees own stats, Admin sees all |
 
 ---
 
@@ -354,12 +390,13 @@ Data source: Cockpit `visits` collection filtered by date range, grouped by `ass
 
 ---
 
-## Admin Screen — S-07 (Admin role only)
+## Admin Screen — S-09 (Admin role only)
 
 The Admin screen has two tabs:
 
 **Tools tab:**
-- Create Client — name, sector, tier
+- Create Client — name, sector (dropdown from `sectors` collection), account_type, status, assign AM
+- Create Sector — name (admin-only; AM cannot create sectors)
 - Add Financial Quarter — FY + Q1/Q2/Q3/Q4
 
 **Approvals tab:**

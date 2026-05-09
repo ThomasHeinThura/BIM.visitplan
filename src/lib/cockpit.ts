@@ -8,12 +8,16 @@ import type {
   CockpitVisitOutcome,
   CockpitFinancialYear,
   CockpitFinancialQuarter,
+  ClientStatus,
+  SectorName,
+  UserRole,
 } from '../types';
 
 // ─── Axios Instance ────────────────────────────────────────────────────────
 
 const cockpit = axios.create({
   baseURL: COCKPIT_API_URL,
+  timeout: 15000,
   headers: {
     'Api-Key': COCKPIT_API_TOKEN,
     'Content-Type': 'application/json',
@@ -26,7 +30,7 @@ type CollectionResponse<T> = T[];
 
 // ─── Query Helpers ─────────────────────────────────────────────────────────
 
-type FilterRecord = Record<string, string | number | boolean | Record<string, string | number>>;
+export type FilterRecord = Record<string, string | number | boolean | Record<string, string | number>>;
 
 function buildParams(options?: {
   filter?: FilterRecord;
@@ -69,8 +73,6 @@ export async function getUserByMsEmail(msEmail: string): Promise<CockpitUser | n
   const res = await cockpit.get<CollectionResponse<CockpitUser>>('/content/items/users', {
     params: buildParams({ filter: { ms_email: msEmail }, limit: 1, populate: 1 }),
   });
-  // DEBUG — remove before production
-  console.log('[cockpit] getUserByMsEmail query:', msEmail, '→ results:', res.data.length, res.data[0] ?? null);
   return res.data[0] ?? null;
 }
 
@@ -86,6 +88,30 @@ export async function upsertUser(data: Partial<CockpitUser> & { _id?: string }) 
   return res.data;
 }
 
+/** Returns all users with approval_status = 'pending'. Admin only. */
+export async function getPendingUsers(): Promise<CockpitUser[]> {
+  const res = await cockpit.get<CollectionResponse<CockpitUser>>('/content/items/users', {
+    params: buildParams({ filter: { approval_status: 'pending' }, populate: 1 }),
+  });
+  return res.data;
+}
+
+/** Approve a pending user: sets role + marks approval_status = 'approved'. Admin only. */
+export async function approveUser(userId: string, role: UserRole): Promise<CockpitUser> {
+  const res = await cockpit.post<CockpitUser>('/content/item/users', {
+    data: { _id: userId, role, approval_status: 'approved', active: true },
+  });
+  return res.data;
+}
+
+/** Reject a pending user: sets approval_status = 'rejected'. Admin only. */
+export async function rejectUser(userId: string): Promise<CockpitUser> {
+  const res = await cockpit.post<CockpitUser>('/content/item/users', {
+    data: { _id: userId, approval_status: 'rejected', active: false },
+  });
+  return res.data;
+}
+
 // ─── Clients ───────────────────────────────────────────────────────────────
 
 export async function getClients(options?: {
@@ -98,6 +124,40 @@ export async function getClients(options?: {
     params: buildParams({ ...options, populate: 1 }),
   });
   return res.data;
+}
+
+/**
+ * Get clients filtered by sector and/or status.
+ * Sector is stored as plain text; status is a string enum.
+ */
+export async function getClientsByFilter(opts: {
+  sector?: SectorName | null;
+  status?: ClientStatus | null;
+  amId?: string | null;
+  limit?: number;
+  skip?: number;
+}): Promise<CockpitClient[]> {
+  const filter: FilterRecord = {};
+  if (opts.sector) filter['sector'] = opts.sector;
+  if (opts.status) filter['status'] = opts.status;
+  if (opts.amId) filter['am._id'] = opts.amId;
+  return getClients({ filter, limit: opts.limit ?? 200, skip: opts.skip, sort: { name: 1 } });
+}
+
+/**
+ * Return the distinct sector names present on any client.
+ * Falls back to the hardcoded SECTORS list if the query is empty.
+ */
+export async function getSectors(): Promise<string[]> {
+  const res = await cockpit.get<CollectionResponse<CockpitClient>>('/content/items/clients', {
+    params: buildParams({ limit: 500, fields: 'sector' }),
+  });
+  const clients = res.data;
+  const seen = new Set<string>();
+  for (const c of clients) {
+    if (c.sector) seen.add(c.sector);
+  }
+  return Array.from(seen).sort();
 }
 
 export async function getClient(id: string): Promise<CockpitClient | null> {

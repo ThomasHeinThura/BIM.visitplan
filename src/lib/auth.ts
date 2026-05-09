@@ -28,7 +28,7 @@ import type { CockpitUser } from '../types';
 
 export type AuthResult =
   | { success: true; user: CockpitUser }
-  | { success: false; reason: 'not_registered' | 'inactive' | 'cancelled' | 'error'; message?: string; pendingEmail?: string; pendingName?: string; pendingMsToken?: string };
+  | { success: false; reason: 'pending_approval' | 'inactive' | 'cancelled' | 'error'; message?: string };
 
 // ─── OAuth discovery + redirect URI ────────────────────────────────────────
 
@@ -93,7 +93,6 @@ export async function handleAuthCode(
   codeVerifier: string,
 ): Promise<AuthResult> {
   try {
-    console.log('[auth] Starting token exchange for code:', code.substring(0, 20) + '...');
     const tokenResponse = await AuthSession.exchangeCodeAsync(
       {
         clientId: ENTRA_CLIENT_ID,
@@ -106,18 +105,13 @@ export async function handleAuthCode(
 
     const { accessToken, idToken } = tokenResponse;
     if (!accessToken) {
-      console.error('[auth] No access token in response');
       return { success: false, reason: 'error', message: 'No access token returned.' };
     }
 
     const claims = idToken ? decodeIdToken(idToken) : {};
     const msEmail = claims.preferred_username ?? claims.email ?? '';
 
-    console.log('[auth] MS token claims:', JSON.stringify({ preferred_username: claims.preferred_username, email: claims.email, name: claims.name }));
-    console.log('[auth] Looking up Cockpit user by ms_email:', msEmail);
-
     if (!msEmail) {
-      console.error('[auth] No email found in token claims');
       return { success: false, reason: 'error', message: 'Could not read email from Microsoft token.' };
     }
 
@@ -135,27 +129,34 @@ export async function loginWithEmail(
   msToken: string,
 ): Promise<AuthResult> {
   try {
-    const user = await getUserByMsEmail(msEmail);
+    let user = await getUserByMsEmail(msEmail);
 
     if (!user) {
-      // Extract name from claims (from id_token)
-      console.log('[auth] User not found in Cockpit, offering account creation');
-      let name = 'New User';
+      // New user — create a pending account automatically.
+      // Name is extracted from the MS access token (best-effort).
+      let name = msEmail.split('@')[0] ?? 'New User';
       try {
         const claims = decodeIdToken(msToken);
-        name = claims.name ?? 'New User';
-        console.log('[auth] Extracted name from token:', name);
-      } catch (err) {
-        console.warn('[auth] Could not extract name from token:', err);
-      }
+        if (claims.name) name = claims.name;
+      } catch { /* ignore */ }
 
+      user = await upsertUser({
+        ms_email: msEmail,
+        email: msEmail,
+        name,
+        role: 'am',
+        approval_status: 'pending',
+        active: false,
+      });
+    }
+
+    if (user.approval_status === 'pending' || user.approval_status === 'rejected') {
       return {
         success: false,
-        reason: 'not_registered',
-        message: 'No account found. Create one to get started.',
-        pendingEmail: msEmail,
-        pendingName: name,
-        pendingMsToken: msToken, // Pass access token for later account creation
+        reason: 'pending_approval',
+        message: user.approval_status === 'rejected'
+          ? 'Your access request was not approved. Contact your admin.'
+          : 'Your account is awaiting admin approval.',
       };
     }
 
@@ -189,62 +190,10 @@ export async function restoreSession(): Promise<CockpitUser | null> {
   const token = await getMsToken();
   if (!token) return null;
   const user = await getUserJson<CockpitUser>();
-  if (!user || !user.active) return null;
+  // Re-validate cached session: must be active and approved.
+  // Stale cache (e.g. admin rejected/deactivated user) is caught here.
+  if (!user || !user.active || user.approval_status !== 'approved') return null;
   return user;
-}
-
-// ─── Account creation (for users who don't exist yet) ─────────────────────────
-
-/**
- * Create a new account for a user who doesn't exist in Cockpit.
- * Called when user clicks "Create Account" button in LoginScreen.
- * 
- * Role assignment: thomas.h.thura@bimgoc.com gets 'admin', others get 'am' (default).
- * New accounts start active immediately for testing.
- */
-export async function createAccountRequest(
-  email: string,
-  name: string,
-  msToken: string,
-): Promise<AuthResult> {
-  try {
-    // Assign admin role to thomas.h.thura@bimgoc.com, otherwise am (Account Manager)
-    const role: 'am' | 'sales_manager' | 'director' | 'admin' = 
-      email.toLowerCase() === 'thomas.h.thura@bimgoc.com' ? 'admin' : 'am';
-    const active = true; // Auto-activate for testing
-
-    console.log('[auth] Creating account:', { email, name, role, active });
-
-    // Create user in Cockpit
-    const user = await upsertUser({
-      ms_email: email,
-      name,
-      role,
-      active,
-    });
-
-    if (!user) {
-      return {
-        success: false,
-        reason: 'error',
-        message: 'Failed to create account. Please try again.',
-      };
-    }
-
-    console.log('[auth] Account created, logging in:', { userId: user._id, role: user.role });
-
-    // Auto-login after successful account creation
-    await saveMsToken(msToken);
-    await saveUserId(user._id);
-    await saveUserRole(user.role);
-    await saveUserJson(user);
-
-    return { success: true, user };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create account.';
-    console.error('[auth] Account creation failed:', message);
-    return { success: false, reason: 'error', message };
-  }
 }
 
 // ─── Logout ──────────────────────────────────────────────────────────────────

@@ -11,9 +11,11 @@ const KEYS = {
   USER_JSON: 'visitplan_user_json',
 } as const;
 
+// Use sessionStorage on web to limit token exposure to the current tab/session.
+// sessionStorage is cleared when the tab closes, reducing XSS window vs localStorage.
 async function setItem(key: string, value: string): Promise<void> {
   if (Platform.OS === 'web') {
-    localStorage.setItem(key, value);
+    sessionStorage.setItem(key, value);
     return;
   }
   await SecureStore.setItemAsync(key, value);
@@ -21,14 +23,14 @@ async function setItem(key: string, value: string): Promise<void> {
 
 async function getItem(key: string): Promise<string | null> {
   if (Platform.OS === 'web') {
-    return localStorage.getItem(key);
+    return sessionStorage.getItem(key);
   }
   return SecureStore.getItemAsync(key);
 }
 
 async function removeItem(key: string): Promise<void> {
   if (Platform.OS === 'web') {
-    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
     return;
   }
   await SecureStore.deleteItemAsync(key);

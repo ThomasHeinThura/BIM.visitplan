@@ -17,6 +17,7 @@ import {
 } from '../lib/cockpit';
 import { styles } from '../styles';
 import { toFriendlyMessage } from '../utils/visitplan';
+import type { ClientStatus, AccountType } from '../types';
 
 type AdminQuickActionsProps = {
   authRole: string | null;
@@ -27,8 +28,8 @@ type AdminQuickActionsProps = {
 type ClientForm = {
   name: string;
   sector: string;
-  tier: '' | 'A' | 'B' | 'C';
-  status: 'active' | 'inactive';
+  account_type: AccountType | '';
+  status: ClientStatus;
 };
 
 type QuarterForm = {
@@ -38,14 +39,14 @@ type QuarterForm = {
   quarterNumber: '1' | '2' | '3' | '4';
 };
 
-const TIER_OPTIONS: Array<'' | 'A' | 'B' | 'C'> = ['', 'A', 'B', 'C'];
+const ACCOUNT_TYPE_OPTIONS: Array<AccountType | ''> = ['', 'Named Account', 'Key Account'];
 const QUARTER_OPTIONS: Array<'1' | '2' | '3' | '4'> = ['1', '2', '3', '4'];
 
 const INITIAL_CLIENT_FORM: ClientForm = {
   name: '',
   sector: '',
-  tier: '',
-  status: 'active',
+  account_type: '',
+  status: 'Active',
 };
 
 const INITIAL_QUARTER_FORM: QuarterForm = {
@@ -78,8 +79,8 @@ export function AdminQuickActions({ authRole, onSuccess, onBanner }: AdminQuickA
     try {
       await upsertClient({
         name: clientForm.name.trim(),
-        sector: clientForm.sector.trim() || undefined,
-        tier: clientForm.tier || undefined,
+        sector: (clientForm.sector.trim() || undefined) as import('../types').SectorName | undefined,
+        account_type: clientForm.account_type || undefined,
         status: clientForm.status,
       });
       setClientModalVisible(false);
@@ -173,21 +174,21 @@ export function AdminQuickActions({ authRole, onSuccess, onBanner }: AdminQuickA
                 placeholderTextColor="#9ba3b8"
               />
 
-              <Text style={adminStyles.label}>Tier</Text>
+              <Text style={adminStyles.label}>Account Type</Text>
               <View style={adminStyles.chipRow}>
-                {TIER_OPTIONS.map((t) => (
+                {ACCOUNT_TYPE_OPTIONS.map((t) => (
                   <Pressable
                     key={t === '' ? 'none' : t}
                     style={[
                       adminStyles.chip,
-                      clientForm.tier === t && adminStyles.chipSelected,
+                      clientForm.account_type === t && adminStyles.chipSelected,
                     ]}
-                    onPress={() => setClientForm((f) => ({ ...f, tier: t }))}
+                    onPress={() => setClientForm((f) => ({ ...f, account_type: t }))}
                   >
                     <Text
                       style={[
                         adminStyles.chipText,
-                        clientForm.tier === t && adminStyles.chipTextSelected,
+                        clientForm.account_type === t && adminStyles.chipTextSelected,
                       ]}
                     >
                       {t === '' ? 'None' : t}
@@ -198,7 +199,7 @@ export function AdminQuickActions({ authRole, onSuccess, onBanner }: AdminQuickA
 
               <Text style={adminStyles.label}>Status</Text>
               <View style={adminStyles.chipRow}>
-                {(['active', 'inactive'] as const).map((s) => (
+                {(['Active', 'Inactive', 'Prospect'] as const).map((s) => (
                   <Pressable
                     key={s}
                     style={[
@@ -213,7 +214,7 @@ export function AdminQuickActions({ authRole, onSuccess, onBanner }: AdminQuickA
                         clientForm.status === s && adminStyles.chipTextSelected,
                       ]}
                     >
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s}
                     </Text>
                   </Pressable>
                 ))}

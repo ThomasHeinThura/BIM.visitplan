@@ -228,25 +228,47 @@ export type ClientNoteRecord = {
 
 // ─── Cockpit CMS Types ─────────────────────────────────────────────────────
 
+// ─── Domain enums ────────────────────────────────────────────────────────────
+
+export type UserRole = 'admin' | 'am';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ClientStatus = 'Active' | 'Hold' | 'Inactive' | 'Churned' | 'Prospect';
+export type AccountType = 'Named Account' | 'Key Account';
+
+export const CLIENT_STATUSES: ClientStatus[] = ['Active', 'Hold', 'Inactive', 'Churned', 'Prospect'];
+export const ACCOUNT_TYPES: AccountType[] = ['Named Account', 'Key Account'];
+export const SECTORS = [
+  'Microfinance', 'MDR', 'Healthcare', 'Insurance',
+  'Banking', 'Telecom', 'Media', 'Software', 'Government',
+] as const;
+export type SectorName = typeof SECTORS[number] | (string & {});
+
+// ─── Cockpit CMS entities ─────────────────────────────────────────────────────
+
 export type CockpitUser = {
   _id: string;
   name: string;
   email: string;
-  role: 'am' | 'sales_manager' | 'director' | 'admin';
-  team?: string | null;
   ms_email?: string | null;
   ms_id?: string | null;
+  role: UserRole;
+  approval_status: ApprovalStatus;
+  job_title?: string | null;
+  team?: string | null;
   active: boolean;
 };
 
 export type CockpitClient = {
   _id: string;
   name: string;
-  sector?: string | null;
-  tier?: 'A' | 'B' | 'C' | null;
+  sector?: SectorName | null;
+  account_type?: AccountType | null;
+  status: ClientStatus;
+  am?: Pick<CockpitUser, '_id' | 'name'> | null;
   address?: string | null;
   phone?: string | null;
-  status: 'active' | 'inactive';
+  website?: string | null;
+  notes?: string | null;
 };
 
 export type CockpitContact = {

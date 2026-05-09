@@ -22,7 +22,6 @@ import {
   handleAuthCode,
   logout as authLogout,
   restoreSession,
-  createAccountRequest,
 } from '../lib/auth';
 import { ENTRA_CLIENT_ID } from '../config';
 import type { CockpitUser } from '../types';
@@ -33,23 +32,18 @@ WebBrowser.maybeCompleteAuthSession();
 // ─── State machine ──────────────────────────────────────────────────────────
 
 type AuthStatus =
-  | 'restoring'      // Checking secure storage on app launch
-  | 'unauthenticated' // No session, show login
-  | 'signing_in'     // Browser open / code exchange in progress
-  | 'authenticated'  // User loaded, session active
-  | 'not_registered' // MS login succeeded but no Cockpit account
-  | 'inactive'       // Account exists but deactivated
-  | 'error';         // Network or unexpected error
+  | 'restoring'         // Checking secure storage on app launch
+  | 'unauthenticated'   // No session, show login
+  | 'signing_in'        // Browser open / code exchange in progress
+  | 'authenticated'     // User loaded, session active
+  | 'pending_approval'  // MS login OK but account awaiting admin approval
+  | 'inactive'          // Account exists but deactivated
+  | 'error';            // Network or unexpected error
 
 type AuthState = {
   status: AuthStatus;
   user: CockpitUser | null;
   error: string | null;
-  /** Data for pending account creation (not_registered state) */
-  pendingEmail?: string;
-  pendingName?: string;
-  pendingMsToken?: string;
-  createAccountLoading?: boolean;
 };
 
 type AuthAction =
@@ -58,10 +52,7 @@ type AuthAction =
   | { type: 'RESTORE_EMPTY' }
   | { type: 'SIGN_IN_START' }
   | { type: 'SIGN_IN_SUCCESS'; user: CockpitUser }
-  | { type: 'SIGN_IN_FAIL'; reason: 'not_registered' | 'inactive' | 'cancelled' | 'error'; message?: string; pendingEmail?: string; pendingName?: string; pendingMsToken?: string }
-  | { type: 'CREATE_ACCOUNT_START' }
-  | { type: 'CREATE_ACCOUNT_SUCCESS'; user: CockpitUser }
-  | { type: 'CREATE_ACCOUNT_FAIL'; message: string }
+  | { type: 'SIGN_IN_FAIL'; reason: 'pending_approval' | 'inactive' | 'cancelled' | 'error'; message?: string }
   | { type: 'LOGOUT' };
 
 const initialState: AuthState = { status: 'restoring', user: null, error: null };
@@ -80,22 +71,13 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       return { status: 'authenticated', user: action.user, error: null };
     case 'SIGN_IN_FAIL':
       return {
-        status: action.reason === 'not_registered' ? 'not_registered'
+        status: action.reason === 'pending_approval' ? 'pending_approval'
           : action.reason === 'inactive' ? 'inactive'
           : action.reason === 'cancelled' ? 'unauthenticated'
           : 'error',
         user: null,
         error: action.message ?? null,
-        pendingEmail: action.pendingEmail,
-        pendingName: action.pendingName,
-        pendingMsToken: action.pendingMsToken,
       };
-    case 'CREATE_ACCOUNT_START':
-      return { ...state, createAccountLoading: true, error: null };
-    case 'CREATE_ACCOUNT_SUCCESS':
-      return { status: 'authenticated', user: action.user, error: null };
-    case 'CREATE_ACCOUNT_FAIL':
-      return { ...state, createAccountLoading: false, error: action.message };
     case 'LOGOUT':
       return { status: 'unauthenticated', user: null, error: null };
     default:
@@ -163,21 +145,15 @@ export function useAuth() {
 
       handleAuthCode(code, codeVerifier).then((result) => {
         if (result.success) {
-          console.log('[useAuth] Auth success:', result.user.name);
           dispatch({ type: 'SIGN_IN_SUCCESS', user: result.user });
         } else {
-          console.log('[useAuth] Auth failed:', { reason: result.reason, message: result.message, pending: { email: result.pendingEmail, name: result.pendingName } });
           dispatch({
             type: 'SIGN_IN_FAIL',
             reason: result.reason,
             message: result.message,
-            pendingEmail: result.pendingEmail,
-            pendingName: result.pendingName,
-            pendingMsToken: result.pendingMsToken, // Store access token for account creation
           });
         }
       }).catch((err) => {
-        console.error('[useAuth] Error during auth code exchange:', err);
         dispatch({
           type: 'SIGN_IN_FAIL',
           reason: 'error',
@@ -199,31 +175,6 @@ export function useAuth() {
     dispatch({ type: 'LOGOUT' });
   }, []);
 
-  // 5. Create account for new users (called from LoginScreen when user clicks "Create Account")
-  const createPendingAccount = useCallback(async () => {
-    if (!state.pendingEmail || !state.pendingName || !state.pendingMsToken) {
-      dispatch({
-        type: 'CREATE_ACCOUNT_FAIL',
-        message: 'Missing pending account data.',
-      });
-      return;
-    }
-
-    dispatch({ type: 'CREATE_ACCOUNT_START' });
-
-    const result = await createAccountRequest(
-      state.pendingEmail,
-      state.pendingName,
-      state.pendingMsToken,
-    );
-
-    if (result.success) {
-      dispatch({ type: 'CREATE_ACCOUNT_SUCCESS', user: result.user });
-    } else {
-      dispatch({ type: 'CREATE_ACCOUNT_FAIL', message: result.message ?? 'Account creation failed.' });
-    }
-  }, [state.pendingEmail, state.pendingName, state.pendingMsToken]);
-
   return {
     /** Current auth status */
     status: state.status,
@@ -239,13 +190,6 @@ export function useAuth() {
     login,
     /** Clear session and return to login screen */
     logout,
-    /** Pending account data (for not_registered state) */
-    pendingEmail: state.pendingEmail,
-    pendingName: state.pendingName,
-    /** Create account for pending user */
-    createPendingAccount,
-    /** Account creation loading state */
-    createAccountLoading: state.createAccountLoading ?? false,
   };
 }
 

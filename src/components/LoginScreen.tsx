@@ -13,7 +13,7 @@ type AuthStatus =
   | 'unauthenticated'
   | 'signing_in'
   | 'authenticated'
-  | 'not_registered'
+  | 'pending_approval'
   | 'inactive'
   | 'error';
 
@@ -22,25 +22,18 @@ export function LoginScreen({
   loginReady,
   error,
   onLogin,
-  pendingEmail,
-  pendingName,
-  onCreateAccount,
-  createAccountLoading,
 }: {
   status: AuthStatus;
   loginReady: boolean;
   error: string | null;
   onLogin: () => void;
-  pendingEmail?: string;
-  pendingName?: string;
-  onCreateAccount?: () => void;
-  createAccountLoading?: boolean;
 }) {
-  const isLoading = status === 'restoring' || status === 'signing_in' || (status === 'not_registered' && createAccountLoading);
+  const isLoading = status === 'restoring' || status === 'signing_in';
+  const isBlocked = status === 'pending_approval' || status === 'inactive';
 
   const banner: BannerState | null =
-    status === 'not_registered'
-      ? { tone: 'info', message: `Ready to create account for ${pendingName} (${pendingEmail})?` }
+    status === 'pending_approval'
+      ? { tone: 'info', message: 'Your account request has been submitted. An admin will review it soon.' }
       : status === 'inactive'
       ? { tone: 'error', message: 'Your account has been deactivated. Contact your admin.' }
       : status === 'error' && error
@@ -65,54 +58,35 @@ export function LoginScreen({
 
           {banner ? <Banner banner={banner} /> : null}
 
-          {status === 'not_registered' ? (
-            <Pressable
-              disabled={isLoading}
-              onPress={onCreateAccount}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                styles.msButton,
-                pressed && !isLoading ? styles.primaryButtonPressed : null,
-                isLoading ? styles.buttonDisabled : null,
-              ]}
-            >
-              {createAccountLoading ? (
-                <ActivityIndicator color="#F8FAFC" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Create Account</Text>
-              )}
-            </Pressable>
-          ) : (
-            <Pressable
-              disabled={isLoading || !loginReady}
-              onPress={onLogin}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                styles.msButton,
-                pressed && !isLoading ? styles.primaryButtonPressed : null,
-                (isLoading || !loginReady) ? styles.buttonDisabled : null,
-              ]}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#F8FAFC" />
-              ) : (
-                <View style={styles.msButtonInner}>
-                  <MicrosoftLogo />
-                  <Text style={styles.primaryButtonText}>Sign in with Microsoft</Text>
-                </View>
-              )}
-            </Pressable>
-          )}
+          <Pressable
+            disabled={isLoading || !loginReady || isBlocked}
+            onPress={onLogin}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              styles.msButton,
+              pressed && !isLoading ? styles.primaryButtonPressed : null,
+              (isLoading || !loginReady || isBlocked) ? styles.buttonDisabled : null,
+            ]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#F8FAFC" />
+            ) : (
+              <View style={styles.msButtonInner}>
+                <MicrosoftLogo />
+                <Text style={styles.primaryButtonText}>Sign in with Microsoft</Text>
+              </View>
+            )}
+          </Pressable>
 
           {status === 'restoring' ? (
             <Text style={styles.loginHint}>Restoring session…</Text>
           ) : status === 'signing_in' ? (
             <Text style={styles.loginHint}>Opening Microsoft login…</Text>
-          ) : status === 'not_registered' ? (
-            <Text style={styles.loginHint}>Creating a new account…</Text>
+          ) : status === 'pending_approval' ? (
+            <Text style={styles.loginHint}>You will be notified once your account is approved.</Text>
           ) : (
             <Text style={styles.loginHint}>
-              Use your @bimats.com work account.{'\n'}Contact your admin if you don't have access.
+              {'Use your @bimats.com work account.\nContact your admin if you don\'t have access.'}
             </Text>
           )}
         </View>
