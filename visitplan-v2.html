@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisitPlan v2.3 — Interactive Prototype (13 Screens)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Plus+Jakarta+Sans:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* ── DESIGN TOKENS ── */
+:root,[data-theme="light"]{
+  --color-bg:#f4f5f7;--color-surface:#ffffff;--color-surface-2:#f9fafb;
+  --color-surface-offset:#eef0f3;--color-border:rgba(15,20,40,0.1);
+  --color-divider:rgba(15,20,40,0.07);--color-text:#0f1428;
+  --color-text-muted:#5c6378;--color-text-faint:#9ba3b8;
+  --color-text-inverse:#ffffff;--color-primary:#0a8a7c;
+  --color-primary-hover:#077068;--color-primary-light:#e0f5f3;
+  --color-warning:#f59e0b;--color-warning-light:#fef3c7;
+  --color-error:#ef4444;--color-error-light:#fee2e2;
+  --color-success:#22c55e;--color-success-light:#dcfce7;
+  --color-purple:#8b5cf6;--color-purple-light:#ede9fe;
+  --color-orange:#f97316;--color-orange-light:#ffedd5;
+  --phone-frame:#1a1d2e;
+  --radius-sm:6px;--radius-md:10px;--radius-lg:16px;
+  --radius-xl:24px;--radius-full:9999px;
+  --shadow-sm:0 1px 3px rgba(15,20,40,0.08);
+  --shadow-md:0 4px 16px rgba(15,20,40,0.1);
+  --font-display:'Plus Jakarta Sans',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --transition:200ms cubic-bezier(0.16,1,0.3,1);
+}
+[data-theme="dark"]{
+  --color-bg:#0d1117;--color-surface:#161b27;--color-surface-2:#1e2536;
+  --color-surface-offset:#252d40;--color-border:rgba(255,255,255,0.08);
+  --color-divider:rgba(255,255,255,0.05);--color-text:#e8eaf0;
+  --color-text-muted:#8892a4;--color-text-faint:#4a5568;
+  --color-text-inverse:#0d1117;--color-primary:#14c0ae;
+  --color-primary-hover:#0fa898;--color-primary-light:rgba(20,192,174,0.15);
+  --color-warning:#fbbf24;--color-warning-light:rgba(251,191,36,0.15);
+  --color-error:#f87171;--color-error-light:rgba(248,113,113,0.15);
+  --color-success:#4ade80;--color-success-light:rgba(74,222,128,0.15);
+  --color-purple:#a78bfa;--color-purple-light:rgba(167,139,250,0.15);
+  --color-orange:#fb923c;--color-orange-light:rgba(249,115,60,0.15);
+  --phone-frame:#0a0d16;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;}
+body{font-family:var(--font-body);background:var(--color-bg);color:var(--color-text);min-height:100vh;transition:background var(--transition),color var(--transition);}
+/* ── LAYOUT ── */
+.app{display:flex;flex-direction:column;align-items:center;padding:24px 16px 100px;min-height:100vh;}
+.top-bar{width:100%;max-width:420px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-logo{width:32px;height:32px;background:var(--color-primary);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--color-text);letter-spacing:-0.3px;}
+.brand-name span{color:var(--color-primary);}
+.theme-btn{padding:6px 12px;border-radius:var(--radius-full);border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text-muted);font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all var(--transition);}
+.screen-tag{font-family:var(--font-display);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--color-primary);text-align:center;margin-bottom:8px;}
+.screen-ttl{font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--color-text);text-align:center;margin-bottom:16px;}
+/* ── PHONE FRAME ── */
+.phone-frame{width:320px;background:var(--phone-frame);border-radius:44px;padding:12px;box-shadow:0 0 0 1px rgba(255,255,255,0.06),0 20px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.1);}
+.phone-notch{width:100%;display:flex;justify-content:center;align-items:center;height:26px;gap:8px;margin-bottom:4px;}
+.notch-sensor{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.15);}
+.notch-cam{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);}
+.phone-screen{background:var(--color-bg);border-radius:32px;overflow:hidden;height:620px;position:relative;display:flex;flex-direction:column;}
+/* ── STATUS BAR ── */
+.status-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px 6px;font-family:var(--font-display);font-size:12px;font-weight:600;color:var(--color-text);flex-shrink:0;}
+.status-right{display:flex;gap:6px;align-items:center;}
+/* ── SCROLL AREA ── */
+.screen-content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.screen-content::-webkit-scrollbar{display:none;}
+/* ── BOTTOM NAV ── */
+.bottom-nav{display:flex;justify-content:space-around;padding:8px 0 14px;background:var(--color-surface);border-top:1px solid var(--color-divider);flex-shrink:0;}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 12px;border-radius:var(--radius-md);transition:all var(--transition);}
+.nav-item:active{transform:scale(0.93);}
+.nav-icon{color:var(--color-text-faint);transition:color var(--transition);}
+.nav-label{font-size:10px;font-weight:500;color:var(--color-text-faint);}
+.nav-item.active .nav-icon{color:var(--color-primary);}
+.nav-item.active .nav-label{color:var(--color-primary);font-weight:600;}
+/* ── CARD ── */
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);}
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600;font-family:var(--font-display);white-space:nowrap;}
+.badge-teal{background:var(--color-primary-light);color:var(--color-primary);}
+.badge-warn{background:var(--color-warning-light);color:var(--color-warning);}
+.badge-error{background:var(--color-error-light);color:var(--color-error);}
+.badge-success{background:var(--color-success-light);color:var(--color-success);}
+.badge-muted{background:var(--color-surface-offset);color:var(--color-text-muted);}
+.badge-purple{background:var(--color-purple-light);color:var(--color-purple);}
+.badge-orange{background:var(--color-orange-light);color:var(--color-orange);}
+/* ── KPIs ── */
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px;}
+.kpi-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:10px 8px;text-align:center;}
+.kpi-val{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--color-text);line-height:1;}
+.kpi-label{font-size:10px;color:var(--color-text-muted);margin-top:3px;line-height:1.3;}
+.kpi-delta{font-size:10px;margin-top:4px;font-weight:600;}
+.kpi-delta.up{color:var(--color-success);}
+.kpi-delta.down{color:var(--color-warning);}
+/* ── HOME HEADER ── */
+.home-header{padding:16px 16px 4px;background:linear-gradient(180deg,rgba(10,138,124,0.08) 0%,transparent 100%);}
+.home-greeting{font-size:13px;color:var(--color-text-muted);font-weight:500;}
+.home-name{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;margin-top:2px;}
+/* ── SECTION HEAD ── */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.section-title{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);}
+.section-link{font-size:12px;color:var(--color-primary);font-weight:600;cursor:pointer;}
+/* ── VISIT ITEMS ── */
+.visit-item{display:flex;align-items:center;gap:10px;padding:10px 14px;}
+.visit-item+.visit-item{border-top:1px solid var(--color-divider);}
+.visit-time-col{width:36px;text-align:center;flex-shrink:0;}
+.visit-time{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);line-height:1;}
+.visit-time-label{font-size:9px;color:var(--color-text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-top:1px;}
+.visit-line{width:2px;height:38px;background:var(--color-divider);border-radius:2px;flex-shrink:0;position:relative;}
+.visit-line.active{background:var(--color-primary);}
+.dot{width:8px;height:8px;background:var(--color-primary);border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--color-primary-light);}
+.visit-body{flex:1;min-width:0;}
+.visit-company{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.visit-meta{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+/* ── FAB ── */
+.fab{position:absolute;bottom:72px;right:16px;width:48px;height:48px;background:var(--color-primary);border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(10,138,124,0.4);cursor:pointer;transition:transform var(--transition);z-index:10;}
+.fab:active{transform:scale(0.93);}
+/* ── STEP INDICATOR ── */
+.step-indicator{display:flex;gap:6px;align-items:center;padding:12px 16px 4px;}
+.step{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;}
+.step-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:11px;font-weight:700;background:var(--color-surface-offset);color:var(--color-text-faint);}
+.step-num.active{background:var(--color-primary);color:white;}
+.step-num.done{background:var(--color-success);color:white;}
+.step-lbl{font-size:9px;font-weight:600;color:var(--color-text-faint);text-transform:uppercase;letter-spacing:0.5px;}
+.step-lbl.active{color:var(--color-primary);}
+.step-connector{height:2px;flex:0.5;background:var(--color-divider);}
+.step-connector.done{background:var(--color-success);}
+/* ── FORM ── */
+.form-group{margin-bottom:12px;}
+.form-label{font-size:11px;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:block;}
+.form-input{width:100%;padding:10px 12px;background:var(--color-surface);border:1.5px solid var(--color-border);border-radius:var(--radius-md);font-size:13px;font-family:var(--font-body);color:var(--color-text);outline:none;transition:border-color var(--transition);}
+.form-input:focus{border-color:var(--color-primary);}
+.form-input::placeholder{color:var(--color-text-faint);}
+.radio-group{display:flex;flex-wrap:wrap;gap:6px;}
+.radio-chip{padding:6px 12px;border-radius:var(--radius-full);border:1.5px solid var(--color-border);background:var(--color-surface);font-size:12px;font-weight:500;color:var(--color-text-muted);cursor:pointer;transition:all var(--transition);}
+.radio-chip.selected{border-color:var(--color-primary);background:var(--color-primary-light);color:var(--color-primary);font-weight:600;}
+/* ── AGENDA ── */
+.agenda-item{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);margin-bottom:8px;}
+.agenda-num{width:20px;height:20px;border-radius:50%;background:var(--color-primary);color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.agenda-text{font-size:12px;font-weight:600;color:var(--color-text);line-height:1.4;}
+.agenda-sub{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+/* ── CHECKLIST ── */
+.checklist-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;}
+.checklist-item+.checklist-item{border-top:1px solid var(--color-divider);}
+.check-box{width:20px;height:20px;border-radius:6px;border:2px solid var(--color-border);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;}
+.check-box.done{background:var(--color-success);border-color:var(--color-success);}
+.check-box.inprog{border-color:var(--color-warning);}
+.checklist-title{font-size:12px;font-weight:600;color:var(--color-text);line-height:1.4;}
+.checklist-sub{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+/* ── OUTCOME CHIPS ── */
+.result-chip{padding:7px 13px;border-radius:var(--radius-full);border:1.5px solid var(--color-border);background:var(--color-surface);font-size:12px;font-weight:500;color:var(--color-text-muted);cursor:pointer;transition:all var(--transition);}
+.result-chip.selected{border-color:var(--color-success);background:var(--color-success-light);color:var(--color-success);font-weight:600;}
+/* ── MANAGER STATS ── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px;}
+.stat-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px;}
+.stat-val{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--color-text);line-height:1;}
+.stat-sub{font-size:10px;color:var(--color-text-muted);margin-top:3px;}
+.stat-delta{font-size:10px;font-weight:600;color:var(--color-success);margin-top:4px;}
+.week-bar{display:flex;gap:4px;align-items:flex-end;height:48px;}
+.bar-day{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bar-fill{width:100%;border-radius:3px 3px 0 0;background:var(--color-primary);opacity:0.7;min-height:4px;}
+.bar-label{font-size:9px;color:var(--color-text-faint);text-transform:uppercase;}
+/* ── TEAM ITEMS ── */
+.team-item{display:flex;align-items:center;gap:10px;padding:10px 14px;}
+.team-item+.team-item{border-top:1px solid var(--color-divider);}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--color-primary-light);color:var(--color-primary);font-family:var(--font-display);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.team-name{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);}
+.team-status{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+.team-count{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);margin-left:auto;}
+.team-count-label{font-size:9px;color:var(--color-text-faint);text-align:right;}
+.mgr-tabs{display:flex;gap:0;border-bottom:1.5px solid var(--color-divider);margin:0 16px;}
+.mgr-tab{flex:1;padding:9px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--color-text-faint);border-bottom:2px solid transparent;margin-bottom:-1.5px;cursor:pointer;transition:all var(--transition);}
+.mgr-tab.active{color:var(--color-primary);border-bottom-color:var(--color-primary);}
+/* ── HISTORY / FILTER ── */
+.filter-tabs{display:flex;gap:4px;padding:0 16px 10px;}
+.filter-tab{padding:5px 14px;border-radius:var(--radius-full);font-size:12px;font-weight:500;cursor:pointer;background:var(--color-surface-offset);color:var(--color-text-muted);border:1px solid var(--color-border);transition:all var(--transition);}
+.filter-tab.active{background:var(--color-primary);color:white;border-color:var(--color-primary);font-weight:600;}
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--color-surface);border:1.5px solid var(--color-border);border-radius:var(--radius-md);padding:9px 12px;margin:0 16px 12px;color:var(--color-text-faint);font-size:13px;}
+.hist-item{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;}
+.hist-item+.hist-item{border-top:1px solid var(--color-divider);}
+.hist-date{width:36px;flex-shrink:0;text-align:center;background:var(--color-surface-offset);border-radius:var(--radius-md);padding:6px 4px;}
+.hist-date-num{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);line-height:1;}
+.hist-date-mon{font-size:9px;text-transform:uppercase;color:var(--color-text-faint);letter-spacing:0.5px;}
+.hist-body{flex:1;min-width:0;}
+.hist-company{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);}
+.hist-who{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+.hist-outcome{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+.date-divider{font-size:11px;font-weight:700;color:var(--color-text-faint);text-transform:uppercase;letter-spacing:0.8px;padding:8px 14px 4px;background:var(--color-surface-2);border-top:1px solid var(--color-divider);}
+/* ── BUTTONS ── */
+.btn-primary{width:100%;padding:13px;background:var(--color-primary);color:white;font-family:var(--font-display);font-size:14px;font-weight:700;border:none;border-radius:var(--radius-md);cursor:pointer;transition:all var(--transition);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-primary:hover{background:var(--color-primary-hover);}
+.btn-primary:active{transform:scale(0.98);}
+.btn-secondary{width:100%;padding:11px;background:transparent;color:var(--color-primary);font-family:var(--font-display);font-size:14px;font-weight:600;border:1.5px solid var(--color-primary);border-radius:var(--radius-md);cursor:pointer;transition:all var(--transition);}
+/* ── LOGIN ── */
+.login-bg{background:linear-gradient(160deg,#0a1628 0%,#0d1117 40%,#071f1c 100%);flex:1;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;}
+.login-bg::-webkit-scrollbar{display:none;}
+.login-brand-area{padding:32px 24px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.login-logo{width:52px;height:52px;background:var(--color-primary);border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 8px 24px rgba(20,192,174,0.3);}
+.login-app-name{font-family:var(--font-display);font-size:22px;font-weight:800;color:#e8eaf0;letter-spacing:-0.5px;}
+.login-app-name span{color:var(--color-primary);}
+.login-tagline{font-size:12px;color:rgba(232,234,240,0.45);margin-top:4px;}
+.login-form-area{padding:4px 20px 20px;display:flex;flex-direction:column;gap:12px;flex:1;}
+.login-form-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-xl);padding:18px 16px;display:flex;flex-direction:column;gap:14px;}
+.lf-label{font-size:11px;font-weight:600;color:rgba(232,234,240,0.45);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;display:block;}
+.lf-input{width:100%;padding:11px 12px;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.1);border-radius:var(--radius-md);font-size:13px;font-family:var(--font-body);color:#e8eaf0;outline:none;transition:border-color var(--transition);}
+.lf-input::placeholder{color:rgba(232,234,240,0.25);}
+.lf-input:focus{border-color:var(--color-primary);background:rgba(20,192,174,0.05);}
+.login-btn{width:100%;padding:13px;background:var(--color-primary);color:white;font-family:var(--font-display);font-size:14px;font-weight:700;border:none;border-radius:var(--radius-md);cursor:pointer;transition:all var(--transition);display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(20,192,174,0.3);}
+.login-btn:active{transform:scale(0.98);}
+.login-sso-btn{width:100%;padding:11px;background:transparent;color:rgba(232,234,240,0.55);font-family:var(--font-display);font-size:13px;font-weight:600;border:1.5px solid rgba(255,255,255,0.1);border-radius:var(--radius-md);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.login-divider-row{display:flex;align-items:center;gap:10px;font-size:11px;color:rgba(232,234,240,0.2);}
+.login-divider-row::before,.login-divider-row::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.08);}
+.login-footer{font-size:10px;color:rgba(232,234,240,0.18);text-align:center;padding:4px 0 8px;}
+/* ── LOGIN LIGHT MODE OVERRIDES ── */
+[data-theme="light"] .login-bg{background:linear-gradient(160deg,#e8f5f4 0%,#f4f5f7 40%,#eaf4f3 100%);}
+[data-theme="light"] .login-app-name{color:var(--color-text);}
+[data-theme="light"] .login-tagline{color:var(--color-text-muted);}
+[data-theme="light"] .login-form-card{background:rgba(0,0,0,0.03);border-color:var(--color-border);}
+[data-theme="light"] .lf-label{color:var(--color-text-muted);}
+[data-theme="light"] .lf-input{background:var(--color-surface);border-color:var(--color-border);color:var(--color-text);}
+[data-theme="light"] .lf-input::placeholder{color:var(--color-text-faint);}
+[data-theme="light"] .login-sso-btn{color:var(--color-text-muted);border-color:var(--color-border);}
+[data-theme="light"] .login-divider-row{color:var(--color-text-faint);}
+[data-theme="light"] .login-divider-row::before,[data-theme="light"] .login-divider-row::after{background:var(--color-divider);}
+[data-theme="light"] .login-footer{color:var(--color-text-faint);}
+[data-theme="light"] .login-pending-card{background:var(--color-surface)!important;border-color:var(--color-border)!important;}
+[data-theme="light"] .login-pending-title{color:var(--color-text)!important;}
+[data-theme="light"] .login-pending-desc{color:var(--color-text-muted)!important;}
+[data-theme="light"] .login-text-faint{color:var(--color-text-faint)!important;}
+/* Status bar on login/pending screens */
+.login-sb-time{color:rgba(232,234,240,0.85);font-family:var(--font-display);font-size:12px;font-weight:600;}
+.login-sb-icons{display:flex;gap:6px;align-items:center;color:rgba(232,234,240,0.7);}
+[data-theme="light"] .login-sb-time{color:var(--color-text);}
+[data-theme="light"] .login-sb-icons{color:var(--color-text-muted);}
+/* Faint text inside login-bg */
+.login-text-faint{color:rgba(232,234,240,0.22);}
+.login-pending-title{color:#e8eaf0;}
+.login-pending-desc{color:rgba(232,234,240,0.42);}
+.login-icon-faint{color:rgba(232,234,240,0.3);}
+[data-theme="light"] .login-icon-faint{color:var(--color-text-faint);}
+/* ── CALENDAR (S-03) ── */
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 6px;flex-shrink:0;}
+.cal-month{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);}
+.cal-nav{width:28px;height:28px;border-radius:50%;border:1px solid var(--color-border);background:var(--color-surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-muted);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 12px 6px;}
+.cal-day-hdr{font-size:9px;font-weight:700;color:var(--color-text-faint);text-align:center;padding:4px 0;text-transform:uppercase;}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius-sm);font-size:12px;font-weight:500;color:var(--color-text-muted);cursor:pointer;position:relative;transition:background var(--transition);}
+.cal-day:hover{background:var(--color-surface-offset);}
+.cal-day.today{background:var(--color-primary);color:white;font-weight:700;}
+.cal-day.has-visit::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--color-primary);}
+.cal-day.today.has-visit::after{background:rgba(255,255,255,0.8);}
+.cal-day.other-month{color:var(--color-text-faint);opacity:0.4;}
+.cal-day.selected:not(.today){background:var(--color-primary-light);color:var(--color-primary);font-weight:700;}
+/* ── MODAL (S-04) ── */
+.modal-bg{flex:1;background:rgba(0,0,0,0.62);display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;}
+.modal-sheet{background:var(--color-bg);border-radius:var(--radius-xl) var(--radius-xl) 0 0;padding:8px 20px 28px;overflow-y:auto;max-height:540px;scrollbar-width:none;}
+.modal-sheet::-webkit-scrollbar{display:none;}
+.modal-handle{width:36px;height:4px;background:var(--color-border);border-radius:var(--radius-full);margin:0 auto 12px;}
+/* ── CLIENT LIST / WORKSPACE ── */
+.client-item{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;transition:background var(--transition);}
+.client-item:hover{background:var(--color-surface-2);}
+.client-item+.client-item{border-top:1px solid var(--color-divider);}
+.client-logo{width:36px;height:36px;border-radius:10px;background:var(--color-surface-offset);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--color-text-muted);flex-shrink:0;}
+.client-name{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);}
+.client-meta{font-size:11px;color:var(--color-text-muted);margin-top:2px;}
+.ws-header{padding:14px 16px 10px;background:linear-gradient(180deg,rgba(20,192,174,0.07) 0%,transparent 100%);}
+.ws-title{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;}
+.ws-sub{font-size:12px;color:var(--color-text-muted);margin-top:3px;}
+.ws-tabs{display:flex;gap:0;border-bottom:1.5px solid var(--color-divider);padding:0 16px;flex-shrink:0;}
+.ws-tab{flex:1;padding:9px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--color-text-faint);border-bottom:2px solid transparent;margin-bottom:-1.5px;cursor:pointer;transition:all var(--transition);}
+.ws-tab.active{color:var(--color-primary);border-bottom-color:var(--color-primary);}
+/* ── PULSE ANIMATION ── */
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.6;transform:scale(1.3);}}
+/* ── PROTOTYPE NAV BAR ── */
+.proto-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(13,17,23,0.97);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,0.08);padding:8px 12px 16px;display:flex;align-items:center;gap:6px;z-index:9999;overflow-x:auto;scrollbar-width:none;}
+.proto-bar::-webkit-scrollbar{display:none;}
+.proto-pill{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all 160ms ease;}
+.proto-pill:hover{background:rgba(255,255,255,0.08);}
+.proto-pill.on{background:rgba(20,192,174,0.15);border-color:rgba(20,192,174,0.4);}
+.pnum{font-size:9px;font-weight:700;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.5px;}
+.proto-pill.on .pnum{color:var(--color-primary);}
+.plbl{font-size:11px;font-weight:600;color:rgba(255,255,255,0.45);font-family:'Plus Jakarta Sans',sans-serif;}
+.proto-pill.on .plbl{color:#e8eaf0;}
+/* ── SCREEN PANELS ── */
+.screen-panel{display:none;}
+.screen-panel.active{display:flex;flex-direction:column;align-items:center;}
+.panel-inner{padding:0 16px 16px;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+          <path d="M9 11l3 3L22 4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="brand-name">Visit<span>Plan</span></div>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-00: LOGIN
+  ══════════════════════════════════════════════ -->
+  <div id="s00" class="screen-panel active">
+    <div class="screen-tag">S-00</div>
+    <div class="screen-ttl">Login</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar login-status-bar" style="position:absolute;top:0;left:0;right:0;z-index:2;background:transparent;">
+          <span class="login-sb-time">9:41</span>
+          <div class="login-sb-icons">
+            <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div class="login-bg" style="padding-top:38px;">
+          <div class="login-brand-area">
+            <div class="login-logo">
+              <svg width="26" height="26" fill="none" viewBox="0 0 24 24">
+                <path d="M9 11l3 3L22 4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="login-app-name">Visit<span>Plan</span></div>
+            <div class="login-tagline">Field Visit Management · BIM Group</div>
+          </div>
+          <div class="login-form-area">
+            <button class="login-btn" onclick="handleLogin()" style="margin-top:20px;">
+              <svg width="16" height="16" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="9" height="9" fill="white"/>
+                <rect x="11" y="1" width="9" height="9" fill="#80d4ff"/>
+                <rect x="1" y="11" width="9" height="9" fill="#80ff80"/>
+                <rect x="11" y="11" width="9" height="9" fill="#ffcc80"/>
+              </svg>
+              Continue with Microsoft
+            </button>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="login-icon-faint"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span class="login-text-faint" style="font-size:11px;">Secured with Microsoft Entra ID</span>
+            </div>
+            <!-- Demo routing -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0;">
+              <span class="login-text-faint" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Demo as role</span>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+                <span style="font-size:11px;color:var(--color-primary);cursor:pointer;font-weight:600;" onclick="setRole('admin');goScreen('s02')">Admin →</span>
+                <span class="login-text-faint" style="font-size:11px;">·</span>
+                <span style="font-size:11px;color:var(--color-primary);cursor:pointer;font-weight:600;" onclick="setRole('management');goScreen('s02')">Management →</span>
+                <span class="login-text-faint" style="font-size:11px;">·</span>
+                <span style="font-size:11px;color:var(--color-primary);cursor:pointer;font-weight:600;" onclick="setRole('sales');goScreen('s02')">Sales / Solution →</span>
+                <span class="login-text-faint" style="font-size:11px;">·</span>
+                <span class="login-text-faint" style="font-size:11px;">·</span>
+                <span style="font-size:11px;color:var(--color-primary);cursor:pointer;font-weight:600;" onclick="setRole('am');goScreen('s02')">AM →</span>
+                <span class="login-text-faint" style="font-size:11px;">·</span>
+                <span style="font-size:11px;color:var(--color-primary);cursor:pointer;font-weight:600;" onclick="goScreen('s01')">Pending →</span>
+              </div>
+            </div>
+            <div class="login-footer">VisitPlan v2.3 · BIM Group Myanmar · Entra ID SSO</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-01: PENDING APPROVAL
+  ══════════════════════════════════════════════ -->
+  <div id="s01" class="screen-panel">
+    <div class="screen-tag">S-01</div>
+    <div class="screen-ttl">Pending Approval</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar login-status-bar" style="position:absolute;top:0;left:0;right:0;z-index:2;background:transparent;">
+          <span class="login-sb-time">9:41</span>
+          <div class="login-sb-icons">
+            <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div class="login-bg" style="padding-top:38px;">
+          <div class="login-brand-area">
+            <div class="login-logo">
+              <svg width="26" height="26" fill="none" viewBox="0 0 24 24">
+                <path d="M9 11l3 3L22 4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="login-app-name">Visit<span>Plan</span></div>
+          </div>
+          <div class="login-form-area" style="align-items:center;gap:16px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:rgba(245,158,11,0.1);border:2px solid rgba(245,158,11,0.25);display:flex;align-items:center;justify-content:center;">
+              <svg width="32" height="32" fill="none" stroke="#f59e0b" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div style="text-align:center;">
+              <div class="login-pending-title" style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:6px;">Account Pending Approval</div>
+              <div class="login-pending-desc" style="font-size:12px;line-height:1.6;padding:0 8px;">Your Microsoft account has been recognised. An admin will assign your role before you can access the app.</div>
+            </div>
+            <div class="login-pending-card" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:40px;height:40px;border-radius:50%;background:var(--color-primary-light);border:1.5px solid rgba(20,192,174,0.25);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--color-primary);">AK</div>
+                <div>
+                  <div class="login-pending-title" style="font-family:var(--font-display);font-size:13px;font-weight:600;">Aung Ko Ko</div>
+                  <div class="login-pending-desc" style="font-size:11px;margin-top:1px;">aungkoko@bimgroup.com</div>
+                  <div class="login-text-faint" style="font-size:10px;margin-top:2px;">Account Executive · BIM Group</div>
+                </div>
+              </div>
+            </div>
+            <div style="width:100%;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;">
+              <svg width="16" height="16" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#f59e0b;margin-bottom:3px;">Awaiting role assignment</div>
+                <div class="login-pending-desc" style="font-size:11px;line-height:1.5;">You'll get access once an admin assigns your role. Contact your manager if this takes more than 24 hours.</div>
+              </div>
+            </div>
+            <button class="login-sso-btn" onclick="goScreen('s00')" style="margin-top:4px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Sign Out
+            </button>
+            <div class="login-footer">VisitPlan v2.3 · BIM Group Myanmar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-02: TODAY DASHBOARD
+  ══════════════════════════════════════════════ -->
+  <div id="s02" class="screen-panel">
+    <div class="screen-tag">S-02</div>
+    <div class="screen-ttl">Today Dashboard</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div class="home-header" style="flex-shrink:0;">
+          <div class="home-greeting">Good morning,</div>
+          <div class="home-name">Aung Kyaw Zin 👋</div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <span class="badge badge-teal">6 visits today</span>
+            <span class="badge badge-warn">2 unconfirmed</span>
+          </div>
+        </div>
+        <div class="kpi-row" style="flex-shrink:0;">
+          <div class="kpi-card">
+            <div class="kpi-val">4</div>
+            <div class="kpi-label">Done</div>
+            <div class="kpi-delta up">↑ on track</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-val">87%</div>
+            <div class="kpi-label">Coverage</div>
+            <div class="kpi-delta up">↑ +3%</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--color-warning);">2</div>
+            <div class="kpi-label">Pending</div>
+            <div class="kpi-delta down">outcomes due</div>
+          </div>
+        </div>
+        <div class="screen-content">
+          <div style="padding:0 16px 8px;">
+            <div class="section-head">
+              <div class="section-title">Today's Schedule</div>
+              <div class="section-link" onclick="goScreen('s03')">View Plan</div>
+            </div>
+            <div class="card" style="padding:0;border-radius:var(--radius-lg);">
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">09:30</div><div class="visit-time-label">Done</div></div>
+                <div class="visit-line active"><div class="dot"></div></div>
+                <div class="visit-body">
+                  <div class="visit-company">Shwe Taung Co., Ltd</div>
+                  <div class="visit-meta">✓ Positive · $12.5K pipeline</div>
+                </div>
+                <span class="badge badge-success">Done</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s02-v1')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">11:30</div><div class="visit-time-label">Now</div></div>
+                <div class="visit-line active"><div class="dot"></div></div>
+                <div class="visit-body">
+                  <div class="visit-company">Dagon Beer Myanmar</div>
+                  <div class="visit-meta">Account Review · Yankin</div>
+                </div>
+                <span class="badge badge-teal">Active</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s02-v2')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">14:00</div><div class="visit-time-label">Next</div></div>
+                <div class="visit-line"><div></div></div>
+                <div class="visit-body">
+                  <div class="visit-company">KBZ Bank HQ</div>
+                  <div class="visit-meta">Service renewal · Hlaing</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s02-v3')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">16:30</div><div class="visit-time-label"></div></div>
+                <div class="visit-line"></div>
+                <div class="visit-body">
+                  <div class="visit-company">Myanmar Plaza Retail</div>
+                  <div class="visit-meta">New product launch</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s02-v4')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+            </div>
+          </div>
+          <!-- Alert banner -->
+          <div style="margin:4px 16px 8px;background:var(--color-warning-light);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:10px 12px;display:flex;gap:8px;align-items:flex-start;">
+            <svg width="15" height="15" fill="none" stroke="var(--color-warning)" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--color-warning);">2 outcomes overdue</div>
+              <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">Dagon Beer (May 7) &amp; Myanmar Plaza (May 8) — submit now</div>
+            </div>
+          </div>
+          <div style="height:20px;"></div>
+        </div>
+        <!-- FAB -->
+        <div class="fab" onclick="goScreen('s04')">
+          <svg width="22" height="22" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-03: PLAN CALENDAR
+  ══════════════════════════════════════════════ -->
+  <div id="s03" class="screen-panel">
+    <div class="screen-tag">S-03</div>
+    <div class="screen-ttl">Plan Calendar</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div class="cal-header">
+          <div class="cal-nav">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div class="cal-month">May 2026</div>
+          <div class="cal-nav">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-day-hdr">M</div><div class="cal-day-hdr">T</div><div class="cal-day-hdr">W</div><div class="cal-day-hdr">T</div><div class="cal-day-hdr">F</div><div class="cal-day-hdr">S</div><div class="cal-day-hdr">S</div>
+          <!-- Week 1: May starts on Friday -->
+          <div class="cal-day other-month"></div>
+          <div class="cal-day other-month"></div>
+          <div class="cal-day other-month"></div>
+          <div class="cal-day other-month"></div>
+          <div class="cal-day">1</div>
+          <div class="cal-day">2</div>
+          <div class="cal-day">3</div>
+          <!-- Week 2 -->
+          <div class="cal-day">4</div>
+          <div class="cal-day has-visit">5</div>
+          <div class="cal-day">6</div>
+          <div class="cal-day has-visit">7</div>
+          <div class="cal-day has-visit">8</div>
+          <div class="cal-day today has-visit selected">9</div>
+          <div class="cal-day">10</div>
+          <!-- Week 3 -->
+          <div class="cal-day">11</div>
+          <div class="cal-day has-visit">12</div>
+          <div class="cal-day">13</div>
+          <div class="cal-day has-visit">14</div>
+          <div class="cal-day has-visit">15</div>
+          <div class="cal-day">16</div>
+          <div class="cal-day">17</div>
+          <!-- Week 4 -->
+          <div class="cal-day">18</div>
+          <div class="cal-day">19</div>
+          <div class="cal-day">20</div>
+          <div class="cal-day">21</div>
+          <div class="cal-day">22</div>
+          <div class="cal-day">23</div>
+          <div class="cal-day">24</div>
+          <!-- Week 5 -->
+          <div class="cal-day">25</div>
+          <div class="cal-day">26</div>
+          <div class="cal-day">27</div>
+          <div class="cal-day">28</div>
+          <div class="cal-day">29</div>
+          <div class="cal-day">30</div>
+          <div class="cal-day">31</div>
+        </div>
+        <div style="height:1px;background:var(--color-divider);margin:0 16px;flex-shrink:0;"></div>
+        <div style="padding:8px 16px 4px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+          <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">9 May · Today</div>
+          <span class="badge badge-teal">4 visits</span>
+        </div>
+        <div class="screen-content">
+          <div style="padding:0 16px;">
+            <div class="card" style="padding:0;border-radius:var(--radius-lg);">
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">09:30</div><div class="visit-time-label">Done</div></div>
+                <div class="visit-line active"><div class="dot"></div></div>
+                <div class="visit-body">
+                  <div class="visit-company">Shwe Taung Co., Ltd</div>
+                  <div class="visit-meta">Account Review · 1h 04m</div>
+                </div>
+                <span class="badge badge-success">Done</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s03-v1')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">11:30</div><div class="visit-time-label">Active</div></div>
+                <div class="visit-line active"><div class="dot"></div></div>
+                <div class="visit-body">
+                  <div class="visit-company">Dagon Beer Myanmar</div>
+                  <div class="visit-meta">Account Review · Yankin</div>
+                </div>
+                <span class="badge badge-teal">Now</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s03-v2')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+              <div class="visit-item" onclick="goScreen('s05')" style="cursor:pointer;">
+                <div class="visit-time-col"><div class="visit-time">14:00</div><div class="visit-time-label">Next</div></div>
+                <div class="visit-line"></div>
+                <div class="visit-body">
+                  <div class="visit-company">KBZ Bank HQ</div>
+                  <div class="visit-meta">Service renewal · Hlaing</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s03-v3')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+              <div class="visit-item">
+                <div class="visit-time-col"><div class="visit-time">16:30</div><div class="visit-time-label"></div></div>
+                <div class="visit-line"></div>
+                <div class="visit-body">
+                  <div class="visit-company">Myanmar Plaza Retail</div>
+                  <div class="visit-meta">New product launch</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+                <div onclick="event.stopPropagation();openVisitMenu('s03-v4')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:16px;"></div>
+        </div>
+        <!-- FAB -->
+        <div class="fab" onclick="goScreen('s04')">
+          <svg width="22" height="22" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-04: CREATE VISIT (MODAL SHEET)
+  ══════════════════════════════════════════════ -->
+  <div id="s04" class="screen-panel">
+    <div class="screen-tag">S-04</div>
+    <div class="screen-ttl">Create Visit</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen" style="overflow:hidden;">
+        <div class="status-bar" style="position:absolute;top:0;left:0;right:0;z-index:2;background:transparent;padding-top:10px;">
+          <span style="color:rgba(232,234,240,0.75);font-family:var(--font-display);font-size:12px;font-weight:600;">9:41</span>
+          <div style="display:flex;gap:6px;align-items:center;color:rgba(232,234,240,0.6);">
+            <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <!-- Dim background -->
+        <div style="flex:1;background:linear-gradient(180deg,rgba(10,15,25,0.7) 0%,rgba(5,10,20,0.85) 100%);display:flex;flex-direction:column;justify-content:flex-end;padding-top:38px;" onclick="goScreen('s03')">
+          <!-- Sheet -->
+          <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">New Visit</div>
+              <div onclick="goScreen('s03')" style="width:28px;height:28px;border-radius:50%;background:var(--color-surface-offset);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-muted);font-family:var(--font-display);font-size:18px;line-height:1;">×</div>
+            </div>
+            <!-- Step indicator -->
+            <div style="display:flex;align-items:center;margin-bottom:14px;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div class="step-num active" id="cs1">1</div>
+                <div class="step-lbl active" id="csl1">Client</div>
+              </div>
+              <div class="step-connector done" id="csc1" style="flex:1;height:2px;margin:0 4px;margin-bottom:12px;"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div class="step-num" id="cs2">2</div>
+                <div class="step-lbl" id="csl2">Agenda</div>
+              </div>
+              <div class="step-connector" id="csc2" style="flex:1;height:2px;margin:0 4px;margin-bottom:12px;"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div class="step-num" id="cs3">3</div>
+                <div class="step-lbl" id="csl3">Schedule</div>
+              </div>
+            </div>
+            <!-- Step 1: Client -->
+            <div id="csp1">
+              <div class="search-bar" style="margin:0 0 10px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Search client by name or sector…
+              </div>
+              <div class="card" style="padding:0;border-radius:var(--radius-md);margin-bottom:10px;">
+                <div class="client-item" style="background:var(--color-primary-light);border-radius:var(--radius-md) var(--radius-md) 0 0;" onclick="showCreateStep(2)">
+                  <div class="client-logo" style="background:var(--color-primary);color:white;">ST</div>
+                  <div>
+                    <div class="client-name">Shwe Taung Co., Ltd</div>
+                    <div class="client-meta">IT · Tier A · Yankin</div>
+                  </div>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-primary)" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:auto;"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="client-item" onclick="showCreateStep(2)">
+                  <div class="client-logo">DB</div>
+                  <div>
+                    <div class="client-name">Dagon Beer Myanmar</div>
+                    <div class="client-meta">FMCG · Tier B · Yankin</div>
+                  </div>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24" style="margin-left:auto;"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="client-item" onclick="showCreateStep(2)">
+                  <div class="client-logo">KZ</div>
+                  <div>
+                    <div class="client-name">KBZ Bank HQ</div>
+                    <div class="client-meta">Finance · Tier A · Hlaing</div>
+                  </div>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24" style="margin-left:auto;"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="client-item" style="border-radius:0 0 var(--radius-md) var(--radius-md);" onclick="showCreateStep(2)">
+                  <div class="client-logo">MP</div>
+                  <div>
+                    <div class="client-name">Myanmar Plaza Retail</div>
+                    <div class="client-meta">Retail · Tier B · CBD</div>
+                  </div>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24" style="margin-left:auto;"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+              <button class="btn-primary" onclick="showCreateStep(2)">Select Client &amp; Continue →</button>
+            </div>
+            <!-- Step 2: Agenda -->
+            <div id="csp2" style="display:none;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 10px;background:var(--color-surface-offset);border-radius:var(--radius-md);">
+                <div class="client-logo" style="background:var(--color-primary);color:white;width:28px;height:28px;border-radius:8px;font-size:10px;">ST</div>
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);">Shwe Taung Co., Ltd</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Meeting Group</label>
+                <div class="radio-group">
+                  <div class="radio-chip selected">Infra</div>
+                  <div class="radio-chip">ES</div>
+                  <div class="radio-chip">App</div>
+                  <div class="radio-chip">MS</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Participants <span style="font-weight:500;color:var(--color-text-faint);font-size:10px;">(cross-department)</span></label>
+                <div class="radio-group">
+                  <div class="radio-chip selected">✓ Aung KZ (AM)</div>
+                  <div class="radio-chip selected">✓ Thida M (Sales)</div>
+                  <div class="radio-chip">+ Solution Eng</div>
+                  <div class="radio-chip">+ Add user</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Visit Purpose</label>
+                <div class="radio-group">
+                  <div class="radio-chip selected">Account Review</div>
+                  <div class="radio-chip">New Product</div>
+                  <div class="radio-chip">Collections</div>
+                  <div class="radio-chip">Follow Up</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Agenda Items</label>
+                <div class="agenda-item">
+                  <div class="agenda-num">1</div>
+                  <div><div class="agenda-text">Review Q2 sales performance</div><div class="agenda-sub">Target vs actual comparison</div></div>
+                </div>
+                <div class="agenda-item">
+                  <div class="agenda-num">2</div>
+                  <div><div class="agenda-text">Discuss new catalogue 2026</div><div class="agenda-sub">Pricing &amp; product range</div></div>
+                </div>
+                <div onclick="goScreen('s11')" style="padding:8px 10px;background:var(--color-surface-offset);border:1.5px dashed var(--color-border);border-radius:var(--radius-md);font-size:12px;color:var(--color-primary);font-weight:600;text-align:center;cursor:pointer;">+ Add / edit agenda items →</div>
+              </div>
+              <button class="btn-primary" onclick="showCreateStep(3)">Next: Schedule →</button>
+            </div>
+            <!-- Step 3: Schedule -->
+            <div id="csp3" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">Date</label>
+                <div class="form-input" style="display:flex;justify-content:space-between;align-items:center;">
+                  <span>Friday, 9 May 2026</span>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Time</label>
+                  <div class="form-input" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>14:00</span>
+                    <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Duration</label>
+                  <div class="form-input" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>60 min</span>
+                    <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                </div>
+              </div>
+              <div style="background:var(--color-purple-light);border:1px solid rgba(139,92,246,0.2);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-purple);margin-bottom:4px;">Instruction (Admin / Management)</div>
+                <div style="font-size:12px;color:var(--color-text);line-height:1.5;">Prioritise Q2 stock discussion — KPI target at risk. Must confirm by this visit.</div>
+              </div>
+              <button class="btn-primary" onclick="goScreen('s02')">Create Visit ✓</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-05: ACTIVE VISIT — IN PROGRESS
+  ══════════════════════════════════════════════ -->
+  <div id="s05" class="screen-panel">
+    <div class="screen-tag">S-05</div>
+    <div class="screen-ttl">Active Visit</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>11:14</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <!-- Active banner -->
+        <div style="background:var(--color-primary);padding:10px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <div style="width:8px;height:8px;border-radius:50%;background:white;animation:pulse 1.5s infinite;"></div>
+          <span style="font-family:var(--font-display);font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:1px;">Visit In Progress</span>
+          <span style="font-family:var(--font-display);font-size:14px;font-weight:700;color:white;margin-left:auto;">00:42:17</span>
+        </div>
+        <div class="screen-content">
+          <div style="padding:12px 16px 8px;">
+            <div style="font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;">Dagon Beer Myanmar</div>
+            <div style="font-size:12px;color:var(--color-text-muted);margin-top:3px;">📍 Yankin Township, Yangon · Checked in 10:32</div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+              <span class="badge badge-teal">Account Review</span>
+              <span class="badge badge-success">GPS Verified ✓</span>
+            </div>
+          </div>
+          <!-- Key contact -->
+          <div style="margin:0 16px 10px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Key Contact</div>
+            <div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:var(--color-primary-light);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--color-primary);flex-shrink:0;">TN</div>
+              <div>
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);">U Thant Naing</div>
+                <div style="font-size:11px;color:var(--color-text-muted);">General Manager · +95 9 870 654 321</div>
+              </div>
+              <div style="margin-left:auto;color:var(--color-primary);">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+            </div>
+          </div>
+          <!-- Checklist -->
+          <div style="margin:0 16px 10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);">Agenda Checklist</div>
+              <span class="badge badge-warn">1 / 3 done</span>
+            </div>
+            <div class="card" style="padding:0 12px;">
+              <div class="checklist-item">
+                <div class="check-box done"><svg width="11" height="11" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div><div class="checklist-title" style="text-decoration:line-through;color:var(--color-text-muted);">Review Q1 sales performance</div><div class="checklist-sub" style="color:var(--color-success);">Completed · Q1 at 75% of target</div></div>
+              </div>
+              <div class="checklist-item">
+                <div class="check-box inprog"></div>
+                <div><div class="checklist-title">Discuss new catalogue 2026</div><div class="checklist-sub" style="color:var(--color-warning);">In progress — client reviewing pricing</div></div>
+              </div>
+              <div class="checklist-item">
+                <div class="check-box"></div>
+                <div><div class="checklist-title">Confirm next order volume</div><div class="checklist-sub">Pending</div></div>
+              </div>
+            </div>
+          </div>
+          <!-- Quick note -->
+          <div style="margin:0 16px 12px;">
+            <div style="background:var(--color-surface);border:1.5px dashed var(--color-border);border-radius:var(--radius-md);padding:10px 12px;font-size:12px;color:var(--color-text-faint);">Tap to add note during visit…</div>
+          </div>
+          <div style="padding:0 16px 8px;">
+            <button class="btn-primary" style="background:var(--color-error);" onclick="goScreen('s02')">End Visit &amp; Fill Outcome</button>
+          </div>
+          <div style="height:20px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-06: TEAM OVERVIEW (admin) / MY CLIENTS (AM)
+  ══════════════════════════════════════════════ -->
+  <div id="s06" class="screen-panel">
+    <div class="screen-tag">S-06</div>
+    <div id="s06-title" class="screen-ttl">Team Overview</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <!-- Admin: Team Overview -->
+        <div id="s06-team" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+          <div style="padding:10px 16px 4px;flex-shrink:0;">
+            <div style="font-size:12px;color:var(--color-text-muted);font-weight:500;">Sales Manager</div>
+            <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;display:flex;align-items:center;justify-content:space-between;">Team Overview <span class="badge badge-muted">Week 19</span></div>
+          </div>
+          <div class="filter-tabs" style="flex-shrink:0;padding-top:0;">
+            <div class="filter-tab active">All groups</div>
+            <div class="filter-tab">Infra</div>
+            <div class="filter-tab">ES</div>
+            <div class="filter-tab">App</div>
+            <div class="filter-tab">MS</div>
+          </div>
+          <div class="screen-content">
+            <div class="stat-grid" style="margin-bottom:10px;margin-top:8px;">
+              <div class="stat-card"><div class="stat-val">42</div><div class="stat-sub">of 58 planned</div><div style="font-size:10px;color:var(--color-text-faint);margin-top:2px;">Visits Done</div></div>
+              <div class="stat-card"><div class="stat-val">72%</div><div class="stat-sub">Coverage</div><div class="stat-delta">↑ +5% vs last week</div></div>
+              <div class="stat-card"><div class="stat-val" style="color:var(--color-warning);">6</div><div class="stat-sub">Outcomes overdue</div><div style="font-size:10px;color:var(--color-text-faint);margin-top:2px;">Pending</div></div>
+              <div class="stat-card"><div class="stat-val">$240K</div><div class="stat-sub">Confirmed pipeline</div><div style="font-size:10px;color:var(--color-text-faint);margin-top:2px;">Revenue (USD)</div></div>
+            </div>
+            <div style="margin:0 16px 12px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px;">
+              <div style="font-size:11px;font-weight:600;color:var(--color-text-muted);margin-bottom:8px;">Visits This Week</div>
+              <div class="week-bar">
+                <div class="bar-day"><div class="bar-fill" style="height:32px;"></div><div class="bar-label">M</div></div>
+                <div class="bar-day"><div class="bar-fill" style="height:40px;"></div><div class="bar-label">T</div></div>
+                <div class="bar-day"><div class="bar-fill" style="height:24px;"></div><div class="bar-label">W</div></div>
+                <div class="bar-day"><div class="bar-fill" style="height:36px;"></div><div class="bar-label">T</div></div>
+                <div class="bar-day"><div class="bar-fill" style="height:20px;opacity:0.4;"></div><div class="bar-label">F</div></div>
+                <div class="bar-day"><div class="bar-fill" style="height:8px;opacity:0.3;"></div><div class="bar-label">S</div></div>
+              </div>
+            </div>
+            <div style="padding:0 16px 8px;display:flex;justify-content:space-between;align-items:center;">
+              <div class="section-title">Team Members</div>
+              <span class="badge badge-muted">All 8</span>
+            </div>
+            <div class="card" style="margin:0 16px 8px;border-radius:var(--radius-lg);padding:0;">
+              <div class="team-item">
+                <div class="avatar">AK</div>
+                <div><div class="team-name">Aung Kyaw Zin</div><div class="team-status">🟢 Active — Dagon Beer</div></div>
+                <div style="margin-left:auto;text-align:right;"><div class="team-count">7</div><div class="team-count-label">visits</div></div>
+              </div>
+              <div class="team-item">
+                <div class="avatar" style="background:var(--color-success-light);color:var(--color-success);">TM</div>
+                <div><div class="team-name">Thida Myint</div><div class="team-status">🟢 Active — KBZ Bank</div></div>
+                <div style="margin-left:auto;text-align:right;"><div class="team-count">6</div><div class="team-count-label">visits</div></div>
+              </div>
+              <div class="team-item">
+                <div class="avatar" style="background:var(--color-warning-light);color:var(--color-warning);">KK</div>
+                <div><div class="team-name">Kyaw Ko Ko</div><div class="team-status">⚠️ 2 outcomes overdue</div></div>
+                <div style="margin-left:auto;text-align:right;"><div class="team-count">3</div><div class="team-count-label">visits</div></div>
+              </div>
+              <div class="team-item">
+                <div class="avatar" style="background:var(--color-orange-light);color:var(--color-orange);">NL</div>
+                <div><div class="team-name">Nilar Lwin</div><div class="team-status">🟡 Planning — next at 2PM</div></div>
+                <div style="margin-left:auto;text-align:right;"><div class="team-count">5</div><div class="team-count-label">visits</div></div>
+              </div>
+            </div>
+            <div style="height:20px;"></div>
+          </div>
+        </div>
+        <!-- AM: My Clients -->
+        <div id="s06-clients" style="display:none;flex:1;flex-direction:column;min-height:0;">
+          <div style="padding:10px 16px 4px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:12px;color:var(--color-text-muted);font-weight:500;">Account Manager</div>
+              <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;">My Clients</div>
+            </div>
+            <span class="badge badge-teal">12 assigned</span>
+          </div>
+          <div class="search-bar" style="flex-shrink:0;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Search my clients…
+          </div>
+          <div class="filter-tabs" style="flex-shrink:0;padding-top:0;">
+            <div class="filter-tab active">All</div>
+            <div class="filter-tab">Tier A</div>
+            <div class="filter-tab">Tier B</div>
+            <div class="filter-tab">Due Visit</div>
+          </div>
+          <div class="screen-content" style="flex:1;">
+            <div class="card" style="margin:0 16px 8px;border-radius:var(--radius-lg);padding:0;">
+              <div class="client-item" onclick="goScreen('s08')">
+                <div class="client-logo" style="background:var(--color-primary-light);color:var(--color-primary);">ST</div>
+                <div style="flex:1;">
+                  <div class="client-name">Shwe Taung Co., Ltd</div>
+                  <div class="client-meta">IT · Tier A · Last visit: May 9</div>
+                </div>
+                <span class="badge badge-success">Done</span>
+              </div>
+              <div class="client-item" onclick="goScreen('s08')">
+                <div class="client-logo">DB</div>
+                <div style="flex:1;">
+                  <div class="client-name">Dagon Beer Myanmar</div>
+                  <div class="client-meta">FMCG · Tier B · Last visit: May 9</div>
+                </div>
+                <span class="badge badge-teal">Active</span>
+              </div>
+              <div class="client-item" onclick="goScreen('s08')">
+                <div class="client-logo" style="background:var(--color-warning-light);color:var(--color-warning);">KZ</div>
+                <div style="flex:1;">
+                  <div class="client-name">KBZ Bank HQ</div>
+                  <div class="client-meta">Finance · Tier A · Visit due today</div>
+                </div>
+                <span class="badge badge-warn">Due</span>
+              </div>
+              <div class="client-item" onclick="goScreen('s08')">
+                <div class="client-logo">MP</div>
+                <div style="flex:1;">
+                  <div class="client-name">Myanmar Plaza Retail</div>
+                  <div class="client-meta">Retail · Tier B · Last visit: May 8</div>
+                </div>
+                <span class="badge badge-error">No Contact</span>
+              </div>
+              <div class="client-item" onclick="goScreen('s08')">
+                <div class="client-logo" style="background:var(--color-purple-light);color:var(--color-purple);">AG</div>
+                <div style="flex:1;">
+                  <div class="client-name">Asia Green Development</div>
+                  <div class="client-meta">Finance · Tier A · Last visit: May 7</div>
+                </div>
+                <span class="badge badge-success">Done</span>
+              </div>
+              <div class="client-item" onclick="goScreen('s08')">
+                <div class="client-logo">MI</div>
+                <div style="flex:1;">
+                  <div class="client-name">Maha Investment Group</div>
+                  <div class="client-meta">Finance · Tier B · Last visit: May 5</div>
+                </div>
+                <span class="badge badge-muted">Planned</span>
+              </div>
+            </div>
+            <div style="height:20px;"></div>
+          </div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-07: CLIENT LIST
+  ══════════════════════════════════════════════ -->
+  <div id="s07" class="screen-panel">
+    <div class="screen-tag">S-07</div>
+    <div class="screen-ttl">Client List</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="padding:10px 16px 4px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+          <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;">All Clients</div>
+          <span class="badge badge-muted">48 total</span>
+        </div>
+        <div class="search-bar" style="flex-shrink:0;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Search by name or sector…
+        </div>
+        <div class="filter-tabs" style="flex-shrink:0;padding-top:0;">
+          <div class="filter-tab active">All</div>
+          <div class="filter-tab">Key Account</div>
+          <div class="filter-tab">Active</div>
+          <div class="filter-tab">Hold</div>
+          <div class="filter-tab">Banking</div>
+          <div class="filter-tab">Software</div>
+          <div class="filter-tab">Microfinance</div>
+          <div class="filter-tab">Healthcare</div>
+        </div>
+        <div class="screen-content">
+          <div class="card" style="margin:0 16px 8px;border-radius:var(--radius-lg);padding:0;">
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo" style="background:var(--color-primary-light);color:var(--color-primary);">ST</div>
+              <div style="flex:1;"><div class="client-name">Shwe Taung Co., Ltd</div><div class="client-meta">IT · Tier A · Yankin</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">12</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo">DB</div>
+              <div style="flex:1;"><div class="client-name">Dagon Beer Myanmar</div><div class="client-meta">FMCG · Tier B · Yankin</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">8</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo" style="background:var(--color-warning-light);color:var(--color-warning);">KZ</div>
+              <div style="flex:1;"><div class="client-name">KBZ Bank HQ</div><div class="client-meta">Finance · Tier A · Hlaing</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">15</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo">MP</div>
+              <div style="flex:1;"><div class="client-name">Myanmar Plaza Retail</div><div class="client-meta">Retail · Tier B · CBD</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">9</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo" style="background:var(--color-purple-light);color:var(--color-purple);">AG</div>
+              <div style="flex:1;"><div class="client-name">Asia Green Development</div><div class="client-meta">Finance · Tier A · CBD</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">11</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo" style="background:var(--color-orange-light);color:var(--color-orange);">MI</div>
+              <div style="flex:1;"><div class="client-name">Maha Investment Group</div><div class="client-meta">Finance · Tier B · Bahan</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">6</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+            <div class="client-item" onclick="goScreen('s08')">
+              <div class="client-logo">CD</div>
+              <div style="flex:1;"><div class="client-name">Capital Diamond Bank</div><div class="client-meta">Finance · Tier A · Sanchaung</div></div>
+              <div style="text-align:right;"><div style="font-size:12px;font-weight:700;color:var(--color-text);">7</div><div style="font-size:9px;color:var(--color-text-faint);">visits</div></div>
+            </div>
+          </div>
+          <div style="height:20px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-08: CLIENT WORKSPACE
+  ══════════════════════════════════════════════ -->
+  <div id="s08" class="screen-panel">
+    <div class="screen-tag">S-08</div>
+    <div class="screen-ttl">Client Workspace</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <!-- Back + client header -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 16px 4px;flex-shrink:0;">
+          <div onclick="goScreen('s07')" style="width:28px;height:28px;border-radius:50%;background:var(--color-surface-offset);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+            <svg width="14" height="14" fill="none" stroke="var(--color-text-muted)" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);">Shwe Taung Co., Ltd</div>
+            <div style="font-size:11px;color:var(--color-text-muted);">IT · Tier A · Yankin Township</div>
+          </div>
+          <div onclick="goScreen('s04')" style="padding:6px 10px;background:var(--color-primary);border-radius:var(--radius-md);cursor:pointer;">
+            <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+        </div>
+        <!-- KPI strip -->
+        <div style="display:flex;gap:8px;padding:4px 16px 6px;flex-shrink:0;">
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-text);">12</div>
+            <div style="font-size:10px;color:var(--color-text-muted);">Total Visits</div>
+          </div>
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-success);">83%</div>
+            <div style="font-size:10px;color:var(--color-text-muted);">Success Rate</div>
+          </div>
+          <div style="flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-text);">$62K</div>
+            <div style="font-size:10px;color:var(--color-text-muted);">Pipeline (USD)</div>
+          </div>
+        </div>
+        <!-- Tabs -->
+        <div class="ws-tabs">
+          <div class="ws-tab active" id="wt-visits" onclick="switchWsTab('visits')">Visits</div>
+          <div class="ws-tab" id="wt-instruction" onclick="switchWsTab('instruction')">Instruction</div>
+          <div class="ws-tab" id="wt-outcomes" onclick="switchWsTab('outcomes')">Outcomes</div>
+          <div class="ws-tab" id="wt-info" onclick="switchWsTab('info')">Info</div>
+        </div>
+        <!-- Tab: Visits -->
+        <div id="ws-visits" class="screen-content">
+          <div class="card" style="margin:10px 16px;border-radius:var(--radius-lg);padding:0;">
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">09</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Account Review</div>
+                <div class="hist-who">Aung Kyaw Zin · 09:32 – 10:36</div>
+                <div class="hist-outcome">✓ Positive · $12.5K · 1h 04m</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+              <div onclick="event.stopPropagation();openVisitMenu('s08-h1')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">24</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Collections Follow-up</div>
+                <div class="hist-who">Aung Kyaw Zin · 10:00 – 11:00</div>
+                <div class="hist-outcome">✓ Positive · $8K collection</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+              <div onclick="event.stopPropagation();openVisitMenu('s08-h2')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">15</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">New Product Intro</div>
+                <div class="hist-who">Aung Kyaw Zin · 14:30 – 15:20</div>
+                <div class="hist-outcome">⚡ Partial · Pricing under review</div>
+              </div>
+              <span class="badge badge-warn">Partial</span>
+              <div onclick="event.stopPropagation();openVisitMenu('s08-h3')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">03</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Q1 Account Review</div>
+                <div class="hist-who">Aung Kyaw Zin · 09:00 – 10:15</div>
+                <div class="hist-outcome">✓ Positive · $25K renewal</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+              <div onclick="event.stopPropagation();openVisitMenu('s08-h4')" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-faint);font-weight:700;">⋮</div>
+            </div>
+          </div>
+          <div style="height:16px;"></div>
+        </div>
+        <!-- Tab: Instruction -->
+        <div id="ws-instruction" class="screen-content" style="display:none;">
+          <div style="padding:10px 16px;">
+            <div style="background:var(--color-purple-light);border:1px solid rgba(139,92,246,0.2);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-purple);">Instruction · set by Management</div>
+                <span class="badge badge-purple" style="font-size:9px;">Editable: Admin / Mgmt</span>
+              </div>
+              <div style="font-size:12px;color:var(--color-text);line-height:1.6;">Prioritise Q2 stock discussion and confirm renewal terms before end of month. KPI target at risk — escalate immediately if blocked.</div>
+              <div style="font-size:10px;color:var(--color-text-faint);margin-top:8px;">Last updated: U Myo Zaw · May 5, 2026</div>
+            </div>
+            <div class="card" style="padding:12px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                <div style="font-family:var(--font-display);font-size:12px;font-weight:600;color:var(--color-text);">Post-visit note · May 9</div>
+                <span style="font-size:10px;color:var(--color-text-faint);">Aung KZ</span>
+              </div>
+              <div style="font-size:12px;color:var(--color-text-muted);line-height:1.6;">Client confirmed Q2 order — 500 units product A, 200 units product B. Requested special pricing for bulk.</div>
+            </div>
+            <button class="btn-secondary" style="width:100%;">✎ Edit instruction</button>
+          </div>
+          <div style="height:16px;"></div>
+        </div>
+        <!-- Tab: Outcomes Summary -->
+        <div id="ws-outcomes" class="screen-content" style="display:none;">
+          <div style="padding:10px 16px;">
+            <div class="card" style="padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">Outcome Distribution</div>
+                <span class="badge badge-muted">12 visits</span>
+              </div>
+              <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--color-surface-offset);margin-bottom:10px;">
+                <div style="flex:7;background:var(--color-success);"></div>
+                <div style="flex:3;background:var(--color-warning);"></div>
+                <div style="flex:1;background:var(--color-error);"></div>
+                <div style="flex:1;background:var(--color-text-faint);"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-text-muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--color-success);"></span>Positive 58% (7)</div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-text-muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--color-warning);"></span>Neutral 25% (3)</div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-text-muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--color-error);"></span>Negative 8% (1)</div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-text-muted);"><span style="width:10px;height:10px;border-radius:50%;background:var(--color-text-faint);"></span>No-show 8% (1)</div>
+              </div>
+            </div>
+            <div class="card" style="padding:14px;">
+              <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);margin-bottom:8px;">Pipeline Summary (USD)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><div style="font-size:10px;color:var(--color-text-faint);text-transform:uppercase;">Confirmed</div><div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-success);">$45.5K</div></div>
+                <div><div style="font-size:10px;color:var(--color-text-faint);text-transform:uppercase;">In progress</div><div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-warning);">$16.5K</div></div>
+              </div>
+            </div>
+          </div>
+          <div style="height:16px;"></div>
+        </div>
+        <!-- Tab: Info -->
+        <div id="ws-info" class="screen-content" style="display:none;">
+          <div style="padding:10px 16px;">
+            <div class="card" style="padding:12px;margin-bottom:8px;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:8px;">Client Details</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div><div style="font-size:10px;color:var(--color-text-faint);">Sector</div><div style="font-size:13px;font-weight:600;color:var(--color-text);">Software</div></div>
+                <div><div style="font-size:10px;color:var(--color-text-faint);">Account Type</div><div style="font-size:13px;font-weight:600;color:var(--color-primary);">Key Account</div></div>
+                <div><div style="font-size:10px;color:var(--color-text-faint);">Location</div><div style="font-size:13px;font-weight:600;color:var(--color-text);">Yankin, Yangon</div></div>
+                <div><div style="font-size:10px;color:var(--color-text-faint);">FY2026 Q2 target</div><div style="font-size:13px;font-weight:600;color:var(--color-text);">$50K USD</div></div>
+              </div>
+            </div>
+            <div class="card" style="padding:12px;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:8px;">Key Contacts</div>
+              <div class="team-item" style="padding:0 0 8px;">
+                <div class="avatar" style="width:32px;height:32px;font-size:11px;">MZ</div>
+                <div><div class="team-name" style="font-size:12px;">U Myo Zaw</div><div class="team-status">Sales Manager</div></div>
+              </div>
+              <div class="team-item" style="padding:6px 0 0;border-top:1px solid var(--color-divider);">
+                <div class="avatar" style="width:32px;height:32px;font-size:11px;background:var(--color-success-light);color:var(--color-success);">HM</div>
+                <div><div class="team-name" style="font-size:12px;">Daw Hnin Marlar</div><div class="team-status">Finance Director</div></div>
+              </div>
+            </div>
+          </div>
+          <div style="height:16px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-09: ADMIN DASHBOARD
+  ══════════════════════════════════════════════ -->
+  <div id="s09" class="screen-panel">
+    <div class="screen-tag">S-09</div>
+    <div class="screen-ttl">Admin Dashboard</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+          <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;">Admin</div>
+          <span class="badge badge-purple" id="admin-role-badge">Admin + Management</span>
+        </div>
+        <div style="display:flex;border-bottom:1.5px solid var(--color-divider);margin:0 16px;flex-shrink:0;">
+          <div id="atab-tools" onclick="showAdminTab('tools')" style="flex:1;padding:8px 6px;text-align:center;font-size:12px;font-weight:600;color:var(--color-primary);border-bottom:2.5px solid var(--color-primary);margin-bottom:-1.5px;cursor:pointer;">Tools</div>
+          <div id="atab-approvals" onclick="showAdminTab('approvals')" style="flex:1;padding:8px 6px;text-align:center;font-size:12px;font-weight:600;color:var(--color-text-faint);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;cursor:pointer;">Approvals <span style="background:#ef4444;color:white;font-size:9px;font-weight:700;border-radius:8px;padding:1px 5px;margin-left:3px;vertical-align:middle;">3</span></div>
+        </div>
+        <!-- Tools Panel -->
+        <div id="admin-panel-tools" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:14px;scrollbar-width:none;">
+          <div class="card" style="padding:14px;">
+            <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);margin-bottom:10px;">Create Client</div>
+            <input type="text" placeholder="Client name" class="form-input" style="margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Sector</div>
+            <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+              <div class="radio-chip selected">Software</div>
+              <div class="radio-chip">Banking</div>
+              <div class="radio-chip">Microfinance</div>
+              <div class="radio-chip">MDR</div>
+              <div class="radio-chip">Healthcare</div>
+              <div class="radio-chip">Insurance</div>
+              <div class="radio-chip">Telecom</div>
+              <div class="radio-chip">Media</div>
+              <div class="radio-chip">Government</div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Account Type</div>
+            <div style="display:flex;gap:6px;margin-bottom:10px;">
+              <div class="radio-chip selected" style="flex:1;text-align:center;">Named Account</div>
+              <div class="radio-chip" style="flex:1;text-align:center;">Key Account</div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Status</div>
+            <div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;">
+              <div class="radio-chip selected">Active</div>
+              <div class="radio-chip">Hold</div>
+              <div class="radio-chip">Inactive</div>
+              <div class="radio-chip">Churned</div>
+              <div class="radio-chip">Prospect</div>
+            </div>
+            <button class="btn-primary">Create Client</button>
+          </div>
+          <div class="card" style="padding:14px;">
+            <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);margin-bottom:10px;">Create Sector</div>
+            <input type="text" placeholder="Sector name (e.g. Logistics)" class="form-input" style="margin-bottom:8px;">
+            <input type="text" placeholder="Slug (e.g. logistics)" class="form-input" style="margin-bottom:10px;">
+            <button class="btn-primary">Create Sector</button>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--color-divider);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Existing sectors (9)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">
+              <span class="badge badge-teal">Software</span>
+              <span class="badge badge-teal">Banking</span>
+              <span class="badge badge-teal">Microfinance</span>
+              <span class="badge badge-teal">MDR</span>
+              <span class="badge badge-teal">Healthcare</span>
+              <span class="badge badge-teal">Insurance</span>
+              <span class="badge badge-teal">Telecom</span>
+              <span class="badge badge-teal">Media</span>
+              <span class="badge badge-teal">Government</span>
+            </div>
+          </div>
+          <div class="card" style="padding:14px;">
+            <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);margin-bottom:10px;">Add Financial Quarter</div>
+            <input type="text" placeholder="e.g. FY2026" class="form-input" style="margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Quarter</div>
+            <div style="display:flex;gap:6px;margin-bottom:12px;">
+              <div class="radio-chip selected" style="flex:1;text-align:center;">Q1</div>
+              <div class="radio-chip" style="flex:1;text-align:center;">Q2</div>
+              <div class="radio-chip" style="flex:1;text-align:center;">Q3</div>
+              <div class="radio-chip" style="flex:1;text-align:center;">Q4</div>
+            </div>
+            <button class="btn-primary">Create Quarter</button>
+          </div>
+          <div class="card" style="padding:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;" onclick="goScreen('s00')">
+              <div style="font-size:13px;font-weight:700;color:var(--color-error);">Sign out</div>
+              <svg width="14" height="14" fill="none" stroke="var(--color-error)" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+          </div>
+          <div style="height:8px;"></div>
+        </div>
+        <!-- Approvals Panel -->
+        <div id="admin-panel-approvals" style="display:none;flex:1;overflow-y:auto;padding:12px 16px;display:none;flex-direction:column;gap:10px;scrollbar-width:none;">
+          <div class="card" style="padding:12px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div class="avatar">AK</div>
+              <div style="flex:1;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);">Aung Ko Ko</div>
+                <div style="font-size:11px;color:var(--color-text-muted);">aungkoko@bimgroup.com</div>
+                <div style="font-size:10px;color:var(--color-text-faint);margin-top:1px;">Account Executive · requested role: AM</div>
+              </div>
+            </div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-faint);margin-bottom:5px;">Assign role</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+              <div class="radio-chip selected">AM</div>
+              <div class="radio-chip">Sales / Solution</div>
+              <div class="radio-chip">Management</div>
+              <div class="radio-chip">Admin</div>
+            </div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-faint);margin-bottom:5px;">Meeting group</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
+              <div class="radio-chip selected">Infra</div>
+              <div class="radio-chip">ES</div>
+              <div class="radio-chip">App</div>
+              <div class="radio-chip">MS</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;border-radius:var(--radius-md);">Approve</button>
+              <button class="btn-secondary" style="flex:1;padding:8px;font-size:12px;border-radius:var(--radius-md);">Reject</button>
+            </div>
+          </div>
+          <div class="card" style="padding:12px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div class="avatar" style="background:var(--color-success-light);color:var(--color-success);">TH</div>
+              <div style="flex:1;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);">Thida Hlaing</div>
+                <div style="font-size:11px;color:var(--color-text-muted);">thidahlaing@bimgroup.com</div>
+                <div style="font-size:10px;color:var(--color-text-faint);margin-top:1px;">Sales Representative · requested role: Sales</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+              <div class="radio-chip">AM</div>
+              <div class="radio-chip selected">Sales / Solution</div>
+              <div class="radio-chip">Management</div>
+              <div class="radio-chip">Admin</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;border-radius:var(--radius-md);">Approve</button>
+              <button class="btn-secondary" style="flex:1;padding:8px;font-size:12px;border-radius:var(--radius-md);">Reject</button>
+            </div>
+          </div>
+          <div class="card" style="padding:12px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div class="avatar" style="background:var(--color-orange-light);color:var(--color-orange);">NW</div>
+              <div style="flex:1;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--color-text);">Nay Win</div>
+                <div style="font-size:11px;color:var(--color-text-muted);">naywin@bimgroup.com</div>
+                <div style="font-size:10px;color:var(--color-text-faint);margin-top:1px;">Solution Engineer · requested role: Solution</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+              <div class="radio-chip">AM</div>
+              <div class="radio-chip selected">Sales / Solution</div>
+              <div class="radio-chip">Management</div>
+              <div class="radio-chip">Admin</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-primary" style="flex:1;padding:8px;font-size:12px;border-radius:var(--radius-md);">Approve</button>
+              <button class="btn-secondary" style="flex:1;padding:8px;font-size:12px;border-radius:var(--radius-md);">Reject</button>
+            </div>
+          </div>
+          <div style="height:8px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-10: REPORTS
+  ══════════════════════════════════════════════ -->
+  <div id="s10" class="screen-panel">
+    <div class="screen-tag">S-10</div>
+    <div class="screen-ttl">Reports</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="padding:10px 16px 4px;font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;flex-shrink:0;">Reports</div>
+        <!-- KPI summary strip -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 16px 8px;flex-shrink:0;">
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-text);">42</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Visits</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-success);">87%</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Success</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-text);">$240K</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">USD</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-primary);">72%</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Coverage</div>
+          </div>
+        </div>
+        <!-- Bar chart -->
+        <div style="margin:0 16px 8px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-muted);margin-bottom:8px;">Visits This Week (May 5–9)</div>
+          <div class="week-bar">
+            <div class="bar-day"><div class="bar-fill" style="height:28px;"></div><div class="bar-label">M</div></div>
+            <div class="bar-day"><div class="bar-fill" style="height:36px;"></div><div class="bar-label">T</div></div>
+            <div class="bar-day"><div class="bar-fill" style="height:20px;"></div><div class="bar-label">W</div></div>
+            <div class="bar-day"><div class="bar-fill" style="height:40px;"></div><div class="bar-label">T</div></div>
+            <div class="bar-day"><div class="bar-fill" style="height:24px;opacity:0.5;"></div><div class="bar-label">F</div></div>
+            <div class="bar-day"><div class="bar-fill" style="height:6px;opacity:0.25;"></div><div class="bar-label">S</div></div>
+          </div>
+        </div>
+        <div class="filter-tabs" style="flex-shrink:0;">
+          <div class="filter-tab active">All</div>
+          <div class="filter-tab">Mine</div>
+          <div id="reports-team-tab" class="filter-tab" onclick="goScreen('s14')">Teams</div>
+        </div>
+        <div id="reports-team-banner" style="display:none;margin:6px 16px 0;padding:8px 10px;background:var(--color-primary-light);border-radius:var(--radius-sm);font-size:10px;color:var(--color-primary);font-weight:600;flex-shrink:0;">
+          · Q2 2026 · All users · 12 members · 142 visits this quarter
+        </div>
+        <div class="screen-content">
+          <div class="date-divider">Today · May 9</div>
+          <div class="card" style="margin:8px 16px;border-radius:var(--radius-lg);padding:0;">
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">09</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Shwe Taung Co., Ltd</div>
+                <div class="hist-who">Aung Kyaw Zin · 09:32 – 10:36</div>
+                <div class="hist-outcome">✓ Positive · $12.5K pipeline</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+          </div>
+          <div class="date-divider">Yesterday · May 8</div>
+          <div class="card" style="margin:8px 16px;border-radius:var(--radius-lg);padding:0;">
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">08</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">KBZ Bank HQ</div>
+                <div class="hist-who">Thida Myint · 10:00 – 11:15</div>
+                <div class="hist-outcome">✓ Service renewal confirmed</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">08</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Dagon Beer Myanmar</div>
+                <div class="hist-who">Kyaw Ko Ko · 14:00 – 14:45</div>
+                <div class="hist-outcome">⚡ Partial · Pricing not agreed</div>
+              </div>
+              <span class="badge badge-warn">Partial</span>
+            </div>
+          </div>
+          <div class="date-divider">May 7</div>
+          <div class="card" style="margin:8px 16px;border-radius:var(--radius-lg);padding:0;">
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">07</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Asia Green Development</div>
+                <div class="hist-who">Nilar Lwin · 09:00 – 10:20</div>
+                <div class="hist-outcome">✓ Contract renewed · $35K pipeline</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+          </div>
+          <div style="height:20px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-11: AGENDA ITEMS — ADD / EDIT / REORDER
+  ══════════════════════════════════════════════ -->
+  <div id="s11" class="screen-panel">
+    <div class="screen-tag">S-11</div>
+    <div class="screen-ttl">Agenda Items</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 16px 4px;flex-shrink:0;">
+          <div onclick="goScreen('s04')" style="width:28px;height:28px;border-radius:50%;background:var(--color-surface-offset);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+            <svg width="14" height="14" fill="none" stroke="var(--color-text-muted)" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);">Agenda Items</div>
+            <div style="font-size:11px;color:var(--color-text-muted);">Shwe Taung Co., Ltd · 9 May visit</div>
+          </div>
+          <span class="badge badge-teal">3 items</span>
+        </div>
+        <div class="screen-content">
+          <div style="padding:10px 16px 0;">
+            <div class="card" style="padding:0;border-radius:var(--radius-lg);margin-bottom:10px;">
+              <div class="agenda-item" style="border-bottom:1px solid var(--color-divider);">
+                <div style="color:var(--color-text-faint);cursor:grab;font-size:14px;">⋮⋮</div>
+                <div class="agenda-num">1</div>
+                <div style="flex:1;"><div class="agenda-text">Review Q2 sales performance</div><div class="agenda-sub">Target vs actual comparison</div></div>
+                <div style="display:flex;gap:6px;color:var(--color-text-faint);">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-error)" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                </div>
+              </div>
+              <div class="agenda-item" style="border-bottom:1px solid var(--color-divider);">
+                <div style="color:var(--color-text-faint);cursor:grab;font-size:14px;">⋮⋮</div>
+                <div class="agenda-num">2</div>
+                <div style="flex:1;"><div class="agenda-text">Discuss new catalogue 2026</div><div class="agenda-sub">Pricing &amp; product range</div></div>
+                <div style="display:flex;gap:6px;color:var(--color-text-faint);">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-error)" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                </div>
+              </div>
+              <div class="agenda-item">
+                <div style="color:var(--color-text-faint);cursor:grab;font-size:14px;">⋮⋮</div>
+                <div class="agenda-num">3</div>
+                <div style="flex:1;"><div class="agenda-text">Confirm next order volume</div><div class="agenda-sub">Q3 planning baseline</div></div>
+                <div style="display:flex;gap:6px;color:var(--color-text-faint);">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="var(--color-error)" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="padding:14px;margin-bottom:10px;">
+              <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);margin-bottom:10px;">Add new item</div>
+              <input type="text" placeholder="Item title" class="form-input" style="margin-bottom:8px;">
+              <input type="text" placeholder="Description (optional)" class="form-input" style="margin-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--color-text-muted);">
+                <input type="checkbox" style="width:14px;height:14px;accent-color:var(--color-primary);">
+                Mark as completed
+              </div>
+              <button class="btn-primary">+ Add Item</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-secondary" style="flex:1;" onclick="goScreen('s04')">Cancel</button>
+              <button class="btn-primary" style="flex:1;" onclick="goScreen('s04')">Save ✓</button>
+            </div>
+          </div>
+          <div style="height:20px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-12: PROFILE — USER PREFERENCES
+  ══════════════════════════════════════════════ -->
+  <div id="s12" class="screen-panel">
+    <div class="screen-tag">S-12</div>
+    <div class="screen-ttl">Profile</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="padding:12px 16px 6px;font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;flex-shrink:0;">Profile</div>
+        <div class="screen-content">
+          <!-- User header -->
+          <div style="display:flex;align-items:center;gap:12px;padding:8px 16px 14px;">
+            <div class="avatar" style="width:56px;height:56px;font-size:18px;">AK</div>
+            <div style="flex:1;">
+              <div style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);">Aung Kyaw Zin</div>
+              <div style="font-size:11px;color:var(--color-text-muted);">aung.kz@bimgroup.com</div>
+              <div style="display:flex;gap:6px;margin-top:5px;">
+                <span class="badge badge-teal">AM</span>
+                <span class="badge badge-purple">Infra</span>
+              </div>
+            </div>
+          </div>
+          <!-- Meeting Group -->
+          <div style="padding:0 16px 14px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Meeting Group</div>
+            <div class="card" style="padding:12px;">
+              <div class="radio-group">
+                <div class="radio-chip selected">Infra</div>
+                <div class="radio-chip">ES</div>
+                <div class="radio-chip">App</div>
+                <div class="radio-chip">MS</div>
+              </div>
+              <div style="font-size:10px;color:var(--color-text-faint);margin-top:8px;">Used to scope clients, visits, and team views.</div>
+            </div>
+          </div>
+          <!-- Target USD -->
+          <div style="padding:0 16px 14px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Quarterly Target (USD)</div>
+            <div class="card" style="padding:12px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-text-muted);">$</span>
+                <input type="text" value="30,000" class="form-input" style="margin:0;flex:1;font-family:var(--font-display);font-size:16px;font-weight:700;">
+              </div>
+              <div style="font-size:10px;color:var(--color-text-faint);margin-top:6px;">Default: $30,000 USD per quarter.</div>
+            </div>
+          </div>
+          <!-- Owned sectors -->
+          <div style="padding:0 16px 14px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Owned Sectors</div>
+            <div class="card" style="padding:12px;">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                <span class="badge badge-teal">Software</span>
+                <span class="badge badge-teal">Banking</span>
+                <span class="badge badge-teal">Microfinance</span>
+                <span class="badge badge-muted" style="cursor:pointer;">+ Add</span>
+              </div>
+            </div>
+          </div>
+          <!-- Admin Tools (admin / management only) -->
+          <div id="profile-admin-link" style="display:none;padding:0 16px 14px;">
+            <div class="card" style="padding:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;" onclick="goScreen('s09')">
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:var(--color-text);">Admin Tools</div>
+                  <div style="font-size:10px;color:var(--color-text-muted);margin-top:1px;">Sectors, quarters, approvals</div>
+                </div>
+                <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+            <div style="font-size:10px;color:var(--color-text-faint);padding:6px 4px 0;">Team Overview lives in Reports → Teams</div>
+          </div>
+          <!-- Theme + Sign out -->
+          <div style="padding:0 16px 14px;">
+            <div class="card" style="padding:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--color-divider);cursor:pointer;" onclick="toggleTheme()">
+                <div style="font-size:13px;font-weight:600;color:var(--color-text);">Theme</div>
+                <div id="profileThemeLbl" style="font-size:12px;color:var(--color-text-muted);">🌙 Dark</div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;" onclick="goScreen('s00')">
+                <div style="font-size:13px;font-weight:600;color:var(--color-error);">Sign out</div>
+                <svg width="14" height="14" fill="none" stroke="var(--color-error)" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </div>
+            </div>
+          </div>
+          <div style="padding:0 16px 16px;font-size:10px;color:var(--color-text-faint);text-align:center;">VisitPlan v2.3 · BIM Group Myanmar</div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-13: EDIT VISIT (status + outcome)
+  ══════════════════════════════════════════════ -->
+  <div id="s13" class="screen-panel">
+    <div class="screen-tag">S-13</div>
+    <div class="screen-ttl">Edit Visit</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 16px 4px;flex-shrink:0;">
+          <div onclick="goScreen('s02')" style="width:28px;height:28px;border-radius:50%;background:var(--color-surface-offset);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+            <svg width="14" height="14" fill="none" stroke="var(--color-text-muted)" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);">Update Visit</div>
+            <div style="font-size:11px;color:var(--color-text-muted);">Dagon Beer Myanmar · 11:30 · May 9</div>
+          </div>
+        </div>
+        <div class="screen-content">
+          <!-- Status -->
+          <div style="padding:6px 16px 10px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Visit Status</div>
+            <div class="card" style="padding:12px;">
+              <div class="radio-group">
+                <div class="radio-chip">Planned</div>
+                <div class="radio-chip">Active</div>
+                <div class="radio-chip selected">Done</div>
+                <div class="radio-chip">No-show</div>
+                <div class="radio-chip">Rescheduled</div>
+                <div class="radio-chip">Cancelled</div>
+              </div>
+            </div>
+          </div>
+          <!-- Outcome -->
+          <div style="padding:0 16px 10px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Outcome</div>
+            <div class="card" style="padding:12px;">
+              <div class="radio-group" style="margin-bottom:10px;">
+                <div class="radio-chip selected" style="background:var(--color-success-light);color:var(--color-success);">✓ Positive</div>
+                <div class="radio-chip">— Neutral</div>
+                <div class="radio-chip" style="color:var(--color-error);">✕ Negative</div>
+                <div class="radio-chip">No-show</div>
+              </div>
+              <div style="font-size:10px;font-weight:600;color:var(--color-text-muted);margin-bottom:4px;">Pipeline value (USD)</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+                <span style="font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--color-text-muted);">$</span>
+                <input type="text" value="12,500" class="form-input" style="margin:0;flex:1;">
+              </div>
+              <div style="font-size:10px;font-weight:600;color:var(--color-text-muted);margin-bottom:4px;">Outcome notes</div>
+              <textarea class="form-input" rows="3" style="resize:vertical;min-height:60px;" placeholder="What happened? Next steps?">Client confirmed Q2 order — 500 units product A, 200 units product B. Requested special pricing for bulk.</textarea>
+            </div>
+          </div>
+          <!-- Reschedule (conditional) -->
+          <div style="padding:0 16px 10px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);margin-bottom:6px;">Schedule</div>
+            <div class="card" style="padding:12px;display:flex;gap:8px;">
+              <div style="flex:1;">
+                <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:3px;">Date</div>
+                <input type="date" value="2026-05-09" class="form-input" style="margin:0;">
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:3px;">Time</div>
+                <input type="time" value="11:30" class="form-input" style="margin:0;">
+              </div>
+            </div>
+          </div>
+          <!-- Actions -->
+          <div style="padding:6px 16px 16px;display:flex;gap:8px;">
+            <button class="btn-secondary" style="flex:1;" onclick="goScreen('s02')">Cancel</button>
+            <button class="btn-primary" style="flex:2;" onclick="goScreen('s02')">Save changes</button>
+          </div>
+          <div style="padding:0 16px 16px;">
+            <div style="text-align:center;font-size:12px;color:var(--color-error);font-weight:600;cursor:pointer;">Delete visit</div>
+          </div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-14: TEAM REPORT — AM ACTIVITY (current Q)
+       Admin / Management only
+       ══════════════════════════════════════════════ -->
+  <div id="s14" class="screen-panel">
+    <div class="screen-tag">S-14</div>
+    <div class="screen-ttl">Team Report</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 16px 4px;flex-shrink:0;">
+          <div onclick="goScreen('s10')" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-muted);">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;">Team Report</div>
+            <div style="font-size:10px;color:var(--color-text-muted);">Q2 2026 · Apr–Jun · 12 AMs</div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--color-primary);background:var(--color-primary-light);padding:4px 8px;border-radius:6px;">Q2</div>
+        </div>
+        <!-- KPI strip -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 16px 8px;flex-shrink:0;">
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-text);">142</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Visits</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-success);">82%</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Completed</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--color-primary);">$612K</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Pipeline</div>
+          </div>
+        </div>
+        <!-- Sort / filter -->
+        <div class="filter-tabs" style="flex-shrink:0;">
+          <div class="filter-tab active">By Visits</div>
+          <div class="filter-tab">By Pipeline</div>
+          <div class="filter-tab">By Sector</div>
+        </div>
+        <div class="screen-content">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--color-text-faint);padding:8px 16px 4px;">Account Managers · Q2</div>
+
+          <div class="card" style="margin:4px 16px;border-radius:var(--radius-lg);padding:0;">
+            <!-- Thida -->
+            <div onclick="openAmVisits('thida')" style="display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer;border-bottom:1px solid var(--color-divider);">
+              <div class="avatar" style="width:38px;height:38px;font-size:12px;background:var(--color-primary);color:#fff;">TM</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">Thida Myint</div>
+                <div style="display:flex;gap:4px;margin-top:2px;"><span class="badge badge-teal">ES</span><span class="badge badge-muted">5 clients</span></div>
+                <div style="font-size:10px;color:var(--color-success);margin-top:3px;font-weight:600;">🟢 Active — Dagon Beer</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">18</div>
+                <div style="font-size:9px;color:var(--color-text-muted);">visits · $96K</div>
+              </div>
+              <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <!-- Kyaw -->
+            <div onclick="openAmVisits('kyaw')" style="display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer;border-bottom:1px solid var(--color-divider);">
+              <div class="avatar" style="width:38px;height:38px;font-size:12px;background:var(--color-purple);color:#fff;">KK</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">Kyaw Ko Ko</div>
+                <div style="display:flex;gap:4px;margin-top:2px;"><span class="badge badge-purple">Infra</span><span class="badge badge-muted">4 clients</span></div>
+                <div style="font-size:10px;color:var(--color-error);margin-top:3px;font-weight:600;">⚠️ 2 outcomes overdue</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">14</div>
+                <div style="font-size:9px;color:var(--color-text-muted);">visits · $74K</div>
+              </div>
+              <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <!-- Nilar -->
+            <div onclick="openAmVisits('nilar')" style="display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer;border-bottom:1px solid var(--color-divider);">
+              <div class="avatar" style="width:38px;height:38px;font-size:12px;background:var(--color-orange);color:#fff;">NL</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">Nilar Lwin</div>
+                <div style="display:flex;gap:4px;margin-top:2px;"><span class="badge badge-orange">App</span><span class="badge badge-muted">3 clients</span></div>
+                <div style="font-size:10px;color:var(--color-warning);margin-top:3px;font-weight:600;">🟡 Planning — next at 2PM</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">12</div>
+                <div style="font-size:9px;color:var(--color-text-muted);">visits · $58K</div>
+              </div>
+              <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <!-- Aung -->
+            <div onclick="openAmVisits('aung')" style="display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer;border-bottom:1px solid var(--color-divider);">
+              <div class="avatar" style="width:38px;height:38px;font-size:12px;background:var(--color-primary);color:#fff;">AK</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">Aung Kyaw Zin</div>
+                <div style="display:flex;gap:4px;margin-top:2px;"><span class="badge badge-purple">Infra</span><span class="badge badge-muted">3 clients</span></div>
+                <div style="font-size:10px;color:var(--color-success);margin-top:3px;font-weight:600;">🟢 Active — MPT HQ</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">11</div>
+                <div style="font-size:9px;color:var(--color-text-muted);">visits · $52K</div>
+              </div>
+              <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <!-- Su -->
+            <div onclick="openAmVisits('su')" style="display:flex;align-items:center;gap:10px;padding:12px;cursor:pointer;">
+              <div class="avatar" style="width:38px;height:38px;font-size:12px;background:var(--color-warning);color:#fff;">SS</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--color-text);">Su Su Hlaing</div>
+                <div style="display:flex;gap:4px;margin-top:2px;"><span class="badge badge-warn">MS</span><span class="badge badge-muted">2 clients</span></div>
+                <div style="font-size:10px;color:var(--color-text-muted);margin-top:3px;font-weight:600;">🔵 Idle — last visit 6 days ago</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">9</div>
+                <div style="font-size:9px;color:var(--color-text-muted);">visits · $31K</div>
+              </div>
+              <svg width="14" height="14" fill="none" stroke="var(--color-text-faint)" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+          <div style="padding:10px 16px;font-size:10px;color:var(--color-text-faint);text-align:center;">Tap an AM to see their Q2 visit list</div>
+          <div style="height:20px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       S-15: AM VISIT LIST — drilldown from S-14
+       ══════════════════════════════════════════════ -->
+  <div id="s15" class="screen-panel">
+    <div class="screen-tag">S-15</div>
+    <div class="screen-ttl">AM Visits</div>
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-sensor"></div><div class="notch-cam"></div></div>
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-right">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.5a13 13 0 0 1 21 0M5 12a10 10 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0M12 19h.01"/></svg>
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="2"/><path d="M22 11h1a1 1 0 0 1 0 3h-1"/></svg>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 16px 4px;flex-shrink:0;">
+          <div onclick="goScreen('s14')" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-muted);">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div id="s15-am-name" style="font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--color-text);letter-spacing:-0.3px;">Thida Myint</div>
+            <div id="s15-am-role" style="font-size:10px;color:var(--color-text-muted);">AM · ES</div>
+          </div>
+        </div>
+        <!-- Mini stats -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 16px 8px;flex-shrink:0;">
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div id="s15-am-visits" style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-text);">18</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Q2 Visits</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div id="s15-am-pipe" style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-primary);">$96K</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Pipeline</div>
+          </div>
+          <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--color-success);">85%</div>
+            <div style="font-size:9px;color:var(--color-text-muted);">Win rate</div>
+          </div>
+        </div>
+        <div class="filter-tabs" style="flex-shrink:0;">
+          <div class="filter-tab active">All</div>
+          <div class="filter-tab">Done</div>
+          <div class="filter-tab">Pending</div>
+          <div class="filter-tab">No-show</div>
+        </div>
+        <div class="screen-content">
+          <div class="date-divider">May · This week</div>
+          <div class="card" style="margin:8px 16px;border-radius:var(--radius-lg);padding:0;">
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">09</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">KBZ Bank HQ</div>
+                <div class="hist-who">10:00 – 11:15 · Renewal review</div>
+                <div class="hist-outcome">✓ Service renewal confirmed</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">07</div><div class="hist-date-mon">May</div></div>
+              <div class="hist-body">
+                <div class="hist-company">AYA Bank</div>
+                <div class="hist-who">14:00 – 15:00 · Quarterly review</div>
+                <div class="hist-outcome">✓ Positive · $24K pipeline</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+          </div>
+          <div class="date-divider">April</div>
+          <div class="card" style="margin:8px 16px;border-radius:var(--radius-lg);padding:0;">
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">28</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">CB Bank</div>
+                <div class="hist-who">09:30 – 10:45 · Solution demo</div>
+                <div class="hist-outcome">✓ Positive · $32K pipeline</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">22</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">UAB Bank</div>
+                <div class="hist-who">11:00 – 12:00 · Pricing</div>
+                <div class="hist-outcome">⚡ Partial · Pricing not agreed</div>
+              </div>
+              <span class="badge badge-warn">Partial</span>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">15</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">KBZ Bank HQ</div>
+                <div class="hist-who">14:00 – 14:30 · Quick check-in</div>
+                <div class="hist-outcome">✗ No-show · client cancelled</div>
+              </div>
+              <span class="badge badge-error">No-show</span>
+            </div>
+            <div class="hist-item">
+              <div class="hist-date"><div class="hist-date-num">08</div><div class="hist-date-mon">Apr</div></div>
+              <div class="hist-body">
+                <div class="hist-company">Yoma Bank</div>
+                <div class="hist-who">10:00 – 11:30 · Discovery</div>
+                <div class="hist-outcome">✓ Positive · $40K pipeline</div>
+              </div>
+              <span class="badge badge-success">Done</span>
+            </div>
+          </div>
+          <div style="padding:6px 16px 0;font-size:10px;color:var(--color-text-faint);text-align:center;">Showing 5 of <span id="s15-am-visits-2">18</span> visits · Q2 2026</div>
+          <div style="height:20px;"></div>
+        </div>
+        <div class="bottom-nav"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .app -->
+
+<!-- PROTOTYPE NAV BAR -->
+<div class="proto-bar">
+  <div class="proto-pill on" id="pill-s00" onclick="goScreen('s00')"><div class="pnum">S-00</div><div class="plbl">Login</div></div>
+  <div class="proto-pill" id="pill-s01" onclick="goScreen('s01')"><div class="pnum">S-01</div><div class="plbl">Pending</div></div>
+  <div class="proto-pill" id="pill-s02" onclick="goScreen('s02')"><div class="pnum">S-02</div><div class="plbl">Today</div></div>
+  <div class="proto-pill" id="pill-s03" onclick="goScreen('s03')"><div class="pnum">S-03</div><div class="plbl">Calendar</div></div>
+  <div class="proto-pill" id="pill-s04" onclick="goScreen('s04')"><div class="pnum">S-04</div><div class="plbl">Create</div></div>
+  <div class="proto-pill" id="pill-s05" onclick="goScreen('s05')"><div class="pnum">S-05</div><div class="plbl">Active</div></div>
+  <div class="proto-pill" id="pill-s06" onclick="goScreen('s06')"><div class="pnum">S-06</div><div class="plbl">Team</div></div>
+  <div class="proto-pill" id="pill-s07" onclick="goScreen('s07')"><div class="pnum">S-07</div><div class="plbl">Clients</div></div>
+  <div class="proto-pill" id="pill-s08" onclick="goScreen('s08')"><div class="pnum">S-08</div><div class="plbl">Workspace</div></div>
+  <div class="proto-pill" id="pill-s09" onclick="goScreen('s09')"><div class="pnum">S-09</div><div class="plbl">Admin</div></div>
+  <div class="proto-pill" id="pill-s10" onclick="goScreen('s10')"><div class="pnum">S-10</div><div class="plbl">Reports</div></div>
+  <div class="proto-pill" id="pill-s11" onclick="goScreen('s11')"><div class="pnum">S-11</div><div class="plbl">Agenda</div></div>
+  <div class="proto-pill" id="pill-s12" onclick="goScreen('s12')"><div class="pnum">S-12</div><div class="plbl">Profile</div></div>
+  <div class="proto-pill" id="pill-s13" onclick="goScreen('s13')"><div class="pnum">S-13</div><div class="plbl">Edit Visit</div></div>
+  <div class="proto-pill" id="pill-s14" onclick="goScreen('s14')"><div class="pnum">S-14</div><div class="plbl">Team Report</div></div>
+  <div class="proto-pill" id="pill-s15" onclick="goScreen('s15')"><div class="pnum">S-15</div><div class="plbl">AM Visits</div></div>
+</div>
+
+<script>
+let currentScreen = 's00';
+let currentTheme = localStorage.getItem('theme') || 'dark';
+let selectedRole = 'am';
+
+document.documentElement.setAttribute('data-theme', currentTheme);
+document.getElementById('themeBtn').textContent = currentTheme === 'dark' ? '🌙 Dark' : '☀️ Light';
+
+const NAV_SVG = {
+  today: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  plan: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  active: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  team: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  reports: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  admin: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>',
+  clients: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  profile: '<svg class="nav-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+};
+
+function makeNavItem(label, target, activeScreen, icon) {
+  const active = target === activeScreen;
+  return '<div class="nav-item' + (active ? ' active' : '') + '"' +
+    (active ? '' : ' onclick="goScreen(\'' + target + '\')"') + '>' +
+    NAV_SVG[icon] + '<span class="nav-label">' + label + '</span></div>';
+}
+
+function buildNavHTML(activeScreen) {
+  if (selectedRole === 'admin' || selectedRole === 'management') {
+    return makeNavItem('Today',   's02', activeScreen, 'today')
+         + makeNavItem('Plan',    's03', activeScreen, 'plan')
+         + makeNavItem('Clients', 's07', activeScreen, 'clients')
+         + makeNavItem('Reports', 's10', activeScreen, 'reports')
+         + makeNavItem('Profile', 's12', activeScreen, 'profile');
+  } else {
+    // AM / Sales / Solution
+    return makeNavItem('Today',   's02', activeScreen, 'today')
+         + makeNavItem('Plan',    's03', activeScreen, 'plan')
+         + makeNavItem('Clients', 's07', activeScreen, 'clients')
+         + makeNavItem('Reports', 's10', activeScreen, 'reports')
+         + makeNavItem('Profile', 's12', activeScreen, 'profile');
+  }
+}
+
+function updateNavs() {
+  document.querySelectorAll('.screen-panel').forEach(function(panel) {
+    var nav = panel.querySelector('.bottom-nav');
+    if (nav) nav.innerHTML = buildNavHTML(panel.id);
+  });
+}
+
+function setRole(role) {
+  selectedRole = role;
+  updateNavs();
+  updateRoleGatedUI();
+}
+
+function updateRoleGatedUI() {
+  var isMgmt = (selectedRole === 'admin' || selectedRole === 'management');
+  // Profile: Admin Tools shortcut
+  var profAdmin = document.getElementById('profile-admin-link');
+  if (profAdmin) profAdmin.style.display = isMgmt ? 'block' : 'none';
+  // Reports: Teams filter tab + banner
+  var teamsTab = document.getElementById('reports-team-tab');
+  if (teamsTab) teamsTab.style.display = isMgmt ? 'flex' : 'none';
+  var teamsBanner = document.getElementById('reports-team-banner');
+  if (teamsBanner) teamsBanner.style.display = isMgmt ? 'block' : 'none';
+}
+
+function goScreen(screenId) {
+  document.querySelectorAll('.screen-panel').forEach(function(p) { p.classList.remove('active'); });
+  var target = document.getElementById(screenId);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.proto-pill').forEach(function(pill) { pill.classList.remove('on'); });
+  var pill = document.getElementById('pill-' + screenId);
+  if (pill) pill.classList.add('on');
+  currentScreen = screenId;
+  if (screenId === 's06') updateS06();
+  updateNavs();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateS06() {
+  var teamView = document.getElementById('s06-team');
+  var clientsView = document.getElementById('s06-clients');
+  var title = document.getElementById('s06-title');
+  if (selectedRole === 'admin' || selectedRole === 'management') {
+    teamView.style.display = 'flex';
+    clientsView.style.display = 'none';
+    if (title) title.textContent = 'Team Overview';
+  } else {
+    teamView.style.display = 'none';
+    clientsView.style.display = 'flex';
+    if (title) title.textContent = 'My Clients';
+  }
+  updateRoleGatedUI();
+}
+
+function openAmVisits(amKey) {
+  goScreen('s15');
+  var nameEl = document.getElementById('s15-am-name');
+  var data = {
+    'thida':  { name: 'Thida Myint',     role: 'AM · ES',    visits: 18, pipe: '$96K' },
+    'kyaw':   { name: 'Kyaw Ko Ko',      role: 'AM · Infra', visits: 14, pipe: '$74K' },
+    'nilar':  { name: 'Nilar Lwin',      role: 'AM · App',   visits: 12, pipe: '$58K' },
+    'aung':   { name: 'Aung Kyaw Zin',   role: 'AM · Infra', visits: 11, pipe: '$52K' },
+    'su':     { name: 'Su Su Hlaing',    role: 'AM · MS',    visits:  9, pipe: '$31K' }
+  };
+  var d = data[amKey] || data['thida'];
+  if (nameEl) nameEl.textContent = d.name;
+  var roleEl = document.getElementById('s15-am-role'); if (roleEl) roleEl.textContent = d.role;
+  var vEl = document.getElementById('s15-am-visits'); if (vEl) vEl.textContent = d.visits;
+  var pEl = document.getElementById('s15-am-pipe'); if (pEl) pEl.textContent = d.pipe;
+}
+
+function toggleTheme() {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  localStorage.setItem('theme', currentTheme);
+  document.getElementById('themeBtn').textContent = currentTheme === 'dark' ? '🌙 Dark' : '☀️ Light';
+}
+
+function handleLogin() {
+  goScreen('s01');
+}
+
+function showAdminTab(tab) {
+  var toolsEl = document.getElementById('admin-panel-tools');
+  var approvalsEl = document.getElementById('admin-panel-approvals');
+  var tabTools = document.getElementById('atab-tools');
+  var tabApprovals = document.getElementById('atab-approvals');
+  toolsEl.style.display = 'none';
+  approvalsEl.style.display = 'none';
+  [tabTools, tabApprovals].forEach(function(t){ if(t){ t.style.color='var(--color-text-faint)'; t.style.borderBottomColor='transparent'; }});
+  if (tab === 'approvals') {
+    approvalsEl.style.display = 'flex';
+    approvalsEl.style.flexDirection = 'column';
+    tabApprovals.style.color = 'var(--color-primary)';
+    tabApprovals.style.borderBottomColor = 'var(--color-primary)';
+  } else {
+    toolsEl.style.display = 'flex';
+    tabTools.style.color = 'var(--color-primary)';
+    tabTools.style.borderBottomColor = 'var(--color-primary)';
+  }
+}
+
+function openVisitMenu(visitId) {
+  // Prototype: simulate a 3-dot context menu → jump straight to Edit Visit
+  goScreen('s13');
+}
+
+function showCreateStep(step) {
+  for (var i = 1; i <= 3; i++) {
+    var panel = document.getElementById('csp' + i);
+    var num = document.getElementById('cs' + i);
+    var lbl = document.getElementById('csl' + i);
+    var con = i < 3 ? document.getElementById('csc' + i) : null;
+    if (panel) panel.style.display = i === step ? 'block' : 'none';
+    if (num) {
+      num.className = 'step-num' + (i === step ? ' active' : i < step ? ' done' : '');
+      num.textContent = i < step ? '✓' : String(i);
+    }
+    if (lbl) lbl.className = 'step-lbl' + (i === step ? ' active' : '');
+    if (con) con.className = 'step-connector' + (i < step ? ' done' : '');
+  }
+}
+
+function switchWsTab(tab) {
+  ['visits', 'instruction', 'outcomes', 'info'].forEach(function(t) {
+    var panel = document.getElementById('ws-' + t);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    var tabEl = document.getElementById('wt-' + t);
+    if (tabEl) tabEl.className = 'ws-tab' + (t === tab ? ' active' : '');
+  });
+}
+
+// Init
+updateNavs();
+updateRoleGatedUI();
+</script>
+</body>
+</html>

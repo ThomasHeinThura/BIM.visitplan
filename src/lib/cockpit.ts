@@ -149,8 +149,10 @@ export async function getClientsByFilter(opts: {
  * Falls back to the hardcoded SECTORS list if the query is empty.
  */
 export async function getSectors(): Promise<string[]> {
+  // Note: Cockpit requires `fields` to be a JSON object string, not a plain field name.
+  // Simplest fix: fetch all clients (no field projection) and extract sectors client-side.
   const res = await cockpit.get<CollectionResponse<CockpitClient>>('/content/items/clients', {
-    params: buildParams({ limit: 500, fields: 'sector' }),
+    params: buildParams({ limit: 500 }),
   });
   const clients = res.data;
   const seen = new Set<string>();

@@ -86,7 +86,7 @@ export function LoginScreen({
             <Text style={styles.loginHint}>You will be notified once your account is approved.</Text>
           ) : (
             <Text style={styles.loginHint}>
-              {'Use your @bimats.com work account.\nContact your admin if you don\'t have access.'}
+              {'Use your @bimgoc.com work account.\nContact your admin if you don\'t have access.'}
             </Text>
           )}
         </View>

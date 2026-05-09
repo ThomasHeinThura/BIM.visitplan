@@ -33,7 +33,7 @@ export default function TeamOverviewScreen({ currentUser }: Props) {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
       const [ams, visits] = await Promise.all([
-        getUsers({ filter: { role: 'am', approval_status: 'approved' } }),
+        getUsers({ filter: { role: 'am' } }),
         getVisits({ limit: 1000, sort: { date: -1 } }),
       ]);
 

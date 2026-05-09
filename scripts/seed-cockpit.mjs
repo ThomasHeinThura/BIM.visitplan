@@ -3,7 +3,7 @@
  *
  * Seeds Cockpit CMS with:
  *   1. Sectors collection (9 sectors)
- *   2. Clients from clientdb.csv (160 clients)
+ *   2. Clients from clientdb.csv (with AM, Account Type, Sector, Status)
  *
  * Usage:
  *   COCKPIT_API_TOKEN=your-token node scripts/seed-cockpit.mjs
@@ -99,7 +99,6 @@ const SECTORS = [
 async function seedSectors() {
   console.log('\n── Seeding sectors ──');
 
-  // Fetch existing sectors
   let existing = [];
   try {
     const res = await cockpitGet('/content/items/sectors', { limit: 100 });
@@ -109,7 +108,7 @@ async function seedSectors() {
   }
 
   const existingNames = new Set(existing.map((s) => s.name?.toLowerCase()));
-  const sectorMap = {}; // name → _id
+  const sectorMap = {};
 
   for (const s of existing) {
     sectorMap[s.name] = s._id;
@@ -134,6 +133,25 @@ async function seedSectors() {
   return sectorMap;
 }
 
+// ─── User lookup (for AM field) ─────────────────────────────────────────────
+
+async function fetchUserMap() {
+  console.log('\n── Fetching users (AM lookup) ──');
+  try {
+    const res = await cockpitGet('/content/items/users', { limit: 200 });
+    const users = res.items ?? res ?? [];
+    const map = {};
+    for (const u of users) {
+      if (u.name) map[u.name.trim().toLowerCase()] = { _id: u._id, name: u.name };
+    }
+    console.log(`  Found ${users.length} users.`);
+    return map;
+  } catch (e) {
+    console.warn('  Could not fetch users:', e.message);
+    return {};
+  }
+}
+
 // ─── Client seed ────────────────────────────────────────────────────────────
 
 const STATUS_MAP = {
@@ -156,7 +174,7 @@ const ACCOUNT_TYPE_MAP = {
   'key account': 'Key Account',
 };
 
-async function seedClients(sectorMap) {
+async function seedClients(sectorMap, userMap) {
   console.log('\n── Seeding clients ──');
 
   const csvPath = resolve(__dirname, '../clientdb.csv');
@@ -184,9 +202,8 @@ async function seedClients(sectorMap) {
   let errors = 0;
 
   for (const row of rows) {
-    // Determine name — handle various CSV header formats
     const name = (row['Client Name'] || row['name'] || row['Name'] || '').trim();
-    if (!name) { skipped++; continue; } // blank name row
+    if (!name) { skipped++; continue; }
 
     if (existingNames.has(name.toLowerCase())) {
       console.log(`  [SKIP] ${name}`);
@@ -203,23 +220,30 @@ async function seedClients(sectorMap) {
     const accountTypeRaw = (row['Account Type'] || row['account_type'] || 'Named Account').trim();
     const account_type = ACCOUNT_TYPE_MAP[accountTypeRaw] ?? 'Named Account';
 
+    // AM lookup — match by name (case-insensitive); null if blank or not found
+    const amRaw = (row['AM'] || row['am'] || '').trim();
+    const amRef = amRaw ? (userMap[amRaw.toLowerCase()] ?? null) : null;
+
     const clientData = {
       name,
       status,
       account_type,
       sector: sectorRef,
+      am: amRef,
       address: (row['Address'] || row['address'] || '').trim() || undefined,
       phone: (row['Phone'] || row['phone'] || '').trim() || undefined,
       website: (row['Website'] || row['website'] || '').trim() || undefined,
       notes: (row['Notes'] || row['notes'] || '').trim() || undefined,
+      instruction: '',
     };
 
     try {
       const res = await cockpitPost('/content/item/clients', clientData);
-      console.log(`  [OK]   ${name} (sector: ${sectorRaw}) → ${res._id}`);
+      const amLabel = amRef ? amRef.name : '(no AM)';
+      console.log(`  [OK]   ${name} | ${sectorRaw} | ${status} | AM: ${amLabel} → ${res._id}`);
       existingNames.add(name.toLowerCase());
       created++;
-      await sleep(150); // rate-limit
+      await sleep(150);
     } catch (e) {
       console.error(`  [ERR]  ${name}: ${e.message}`);
       errors++;
@@ -234,7 +258,8 @@ async function seedClients(sectorMap) {
 (async () => {
   try {
     const sectorMap = await seedSectors();
-    await seedClients(sectorMap);
+    const userMap = await fetchUserMap();
+    await seedClients(sectorMap, userMap);
     console.log('\n✅  Seeding complete.');
   } catch (e) {
     console.error('\n❌  Seeding failed:', e.message);

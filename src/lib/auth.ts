@@ -192,7 +192,10 @@ export async function restoreSession(): Promise<CockpitUser | null> {
   const user = await getUserJson<CockpitUser>();
   // Re-validate cached session: must be active and approved.
   // Stale cache (e.g. admin rejected/deactivated user) is caught here.
-  if (!user || !user.active || user.approval_status !== 'approved') return null;
+  if (!user || !user.active) return null;
+  // Some Cockpit installations don't include an `approval_status` field.
+  // Only reject the cached session if `approval_status` exists and is not 'approved'.
+  if (user.approval_status !== undefined && user.approval_status !== 'approved') return null;
   return user;
 }
 

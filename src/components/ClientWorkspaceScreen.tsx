@@ -1,385 +1,542 @@
-import React, { useEffect, useState } from 'react';
-import { BackHandler, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { styles } from '../styles';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import {
+  getContactsByClient,
+  getVisits,
+  upsertClient,
+} from '../lib/cockpit';
 import type {
-  ClientContact,
-  ClientFileRecord,
-  ClientListItem,
-  ClientNoteRecord,
-  ClientOpportunity,
-  ClientTimelineEvent,
-  ClientWorkspaceSummary,
-  VisitPlan,
+  AccountType,
+  ClientStatus,
+  CockpitClient,
+  CockpitContact,
+  CockpitUser,
+  CockpitVisit,
 } from '../types';
+import { ACCOUNT_TYPES as ACCT_TYPES, CLIENT_STATUSES as STATUSES } from '../types';
 
-export type ClientWorkspaceTab =
-  | 'timeline'
-  | 'details'
-  | 'contacts'
-  | 'opportunities'
-  | 'files'
-  | 'notes'
-  | 'visitplan'
-  | 'technology';
+type Tab = 'info' | 'visits' | 'contacts';
 
-const CLIENT_TABS: Array<{ id: ClientWorkspaceTab; label: string }> = [
-  { id: 'timeline', label: 'Timeline' },
-  { id: 'details', label: 'Details' },
-  { id: 'contacts', label: 'Contacts' },
-  { id: 'opportunities', label: 'Opportunities' },
-  { id: 'files', label: 'Files' },
-  { id: 'notes', label: 'Notes' },
-  { id: 'visitplan', label: 'Visit Plan' },
-  { id: 'technology', label: 'Technology Stacks' },
-];
+type Props = {
+  client: CockpitClient | null;
+  user: CockpitUser;
+  visible: boolean;
+  onClose: () => void;
+  onOpenVisit?: (visit: CockpitVisit) => void;
+  onAddVisit?: (client: CockpitClient) => void;
+};
 
-export function ClientWorkspaceScreen({
-  clients,
-  loadingClients,
-  loadingWorkspace,
-  searchText,
-  onChangeSearchText,
-  selectedClientId,
-  onSelectClient,
-  summary,
-  activeTab,
-  onChangeTab,
-  timeline,
-  contacts,
-  opportunities,
-  files,
-  notes,
-  visitPlans,
-}: {
-  clients: ClientListItem[];
-  loadingClients: boolean;
-  loadingWorkspace: boolean;
-  searchText: string;
-  onChangeSearchText: (value: string) => void;
-  selectedClientId: number | null;
-  onSelectClient: (clientId: number) => void;
-  summary: ClientWorkspaceSummary | null;
-  activeTab: ClientWorkspaceTab;
-  onChangeTab: (tab: ClientWorkspaceTab) => void;
-  timeline: ClientTimelineEvent[];
-  contacts: ClientContact[];
-  opportunities: ClientOpportunity[];
-  files: ClientFileRecord[];
-  notes: ClientNoteRecord[];
-  visitPlans: VisitPlan[];
-}) {
-  const [viewMode, setViewMode] = useState<'directory' | 'detail'>('directory');
-  const currentSummary = summary && summary.id === selectedClientId ? summary : null;
+function fmtDate(d: string | null | undefined) {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric',
+  });
+}
+
+function visitStatusColor(status: CockpitVisit['status'], theme: ReturnType<typeof useTheme>['theme']) {
+  switch (status) {
+    case 'scheduled': return theme.info;
+    case 'in_progress': return theme.warning;
+    case 'completed': return theme.success;
+    case 'missed': return theme.error;
+  }
+}
+
+export default function ClientWorkspaceScreen({
+  client,
+  user,
+  visible,
+  onClose,
+  onOpenVisit,
+  onAddVisit,
+}: Props) {
+  const { theme } = useTheme();
+  const [activeTab, setActiveTab] = useState<Tab>('info');
+
+  // Editable fields
+  const [editStatus, setEditStatus] = useState<ClientStatus>('Active');
+  const [editAccountType, setEditAccountType] = useState<AccountType>('Named Account');
+  const [editNotes, setEditNotes] = useState('');
+  const [savingInfo, setSavingInfo] = useState(false);
+
+  // Admin-only editable
+  const [editName, setEditName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+
+  // Visits
+  const [visits, setVisits] = useState<CockpitVisit[]>([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+
+  // Contacts
+  const [contacts, setContacts] = useState<CockpitContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+
+  // Picker modals
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
 
   useEffect(() => {
-    if (!selectedClientId) {
-      setViewMode('directory');
+    if (client) {
+      setEditStatus(client.status);
+      setEditAccountType(client.account_type ?? 'Named Account');
+      setEditNotes(client.notes ?? '');
+      setEditName(client.name);
+      setEditAddress(client.address ?? '');
+      setEditPhone(client.phone ?? '');
+      setEditWebsite(client.website ?? '');
+      setActiveTab('info');
     }
-  }, [selectedClientId]);
+  }, [client?._id]);
+
+  const loadVisits = useCallback(async () => {
+    if (!client) return;
+    setVisitsLoading(true);
+    try {
+      const data = await getVisits({
+        filter: { 'client._id': client._id },
+        limit: 30,
+        sort: { date: -1 },
+      });
+      setVisits(data);
+    } catch {
+      setVisits([]);
+    } finally {
+      setVisitsLoading(false);
+    }
+  }, [client?._id]);
+
+  const loadContacts = useCallback(async () => {
+    if (!client) return;
+    setContactsLoading(true);
+    try {
+      const data = await getContactsByClient(client._id);
+      setContacts(data);
+    } catch {
+      setContacts([]);
+    } finally {
+      setContactsLoading(false);
+    }
+  }, [client?._id]);
 
   useEffect(() => {
-    if (viewMode !== 'detail') return;
+    if (activeTab === 'visits') void loadVisits();
+    if (activeTab === 'contacts') void loadContacts();
+  }, [activeTab, loadVisits, loadContacts]);
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      setViewMode('directory');
-      return true;
-    });
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setViewMode('directory');
+  const handleSaveInfo = async () => {
+    if (!client) return;
+    setSavingInfo(true);
+    try {
+      const patch: Partial<CockpitClient> & { _id: string } = {
+        _id: client._id,
+        status: editStatus,
+        account_type: editAccountType,
+        notes: editNotes.trim() || undefined,
+      };
+      if (user.role === 'admin') {
+        patch.name = editName.trim() || client.name;
+        patch.address = editAddress.trim() || undefined;
+        patch.phone = editPhone.trim() || undefined;
+        patch.website = editWebsite.trim() || undefined;
       }
+      await upsertClient(patch);
+      Alert.alert('Saved', 'Client updated successfully.');
+    } catch {
+      Alert.alert('Error', 'Could not save changes.');
+    } finally {
+      setSavingInfo(false);
     }
+  };
 
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.addEventListener('keydown', handleKeyDown);
-    }
+  if (!client) return null;
 
-    return () => {
-      backHandler.remove();
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        document.removeEventListener('keydown', handleKeyDown);
-      }
-    };
-  }, [viewMode]);
+  const isAdmin = user.role === 'admin';
 
-  function handleOpenClient(clientId: number) {
-    onSelectClient(clientId);
-    setViewMode('detail');
-  }
-
-  if (viewMode === 'directory') {
-    return (
-      <View style={{ flex: 1, minHeight: 0 }}>
-        <View style={[styles.clientDirectoryShell, { flex: 1, minHeight: 0 }]}>
-          <View style={[styles.sectionCard, { flex: 1, minHeight: 0 }]}>
-            <Text style={styles.sectionTitle}>Clients</Text>
-            <Text style={styles.sectionSubtitle}>Search by company name, status, or source.</Text>
-
-            <TextInput
-              value={searchText}
-              onChangeText={onChangeSearchText}
-              placeholder="Search clients"
-              placeholderTextColor="#94A3B8"
-              style={[styles.input, styles.searchInput, styles.clientSearchInput]}
-            />
-
-            <ScrollView
-              style={styles.clientListScroll}
-              contentContainerStyle={styles.clientListStack}
-              showsVerticalScrollIndicator={true}
-            >
-              {loadingClients ? (
-                <Text style={styles.lookupHint}>Loading clients...</Text>
-              ) : clients.length === 0 ? (
-                <Text style={styles.lookupHint}>No clients found.</Text>
-              ) : (
-                clients.map((client) => {
-                  const active = client.id === selectedClientId;
-
-                  return (
-                    <Pressable
-                      key={client.id}
-                      onPress={() => handleOpenClient(client.id)}
-                      style={({ pressed }) => [
-                        styles.clientListCard,
-                        active ? styles.clientListCardActive : null,
-                        pressed ? styles.lookupOptionPressed : null,
-                      ]}
-                    >
-                      <Text style={styles.clientListTitle}>{client.name}</Text>
-                      <Text style={styles.clientListMeta}>{client.status || 'No status'} | {client.source || 'No source'}</Text>
-                      <View style={styles.clientListMetricsRow}>
-                        <Text style={styles.clientListMetric}>{client.counts.contacts || 0} contacts</Text>
-                        <Text style={styles.clientListMetric}>{client.counts.visit_plans || 0} plans</Text>
-                      </View>
-                    </Pressable>
-                  );
-                })
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </View>
-    );
-  }
+  const s = StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      height: '94%',
+    },
+    handle: {
+      width: 40, height: 4, borderRadius: 2,
+      backgroundColor: theme.border,
+      alignSelf: 'center',
+      marginTop: 10, marginBottom: 2,
+    },
+    headerRow: {
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderBottomWidth: 1, borderBottomColor: theme.border,
+    },
+    closeRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 },
+    closeBtnText: { fontSize: 20, color: theme.textSecondary },
+    clientName: { fontSize: 18, fontWeight: '700', color: theme.text },
+    metaRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      marginTop: 4, flexWrap: 'wrap',
+    },
+    sectorText: { fontSize: 13, color: theme.textSecondary },
+    statusBadge: {
+      paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12,
+      backgroundColor: theme.info,
+    },
+    statusBadgeText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+    tabs: {
+      flexDirection: 'row',
+      borderBottomWidth: 1, borderBottomColor: theme.border,
+      backgroundColor: theme.surface,
+    },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    tabActive: { borderBottomWidth: 2, borderBottomColor: theme.primary },
+    tabText: { fontSize: 13, fontWeight: '500', color: theme.textSecondary },
+    tabTextActive: { color: theme.primary, fontWeight: '700' },
+    body: { flex: 1 },
+    infoForm: { padding: 16 },
+    label: {
+      fontSize: 12, fontWeight: '600', color: theme.textSecondary,
+      textTransform: 'uppercase', letterSpacing: 0.4,
+      marginTop: 14, marginBottom: 5,
+    },
+    textInput: {
+      backgroundColor: theme.surfaceAlt,
+      borderWidth: 1, borderColor: theme.border,
+      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+      fontSize: 15, color: theme.text,
+    },
+    textArea: { minHeight: 80, textAlignVertical: 'top' },
+    pickerBtn: {
+      backgroundColor: theme.surfaceAlt,
+      borderWidth: 1, borderColor: theme.border,
+      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11,
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    },
+    pickerBtnText: { fontSize: 15, color: theme.text },
+    chevron: { fontSize: 14, color: theme.textSecondary },
+    saveBtn: {
+      backgroundColor: theme.primary,
+      borderRadius: 12, paddingVertical: 14,
+      alignItems: 'center', marginTop: 20, marginBottom: 10,
+    },
+    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+    visitCard: {
+      marginHorizontal: 12, marginTop: 8,
+      backgroundColor: theme.surface,
+      borderRadius: 12, padding: 14,
+      borderWidth: 1, borderColor: theme.border,
+    },
+    visitRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    },
+    visitTitle: {
+      fontSize: 14, fontWeight: '600', color: theme.text, flex: 1, marginRight: 8,
+    },
+    visitBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
+    visitBadgeText: { fontSize: 11, fontWeight: '600', color: '#FFFFFF' },
+    visitDate: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
+    contactCard: {
+      marginHorizontal: 12, marginTop: 8,
+      backgroundColor: theme.surface,
+      borderRadius: 12, padding: 14,
+      borderWidth: 1, borderColor: theme.border,
+    },
+    contactName: { fontSize: 14, fontWeight: '600', color: theme.text },
+    contactMeta: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+    empty: { padding: 40, alignItems: 'center' },
+    emptyText: { fontSize: 14, color: theme.textSecondary, textAlign: 'center' },
+    addVisitFab: {
+      position: 'absolute', right: 16, bottom: 20,
+      backgroundColor: theme.accent,
+      paddingHorizontal: 18, paddingVertical: 12,
+      borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6,
+      elevation: 5,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.2, shadowRadius: 6,
+    },
+    addVisitFabText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+    pickerOverlay: {
+      flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center', padding: 20,
+    },
+    pickerCard: {
+      backgroundColor: theme.surface, borderRadius: 16, overflow: 'hidden',
+    },
+    pickerItem: {
+      paddingHorizontal: 20, paddingVertical: 15,
+      borderBottomWidth: 1, borderBottomColor: theme.border,
+    },
+    pickerItemSelected: { backgroundColor: theme.surfaceAlt },
+    pickerItemText: { fontSize: 15, color: theme.text },
+    pickerItemTextSelected: { color: theme.primary, fontWeight: '700' },
+    pickerCancel: { padding: 15, alignItems: 'center' },
+    pickerCancelText: { fontSize: 15, color: theme.textSecondary },
+  });
 
   return (
-    <View style={{ flex: 1, minHeight: 0 }}>
-      <View style={styles.clientDetailHeaderRow}>
-        <Pressable onPress={() => setViewMode('directory')} style={styles.secondaryButtonMutedCompact}>
-          <Text style={styles.secondaryButtonText}>← Back to Clients</Text>
-        </Pressable>
-      </View>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={s.overlay}>
+        <View style={s.sheet}>
+          <View style={s.handle} />
 
-      <ScrollView
-        style={{ flex: 1, minHeight: 0 }}
-        contentContainerStyle={styles.clientDetailScrollContent}
-        showsVerticalScrollIndicator={true}
-      >
-        {!currentSummary ? (
-          <View style={styles.sectionCard}>
-            <Text style={styles.lookupHint}>Loading client workspace...</Text>
-          </View>
-        ) : (
-          <>
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>{currentSummary.name}</Text>
-              <Text style={styles.sectionSubtitle}>
-                {currentSummary.status || 'No status'} | {currentSummary.source || 'No source'}
-              </Text>
-
-              <View style={styles.clientSummaryGrid}>
-                <View style={styles.summaryStatCard}>
-                  <Text style={styles.summaryStatLabel}>Contacts</Text>
-                  <Text style={styles.summaryStatValue}>{currentSummary.counts.contacts || 0}</Text>
-                </View>
-                <View style={styles.summaryStatCard}>
-                  <Text style={styles.summaryStatLabel}>Visit Plans</Text>
-                  <Text style={styles.summaryStatValue}>{currentSummary.counts.visit_plans || 0}</Text>
-                </View>
-                <View style={styles.summaryStatCard}>
-                  <Text style={styles.summaryStatLabel}>Opportunities</Text>
-                  <Text style={styles.summaryStatValue}>{currentSummary.counts.opportunities || 0}</Text>
-                </View>
-                <View style={styles.summaryStatCard}>
-                  <Text style={styles.summaryStatLabel}>Open Tickets</Text>
-                  <Text style={styles.summaryStatValue}>{currentSummary.counts.tickets_open || 0}</Text>
-                </View>
+          <View style={s.headerRow}>
+            <View style={s.closeRow}>
+              <Pressable onPress={onClose} hitSlop={10}>
+                <Text style={s.closeBtnText}>✕</Text>
+              </Pressable>
+            </View>
+            <Text style={s.clientName}>{client.name}</Text>
+            <View style={s.metaRow}>
+              {client.sector ? <Text style={s.sectorText}>{client.sector} ·</Text> : null}
+              <View style={s.statusBadge}>
+                <Text style={s.statusBadgeText}>{client.status}</Text>
               </View>
+              {client.account_type ? (
+                <Text style={s.sectorText}>{client.account_type}</Text>
+              ) : null}
             </View>
+          </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipRow}>
-              {CLIENT_TABS.map((tab) => {
-                const active = tab.id === activeTab;
+          <View style={s.tabs}>
+            {(['info', 'visits', 'contacts'] as Tab[]).map((tab) => (
+              <Pressable
+                key={tab}
+                style={[s.tab, activeTab === tab && s.tabActive]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[s.tabText, activeTab === tab && s.tabTextActive]}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-                return (
-                  <Pressable
-                    key={tab.id}
-                    onPress={() => onChangeTab(tab.id)}
-                    style={({ pressed }) => [
-                      styles.workspaceTabButton,
-                      active ? styles.workspaceTabButtonActive : null,
-                      pressed ? styles.filterChipPressed : null,
-                    ]}
-                  >
-                    <Text style={active ? styles.workspaceTabButtonTextActive : styles.workspaceTabButtonText}>
-                      {tab.label}
-                    </Text>
+          <View style={s.body}>
+            {activeTab === 'info' && (
+              <ScrollView style={s.infoForm} keyboardShouldPersistTaps="handled">
+                {isAdmin ? (
+                  <>
+                    <Text style={s.label}>Client Name</Text>
+                    <TextInput
+                      style={s.textInput}
+                      value={editName}
+                      onChangeText={setEditName}
+                      placeholder="Client name"
+                      placeholderTextColor={theme.textSecondary}
+                    />
+                  </>
+                ) : null}
+
+                <Text style={s.label}>Status</Text>
+                <TouchableOpacity style={s.pickerBtn} onPress={() => setShowStatusPicker(true)}>
+                  <Text style={s.pickerBtnText}>{editStatus}</Text>
+                  <Text style={s.chevron}>▾</Text>
+                </TouchableOpacity>
+
+                <Text style={s.label}>Account Type</Text>
+                <TouchableOpacity style={s.pickerBtn} onPress={() => setShowTypePicker(true)}>
+                  <Text style={s.pickerBtnText}>{editAccountType}</Text>
+                  <Text style={s.chevron}>▾</Text>
+                </TouchableOpacity>
+
+                {isAdmin ? (
+                  <>
+                    <Text style={s.label}>Address</Text>
+                    <TextInput
+                      style={s.textInput}
+                      value={editAddress}
+                      onChangeText={setEditAddress}
+                      placeholder="Physical address"
+                      placeholderTextColor={theme.textSecondary}
+                    />
+                    <Text style={s.label}>Phone</Text>
+                    <TextInput
+                      style={s.textInput}
+                      value={editPhone}
+                      onChangeText={setEditPhone}
+                      placeholder="+95 9 xxx xxx xxx"
+                      placeholderTextColor={theme.textSecondary}
+                      keyboardType="phone-pad"
+                    />
+                    <Text style={s.label}>Website</Text>
+                    <TextInput
+                      style={s.textInput}
+                      value={editWebsite}
+                      onChangeText={setEditWebsite}
+                      placeholder="https://"
+                      placeholderTextColor={theme.textSecondary}
+                      keyboardType="url"
+                      autoCapitalize="none"
+                    />
+                  </>
+                ) : null}
+
+                <Text style={s.label}>Notes</Text>
+                <TextInput
+                  style={[s.textInput, s.textArea]}
+                  value={editNotes}
+                  onChangeText={setEditNotes}
+                  placeholder="Internal notes about this client"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  numberOfLines={4}
+                />
+
+                <Pressable
+                  style={[s.saveBtn, savingInfo && { opacity: 0.6 }]}
+                  onPress={handleSaveInfo}
+                  disabled={savingInfo}
+                >
+                  {savingInfo
+                    ? <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text style={s.saveBtnText}>Save Changes</Text>
+                  }
+                </Pressable>
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            )}
+
+            {activeTab === 'visits' && (
+              <View style={{ flex: 1 }}>
+                {visitsLoading ? (
+                  <ActivityIndicator color={theme.primary} style={{ margin: 30 }} />
+                ) : (
+                  <FlatList
+                    data={visits}
+                    keyExtractor={(v) => v._id}
+                    renderItem={({ item: v }) => (
+                      <TouchableOpacity
+                        style={s.visitCard}
+                        onPress={() => onOpenVisit?.(v)}
+                        activeOpacity={0.75}
+                      >
+                        <View style={s.visitRow}>
+                          <Text style={s.visitTitle} numberOfLines={1}>{v.title}</Text>
+                          <View style={[s.visitBadge, { backgroundColor: visitStatusColor(v.status, theme) }]}>
+                            <Text style={s.visitBadgeText}>{v.status.replace('_', ' ')}</Text>
+                          </View>
+                        </View>
+                        <Text style={s.visitDate}>
+                          {fmtDate(v.date)}{v.start_time ? ` · ${v.start_time}` : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={
+                      <View style={s.empty}>
+                        <Text style={s.emptyText}>No visits for this client yet.</Text>
+                      </View>
+                    }
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                  />
+                )}
+                {onAddVisit ? (
+                  <Pressable style={s.addVisitFab} onPress={() => onAddVisit(client)}>
+                    <Text style={s.addVisitFabText}>+ Schedule Visit</Text>
                   </Pressable>
-                );
-              })}
-            </ScrollView>
+                ) : null}
+              </View>
+            )}
 
-            <View style={styles.sectionCard}>
-              {loadingWorkspace ? (
-                <Text style={styles.lookupHint}>Loading client workspace...</Text>
-              ) : activeTab === 'timeline' ? (
-                <EntityList
-                  emptyTitle="No timeline activity"
-                  emptyDescription="There are no timeline events for this client yet."
-                  items={timeline.map((event) => ({
-                    id: event.id,
-                    title: event.parent_title || event.item_lang || event.item || 'Activity',
-                    meta: `${event.created_at || 'Unknown date'}${event.creator?.name ? ` | ${event.creator.name}` : ''}`,
-                    body: event.content || event.content_secondary || 'No event details available.',
-                  }))}
-                />
-              ) : activeTab === 'details' ? (
-                <ClientDetails summary={currentSummary} />
-              ) : activeTab === 'contacts' ? (
-                <EntityList
-                  emptyTitle="No contacts"
-                  emptyDescription="No client contacts were returned for this account."
-                  items={contacts.map((contact) => ({
-                    id: contact.id,
-                    title: contact.name,
-                    meta: `${contact.position || 'No position'}${contact.account_owner ? ' | Account owner' : ''}`,
-                    body: `${contact.email || 'No email'}${contact.phone ? ` | ${contact.phone}` : ''}`,
-                  }))}
-                />
-              ) : activeTab === 'opportunities' ? (
-                <EntityList
-                  emptyTitle="No opportunities"
-                  emptyDescription="No renewal opportunities were returned for this client."
-                  items={opportunities.map((opportunity) => ({
-                    id: opportunity.id,
-                    title: opportunity.title || 'Untitled opportunity',
-                    meta: `${opportunity.status || 'No status'}${opportunity.probability != null ? ` | Probability ${opportunity.probability}` : ''}`,
-                    body: opportunity.description || 'No opportunity description available.',
-                  }))}
-                />
-              ) : activeTab === 'files' ? (
-                <EntityList
-                  emptyTitle="No files"
-                  emptyDescription="No files were returned for this client."
-                  items={files.map((file) => ({
-                    id: file.id,
-                    title: file.title || file.filename || 'Untitled file',
-                    meta: `${file.mime || 'Unknown type'}${file.created_at ? ` | ${file.created_at}` : ''}`,
-                    body: file.filename || 'No filename available.',
-                  }))}
-                />
-              ) : activeTab === 'notes' ? (
-                <EntityList
-                  emptyTitle="No notes"
-                  emptyDescription="No notes were returned for this client."
-                  items={notes.map((note) => ({
-                    id: note.id,
-                    title: note.title || 'Untitled note',
-                    meta: `${note.created_at || 'Unknown date'}${note.creator?.name ? ` | ${note.creator.name}` : ''}`,
-                    body: note.description || 'No note body available.',
-                  }))}
-                />
-              ) : activeTab === 'visitplan' ? (
-                <EntityList
-                  emptyTitle="No visit plans"
-                  emptyDescription="No visit plans were returned for this client."
-                  items={visitPlans.map((visitPlan) => ({
-                    id: visitPlan.id,
-                    title: visitPlan.title,
-                    meta: `${visitPlan.date} | ${visitPlan.start_time} - ${visitPlan.end_time}`,
-                    body: visitPlan.agenda,
-                  }))}
-                />
-              ) : (
-                <View style={styles.detailSectionCard}>
-                  <Text style={styles.detailSectionTitle}>Technology Stack</Text>
-                  <Text style={styles.detailBodyMuted}>
-                    {currentSummary.technology_stack?.trim() || 'No technology stack recorded for this client.'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
-function ClientDetails({ summary }: { summary: ClientWorkspaceSummary }) {
-  return (
-    <View style={styles.clientDetailsStack}>
-      <View style={styles.detailSectionCard}>
-        <Text style={styles.detailSectionTitle}>Description</Text>
-        <Text style={styles.detailBodyMuted}>
-          {summary.description?.trim() || 'No client description recorded.'}
-        </Text>
-      </View>
-
-      <View style={styles.detailSectionCard}>
-        <Text style={styles.detailSectionTitle}>Primary Contact</Text>
-        <Text style={styles.detailBodyMuted}>
-          {summary.primary_contact
-            ? `${summary.primary_contact.name} | ${summary.primary_contact.email || 'No email'}${summary.primary_contact.phone ? ` | ${summary.primary_contact.phone}` : ''}`
-            : 'No account owner recorded.'}
-        </Text>
-      </View>
-
-      <View style={styles.detailSectionCard}>
-        <Text style={styles.detailSectionTitle}>Business Context</Text>
-        <Text style={styles.detailBodyMuted}>
-          Sector: {summary.sector || 'Not set'}
-        </Text>
-        <Text style={styles.detailBodyMuted}>
-          Business Unit: {summary.business_unit || 'Not set'}
-        </Text>
-        <Text style={styles.detailBodyMuted}>
-          Tags: {summary.tags.length > 0 ? summary.tags.map((tag) => tag.title).join(', ') : 'No tags'}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function EntityList({
-  items,
-  emptyTitle,
-  emptyDescription,
-}: {
-  items: Array<{ id: number; title: string; meta: string; body: string }>;
-  emptyTitle: string;
-  emptyDescription: string;
-}) {
-  if (items.length === 0) {
-    return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyStateTitle}>{emptyTitle}</Text>
-        <Text style={styles.emptyStateDescription}>{emptyDescription}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.entityListStack}>
-      {items.map((item) => (
-        <View key={item.id} style={styles.summaryListCard}>
-          <Text style={styles.visitPlanCardTitle}>{item.title}</Text>
-          <Text style={styles.visitPlanCardMeta}>{item.meta}</Text>
-          <Text style={styles.detailBodyMuted}>{item.body}</Text>
+            {activeTab === 'contacts' && (
+              <>
+                {contactsLoading ? (
+                  <ActivityIndicator color={theme.primary} style={{ margin: 30 }} />
+                ) : (
+                  <FlatList
+                    data={contacts}
+                    keyExtractor={(c) => c._id}
+                    renderItem={({ item: c }) => (
+                      <View style={s.contactCard}>
+                        <Text style={s.contactName}>{c.name}</Text>
+                        {c.position ? <Text style={s.contactMeta}>{c.position}</Text> : null}
+                        {c.email ? <Text style={s.contactMeta}>✉ {c.email}</Text> : null}
+                        {c.phone ? <Text style={s.contactMeta}>📞 {c.phone}</Text> : null}
+                      </View>
+                    )}
+                    ListEmptyComponent={
+                      <View style={s.empty}>
+                        <Text style={s.emptyText}>No contacts added yet.</Text>
+                      </View>
+                    }
+                    contentContainerStyle={{ paddingBottom: 80 }}
+                  />
+                )}
+              </>
+            )}
+          </View>
         </View>
-      ))}
-    </View>
+      </View>
+
+      <Modal
+        visible={showStatusPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStatusPicker(false)}
+      >
+        <View style={s.pickerOverlay}>
+          <View style={s.pickerCard}>
+            {STATUSES.map((st) => (
+              <TouchableOpacity
+                key={st}
+                style={[s.pickerItem, editStatus === st && s.pickerItemSelected]}
+                onPress={() => { setEditStatus(st); setShowStatusPicker(false); }}
+              >
+                <Text style={[s.pickerItemText, editStatus === st && s.pickerItemTextSelected]}>
+                  {st}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={s.pickerCancel} onPress={() => setShowStatusPicker(false)}>
+              <Text style={s.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showTypePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTypePicker(false)}
+      >
+        <View style={s.pickerOverlay}>
+          <View style={s.pickerCard}>
+            {ACCT_TYPES.map((at) => (
+              <TouchableOpacity
+                key={at}
+                style={[s.pickerItem, editAccountType === at && s.pickerItemSelected]}
+                onPress={() => { setEditAccountType(at); setShowTypePicker(false); }}
+              >
+                <Text style={[s.pickerItemText, editAccountType === at && s.pickerItemTextSelected]}>
+                  {at}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={s.pickerCancel} onPress={() => setShowTypePicker(false)}>
+              <Text style={s.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </Modal>
   );
 }

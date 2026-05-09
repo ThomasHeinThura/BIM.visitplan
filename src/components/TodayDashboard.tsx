@@ -16,6 +16,7 @@ import type { CockpitUser, CockpitVisit } from '../types';
 type Props = {
   user: CockpitUser;
   onOpenVisit?: (visit: CockpitVisit) => void;
+  onAddVisit?: () => void;
 };
 
 type KPIData = {
@@ -43,7 +44,7 @@ function statusColor(theme: ReturnType<typeof useTheme>['theme'], status: string
   }
 }
 
-export default function TodayDashboard({ user, onOpenVisit }: Props) {
+export default function TodayDashboard({ user, onOpenVisit, onAddVisit }: Props) {
   const { theme } = useTheme();
   const [visits, setVisits] = useState<CockpitVisit[]>([]);
   const [kpi, setKpi] = useState<KPIData>({ today: 0, completed: 0, scheduled: 0, missed: 0 });
@@ -112,6 +113,16 @@ export default function TodayDashboard({ user, onOpenVisit }: Props) {
     empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
     emptyText: { fontSize: 16, color: theme.textSecondary, textAlign: 'center' },
     errText: { color: theme.error, textAlign: 'center', margin: 16 },
+    fab: {
+      position: 'absolute', right: 20, bottom: 100,
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: theme.accent,
+      justifyContent: 'center', alignItems: 'center',
+      elevation: 6,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.25, shadowRadius: 8,
+    },
+    fabText: { fontSize: 30, color: '#FFFFFF', fontWeight: '700', lineHeight: 34 },
   });
 
   const todayLabel = new Date().toLocaleDateString('en-US', {
@@ -127,6 +138,7 @@ export default function TodayDashboard({ user, onOpenVisit }: Props) {
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
     <FlatList
       style={{ backgroundColor: theme.bg }}
       ListHeaderComponent={() => (
@@ -184,6 +196,12 @@ export default function TodayDashboard({ user, onOpenVisit }: Props) {
       }
       contentContainerStyle={{ paddingBottom: 100 }}
     />
+    {onAddVisit ? (
+      <TouchableOpacity style={s.fab} onPress={onAddVisit} activeOpacity={0.85}>
+        <Text style={s.fabText}>+</Text>
+      </TouchableOpacity>
+    ) : null}
+    </View>
   );
 }
 
