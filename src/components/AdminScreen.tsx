@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,28 +14,47 @@ import {
 } from 'react-native';
 import { useTheme, fonts, radii } from '../context/ThemeContext';
 import { approveUser, getFinancialQuarters, getFinancialYears, getSectors, getUsers, rejectUser, upsertClient, upsertFinancialQuarter, upsertFinancialYear, upsertSector } from '../lib/cockpit';
-import type { AccountType, ClientStatus, CockpitFinancialYear, CockpitUser } from '../types';
+import type { AccountType, ClientStatus, CockpitFinancialYear, CockpitUser, MeetingGroup, UserRole } from '../types';
 import { Badge, Card, PrimaryButton, SecondaryButton } from './ui';
+import { formatMeetingGroup, getMeetingGroupOptions } from '../utils/meetingGroups';
 
 type Tab = 'tools' | 'approvals';
 
 type Props = {
   currentUser: CockpitUser;
+  onBack: () => void;
 };
+
+type ApprovalDraft = {
+  role: Exclude<UserRole, 'admin'>;
+  meetingGroup: MeetingGroup | null;
+};
+
+function getDefaultMeetingGroup(role: ApprovalDraft['role']): MeetingGroup | null {
+  if (role === 'am') return 'account';
+  return 'infra';
+}
 
 function UserCard({
   u,
   onApprove,
   onReject,
   approving,
+  draft,
+  onRoleChange,
+  onGroupChange,
 }: {
   u: CockpitUser;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   approving?: string | null;
+  draft: ApprovalDraft;
+  onRoleChange: (id: string, role: ApprovalDraft['role']) => void;
+  onGroupChange: (id: string, meetingGroup: MeetingGroup | null) => void;
 }) {
   const { theme } = useTheme();
   const busy = approving === u._id;
+  const departmentOptions = getMeetingGroupOptions(draft.role).filter((group) => group !== 'account' || draft.role === 'am');
   return (
     <Card style={styles.card}> 
       <Text style={[styles.cardName, { color: theme.text }]}>{u.name}</Text>
@@ -44,11 +64,40 @@ function UserCard({
           <Badge tone="teal">{u.team}</Badge>
         </View>
       )}
+      <Text style={[styles.cardEmail, { color: theme.textSecondary, marginTop: 10, fontSize: 11 }]}>Assign role</Text>
+      <View style={[styles.actionRow, { flexWrap: 'wrap', marginTop: 6 }]}> 
+        {(['am', 'sales', 'solution', 'management'] as ApprovalDraft['role'][]).map((role) => {
+          const active = draft.role === role;
+          return (
+            <TouchableOpacity key={role} onPress={() => onRoleChange(u._id, role)} style={[styles.approvalChip, active && styles.approvalChipActive]}>
+              <Text style={[styles.approvalChipText, active && styles.approvalChipTextActive]}>
+                {role === 'am' ? 'AM' : role === 'management' ? 'Management' : role === 'sales' ? 'Sales' : 'Solution'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={[styles.cardEmail, { color: theme.textSecondary, marginTop: 10, fontSize: 11 }]}>Assign department</Text>
+      <View style={[styles.actionRow, { flexWrap: 'wrap', marginTop: 6 }]}> 
+        {departmentOptions.map((group) => {
+          const active = draft.meetingGroup === group;
+          const locked = draft.role === 'am';
+          return (
+            <TouchableOpacity
+              key={group}
+              onPress={() => !locked && onGroupChange(u._id, group)}
+              style={[styles.approvalChip, active && styles.approvalChipActive, locked && !active && { opacity: 0.45 }]}
+            >
+              <Text style={[styles.approvalChipText, active && styles.approvalChipTextActive]}>{formatMeetingGroup(group)}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       {onApprove && onReject && (
         <View style={styles.actionRow}>
           <View style={{ flex: 1.4 }}>
             <PrimaryButton
-              label={busy ? 'Updating…' : 'Approve as AM'}
+              label={busy ? 'Updating…' : 'Approve'}
               onPress={() => !busy && onApprove(u._id)}
               disabled={busy}
               icon={busy ? <ActivityIndicator color="#fff" size="small" /> : undefined}
@@ -63,9 +112,10 @@ function UserCard({
   );
 }
 
-export default function AdminScreen({ currentUser }: Props) {
+export default function AdminScreen({ currentUser, onBack }: Props) {
   const { theme } = useTheme();
   const [ownedSectors, setOwnedSectors] = useState(['Software', 'Banking']);
+  const [approvalDrafts, setApprovalDrafts] = useState<Record<string, ApprovalDraft>>({});
   const [tab, setTab] = useState<Tab>('tools');
   const [pending, setPending] = useState<CockpitUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +140,7 @@ export default function AdminScreen({ currentUser }: Props) {
         getSectors().catch(() => []),
       ]);
       setPending(pendingData);
+      setApprovalDrafts(Object.fromEntries(pendingData.map((pendingUser) => [pendingUser._id, { role: 'am', meetingGroup: 'account' }])));
       if (sectorData.length > 0) {
         setOwnedSectors(sectorData.slice(0, 12));
       }
@@ -107,13 +158,34 @@ export default function AdminScreen({ currentUser }: Props) {
   const handleApprove = async (userId: string) => {
     setApproving(userId);
     try {
-      await approveUser(userId, 'am');
+      const draft = approvalDrafts[userId] ?? { role: 'am', meetingGroup: 'account' };
+      await approveUser(userId, draft.role, { meeting_group: draft.role === 'am' ? 'account' : draft.meetingGroup });
       setPending((prev) => prev.filter((u) => u._id !== userId));
     } catch {
       setError('Failed to approve user. Please try again.');
     } finally {
       setApproving(null);
     }
+  };
+
+  const handleRoleChange = (userId: string, role: ApprovalDraft['role']) => {
+    setApprovalDrafts((current) => ({
+      ...current,
+      [userId]: {
+        role,
+        meetingGroup: getDefaultMeetingGroup(role),
+      },
+    }));
+  };
+
+  const handleGroupChange = (userId: string, meetingGroup: MeetingGroup | null) => {
+    setApprovalDrafts((current) => ({
+      ...current,
+      [userId]: {
+        ...(current[userId] ?? { role: 'am', meetingGroup: 'account' }),
+        meetingGroup,
+      },
+    }));
   };
 
   const handleReject = async (userId: string) => {
@@ -162,6 +234,7 @@ export default function AdminScreen({ currentUser }: Props) {
     try {
       await upsertSector({ name: trimmed, active: true });
       setOwnedSectors((current) => current.includes(trimmed) ? current : [...current, trimmed]);
+      setClientSector(trimmed);
       setSectorName('');
       setToolMessage({ tone: 'success', text: `Created sector "${trimmed}".` });
     } catch {
@@ -222,6 +295,9 @@ export default function AdminScreen({ currentUser }: Props) {
   const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
     hero: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 10 },
+    heroRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    backBtn: { padding: 8, borderRadius: radii.full, backgroundColor: theme.surface },
+    backIcon: { fontSize: 24, fontWeight: '300', color: theme.text },
     eyebrow: {
       fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase',
       color: theme.textFaint, marginBottom: 6,
@@ -312,10 +388,17 @@ export default function AdminScreen({ currentUser }: Props) {
   return (
     <View style={s.container}>
       <View style={s.hero}>
-        <Text style={s.eyebrow}>Admin Dashboard</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={s.title}>Admin</Text>
-          <Badge tone="purple">Admin + Management</Badge>
+        <View style={s.heroRow}>
+          <Pressable onPress={onBack} hitSlop={10} style={s.backBtn}>
+            <Text style={s.backIcon}>‹</Text>
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={s.eyebrow}>Admin Dashboard</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={s.title}>Admin</Text>
+              <Badge tone="purple">Admin + Management</Badge>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -414,7 +497,7 @@ export default function AdminScreen({ currentUser }: Props) {
               />
               <Text style={s.sectionLabel}>Sector</Text>
               <View style={s.chipWrap}>
-                {['Software', 'Banking', 'Microfinance', 'MDR', 'Healthcare', 'Insurance', 'Telecom', 'Media', 'Government'].map((sector) => (
+                {ownedSectors.map((sector) => (
                   <TouchableOpacity key={sector} onPress={() => setClientSector(sector)} style={[s.optionChip, clientSector === sector && s.optionChipActive]}>
                     <Text style={[s.optionChipText, clientSector === sector && s.optionChipTextActive]}>{sector}</Text>
                   </TouchableOpacity>
@@ -449,7 +532,7 @@ export default function AdminScreen({ currentUser }: Props) {
                 style={s.textInput}
               />
               <PrimaryButton label={submittingSector ? 'Creating…' : 'Create Sector'} onPress={handleCreateSector} disabled={submittingSector} style={{ marginBottom: 12 }} />
-              <Text style={s.sectionLabel}>Existing Sectors (9)</Text>
+              <Text style={s.sectionLabel}>{`Existing Sectors (${ownedSectors.length})`}</Text>
               <View style={s.sectorWrap}>
                 {ownedSectors.map((sector) => (
                   <Badge key={sector} tone="teal">{sector}</Badge>
@@ -463,13 +546,6 @@ export default function AdminScreen({ currentUser }: Props) {
                 Create five years of financial years and quarters inside Cockpit so visit creation can select them.
               </Text>
               <PrimaryButton label={syncingCalendar ? 'Syncing…' : 'Sync 5 Years'} onPress={handleSyncCalendar} disabled={syncingCalendar} />
-            </Card>
-
-            <Card style={{ padding: 0 }}>
-              <View style={s.toolRow}>
-                <Text style={[s.toolTitle, { color: theme.error }]}>Sign out</Text>
-                <Badge tone="error">Exit</Badge>
-              </View>
             </Card>
           </View>
         </ScrollView>
@@ -486,6 +562,9 @@ export default function AdminScreen({ currentUser }: Props) {
               onApprove={handleApprove}
               onReject={handleReject}
               approving={approving}
+              draft={approvalDrafts[item._id] ?? { role: 'am', meetingGroup: 'account' }}
+              onRoleChange={handleRoleChange}
+              onGroupChange={handleGroupChange}
             />
           )}
           ListEmptyComponent={
@@ -510,4 +589,18 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 15, fontWeight: '700', marginBottom: 2, fontFamily: fonts.display },
   cardEmail: { fontSize: 13, marginBottom: 2 },
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  approvalChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: '#d0d7e2',
+    backgroundColor: '#f6f8fb',
+  },
+  approvalChipActive: {
+    borderColor: '#1d4ed8',
+    backgroundColor: '#dbeafe',
+  },
+  approvalChipText: { fontSize: 11, fontWeight: '600', color: '#64748b' },
+  approvalChipTextActive: { color: '#1d4ed8' },
 });

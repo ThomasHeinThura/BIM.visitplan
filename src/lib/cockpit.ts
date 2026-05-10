@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { COCKPIT_API_URL, COCKPIT_API_TOKEN } from '../config';
+import { SECTORS } from '../types';
 import type {
   CockpitUser,
   CockpitClient,
@@ -12,6 +13,7 @@ import type {
   CockpitFinancialQuarter,
   ClientStatus,
   SectorName,
+  MeetingGroup,
   UserRole,
 } from '../types';
 
@@ -122,7 +124,7 @@ export async function upsertUser(data: Partial<CockpitUser> & { _id?: string }) 
 /** Patch a user by id — used by Profile for editing meeting_group + target_usd. */
 export async function updateUser(
   id: string,
-  patch: Partial<Pick<CockpitUser, 'meeting_group' | 'target_usd' | 'team' | 'seniority' | 'name'>>,
+  patch: Partial<Pick<CockpitUser, 'meeting_group' | 'target_usd' | 'team' | 'name' | 'owned_sectors'>>,
 ): Promise<CockpitUser> {
   const res = await cockpit.post<CockpitUser>('/content/item/users', {
     data: { _id: id, ...patch },
@@ -139,9 +141,20 @@ export async function getPendingUsers(): Promise<CockpitUser[]> {
 }
 
 /** Approve a pending user: sets role + marks approval_status = 'approved'. Admin only. */
-export async function approveUser(userId: string, role: UserRole): Promise<CockpitUser> {
+export async function approveUser(
+  userId: string,
+  role: UserRole,
+  options?: { meeting_group?: MeetingGroup | null; owned_sectors?: string[] | null },
+): Promise<CockpitUser> {
   const res = await cockpit.post<CockpitUser>('/content/item/users', {
-    data: { _id: userId, role, approval_status: 'approved', active: true },
+    data: {
+      _id: userId,
+      role,
+      meeting_group: options?.meeting_group ?? null,
+      owned_sectors: options?.owned_sectors ?? null,
+      approval_status: 'approved',
+      active: true,
+    },
   });
   return res.data;
 }
@@ -206,16 +219,23 @@ export async function getClientsByFilter(opts: {
  * Falls back to the hardcoded SECTORS list if the query is empty.
  */
 export async function getSectors(): Promise<string[]> {
-  // Note: Cockpit requires `fields` to be a JSON object string, not a plain field name.
-  // Simplest fix: fetch all clients (no field projection) and extract sectors client-side.
-  const res = await cockpit.get<CollectionResponse<CockpitClient>>('/content/items/clients', {
-    params: buildParams({ limit: 500 }),
-  });
-  const clients = res.data;
+  const [sectorRes, clientRes] = await Promise.all([
+    cockpit.get<CollectionResponse<CockpitSector>>('/content/items/sectors', {
+      params: buildParams({ limit: 500, populate: 1 }),
+    }).catch(() => ({ data: [] as CockpitSector[] })),
+    cockpit.get<CollectionResponse<CockpitClient>>('/content/items/clients', {
+      params: buildParams({ limit: 500 }),
+    }).catch(() => ({ data: [] as CockpitClient[] })),
+  ]);
+  const clients = clientRes.data;
   const seen = new Set<string>();
+  for (const sector of sectorRes.data) {
+    if (sector.name) seen.add(sector.name);
+  }
   for (const c of clients) {
     if (c.sector) seen.add(c.sector);
   }
+  if (seen.size === 0) return [...SECTORS].sort();
   return Array.from(seen).sort();
 }
 

@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useTheme, fonts, radii } from '../context/ThemeContext';
 import { Icon, PrimaryButton, SecondaryButton } from './ui';
-import { checkInVisit, checkOutVisit, upsertVisit, upsertVisitOutcome } from '../lib/cockpit';
-import type { CockpitUser, CockpitVisit } from '../types';
+import { checkInVisit, checkOutVisit, getOutcomeByVisit, upsertVisit, upsertVisitOutcome } from '../lib/cockpit';
+import type { CockpitUser, CockpitVisit, CockpitVisitOutcome } from '../types';
 import { formatDisplayTime, getOfficeTimeOptions, isOutsideOfficeHours } from '../utils/schedule';
 import { buildCalendarDays, formatCalendarHeader, getMonthStart } from '../utils/visitplan';
 
@@ -64,6 +64,23 @@ const OUTCOME_OPTIONS: { id: OutcomeResult; label: string; emoji: string }[] = [
 
 const OFFICE_TIME_OPTIONS = getOfficeTimeOptions();
 
+function parsePipelineValue(nextAction?: string | null) {
+  if (!nextAction) return null;
+  const match = nextAction.match(/pipeline value:\s*usd\s*([\d,]+)/i);
+  if (!match) return null;
+  const amount = Number(match[1].replace(/,/g, ''));
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function formatPipelineValue(value: number | null) {
+  if (!value) return null;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default function VisitDetailModal({ visit, user, visible, onClose, onUpdated }: Props) {
   const { theme } = useTheme();
   const [acting, setActing] = useState(false);
@@ -74,6 +91,7 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
   const [outcomeResult, setOutcomeResult] = useState<OutcomeResult | null>(null);
   const [outcomeSummary, setOutcomeSummary] = useState('');
   const [nextAction, setNextAction] = useState('');
+  const [existingOutcome, setExistingOutcome] = useState<CockpitVisitOutcome | null>(null);
   const [nextVisitDate, setNextVisitDate] = useState('');
   const [nextVisitTime, setNextVisitTime] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
@@ -88,6 +106,7 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
       setOutcomeResult(null);
       setOutcomeSummary('');
       setNextAction('');
+      setExistingOutcome(null);
       setNextVisitDate('');
       setNextVisitTime('');
       setActing(false);
@@ -98,7 +117,31 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
     }
   }, [visit?._id]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!visible || !visit?._id) {
+      setExistingOutcome(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void (async () => {
+      const outcome = await getOutcomeByVisit(visit._id);
+      if (!cancelled) {
+        setExistingOutcome(outcome);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, visit?._id]);
+
   const calendarDays = useMemo(() => buildCalendarDays(pickerMonth, []), [pickerMonth]);
+
+  const formattedPipeline = formatPipelineValue(parsePipelineValue(existingOutcome?.next_action));
 
   if (!visit) return null;
 
@@ -367,6 +410,23 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
                 <Text style={s.sectionTitle}>Agenda</Text>
                 <View style={s.agendaBox}>
                   <Text style={s.agendaText}>{visit.agenda}</Text>
+                </View>
+              </>
+            ) : null}
+
+            {existingOutcome?.summary || formattedPipeline || existingOutcome?.next_action ? (
+              <>
+                <Text style={s.sectionTitle}>Summary</Text>
+                <View style={s.agendaBox}>
+                  {existingOutcome?.summary ? (
+                    <Text style={s.agendaText}>{existingOutcome.summary}</Text>
+                  ) : null}
+                  {formattedPipeline ? (
+                    <Text style={[s.agendaText, { marginTop: existingOutcome?.summary ? 10 : 0 }]}>Pipeline value (USD): {formattedPipeline}</Text>
+                  ) : null}
+                  {existingOutcome?.next_action && !formattedPipeline ? (
+                    <Text style={[s.agendaText, { marginTop: existingOutcome?.summary ? 10 : 0 }]}>Next action: {existingOutcome.next_action}</Text>
+                  ) : null}
                 </View>
               </>
             ) : null}

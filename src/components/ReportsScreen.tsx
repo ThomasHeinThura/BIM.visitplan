@@ -99,6 +99,13 @@ function formatCurrencyCompact(value: number) {
   }).format(value);
 }
 
+function getPeriodListLabel(period: Period) {
+  if (period === 'week') return '7 Day Visit List';
+  if (period === 'month') return '30 Day Visit List';
+  if (period === 'quarter') return '3 Month Visit List';
+  return 'All Visit List';
+}
+
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
@@ -209,6 +216,10 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
       return sum + parsePipelineValue(outcome.next_action);
     }, 0);
   }, [visitOutcomes, visits]);
+  const outcomesByVisitId = useMemo(
+    () => new Map(visitOutcomes.filter((outcome) => outcome.visit?._id).map((outcome) => [outcome.visit!._id, outcome])),
+    [visitOutcomes],
+  );
   const weekBars = useMemo(() => {
     const monday = new Date(`${currentWeekWindow.from}T00:00:00`);
     const bars = Array.from({ length: 7 }, (_, index) => {
@@ -417,7 +428,7 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
         <ActivityIndicator color={theme.primary} style={{ marginTop: 40 }} />
       ) : (
         <View>
-          <Text style={styles.sectionLabel}>Recent Activity</Text>
+          <Text style={styles.sectionLabel}>{getPeriodListLabel(period)}</Text>
           {recentGroups.length === 0 ? (
             <Card style={styles.emptyCard}>
               <Text style={{ fontSize: 14, color: theme.textSecondary }}>No report data found for this period.</Text>
@@ -428,6 +439,12 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
                 <Text style={styles.sectionLabel}>{label}</Text>
                 <Card style={styles.historyCard}>
                   {rows.map((visit, index) => (
+                    (() => {
+                      const outcome = outcomesByVisitId.get(visit._id);
+                      const rowPipelineValue = parsePipelineValue(outcome?.next_action);
+                      const rowPipelineLabel = rowPipelineValue > 0 ? `${formatCurrencyCompact(rowPipelineValue)} pipeline` : null;
+
+                      return (
                     <View
                       key={visit._id}
                       style={[styles.historyRow, index < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.divider }]}
@@ -449,7 +466,7 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
                         </Text>
                         <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>
                           {visit.status === 'completed'
-                            ? 'Completed visit logged'
+                            ? `Completed visit logged${rowPipelineLabel ? ` · ${rowPipelineLabel}` : ''}`
                             : visit.status === 'missed'
                               ? 'Missed visit needs follow-up'
                               : visit.status === 'in_progress'
@@ -459,6 +476,8 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
                       </View>
                       <Badge tone={statusTone(visit.status)}>{statusLabel(visit.status)}</Badge>
                     </View>
+                      );
+                    })()
                   ))}
                 </Card>
               </View>

@@ -234,6 +234,7 @@ export type UserRole = 'admin' | 'management' | 'sales' | 'solution' | 'am';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type ClientStatus = 'Active' | 'Hold' | 'Inactive' | 'Churned' | 'Prospect';
 export type AccountType = 'Named Account' | 'Key Account';
+export type MeetingGroup = 'infra' | 'es' | 'app' | 'ms' | 'account' | 'all';
 
 export const CLIENT_STATUSES: ClientStatus[] = ['Active', 'Hold', 'Inactive', 'Churned', 'Prospect'];
 export const ACCOUNT_TYPES: AccountType[] = ['Named Account', 'Key Account'];
@@ -253,8 +254,8 @@ export type CockpitUser = {
   ms_id?: string | null;
   role: UserRole;
   approval_status: ApprovalStatus;
-  seniority?: 'junior' | 'senior' | null;
-  meeting_group?: 'infra' | 'es' | 'app' | 'ms' | null;
+  meeting_group?: MeetingGroup | null;
+  owned_sectors?: string[] | null;
   target_usd?: number | null;
   team?: string | null;
   active: boolean;
@@ -307,7 +308,7 @@ export type CockpitVisit = {
   financial_year?: Pick<CockpitFinancialYear, '_id' | 'name'> | null;
   financial_quarter?: Pick<CockpitFinancialQuarter, '_id' | 'name'> | null;
   participants?: Array<Pick<CockpitUser, '_id' | 'name'>> | null;
-  meeting_group?: 'infra' | 'es' | 'app' | 'ms' | null;
+  meeting_group?: MeetingGroup | null;
   date?: string | null;
   start_time?: string | null;
   end_time?: string | null;

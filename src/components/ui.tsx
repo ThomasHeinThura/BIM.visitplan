@@ -409,11 +409,13 @@ export function FilterTab({ label, active, onPress }: {
 
 // ─── Visit row item ──────────────────────────────────────────────────────────
 
-export function VisitItem({ time, title, client, location, status, onPress, onMore }: {
+export function VisitItem({ time, title, client, location, subtitle, showTimeLabel = true, status, onPress, onMore }: {
   time: string;
   title: string;
   client?: string;
   location?: string;
+  subtitle?: string;
+  showTimeLabel?: boolean;
   status: 'scheduled' | 'in_progress' | 'completed' | 'missed';
   onPress?: () => void;
   onMore?: () => void;
@@ -434,18 +436,18 @@ export function VisitItem({ time, title, client, location, status, onPress, onMo
     }, pressed && { backgroundColor: theme.surfaceOffset }]}>
       <View style={{ width: 36, alignItems: 'center', flexShrink: 0 }}>
         <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, fontFamily: fonts.display, lineHeight: 16 }}>{time}</Text>
-        <Text style={{ fontSize: 9, color: theme.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 1 }}>Time</Text>
+        {showTimeLabel ? <Text style={{ fontSize: 9, color: theme.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 1 }}>Time</Text> : null}
       </View>
       <View style={{ width: 2, height: 38, backgroundColor: status === 'in_progress' ? theme.primary : theme.divider, borderRadius: 2, position: 'relative', flexShrink: 0 }}>
         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot, position: 'absolute', top: '50%', left: '50%', marginTop: -4, marginLeft: -4 }} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: fonts.display }} numberOfLines={1}>{client ?? title}</Text>
-        <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{title}</Text>
-        {client ? (
+        <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{subtitle ?? title}</Text>
+        {!subtitle && client ? (
           <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{client}</Text>
         ) : null}
-        {location ? <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{location}</Text> : null}
+        {!subtitle && location ? <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{location}</Text> : null}
       </View>
       <Badge tone={tone}>
         {status === 'in_progress' ? 'Active' : status === 'completed' ? 'Done' : status === 'missed' ? 'Missed' : 'Planned'}

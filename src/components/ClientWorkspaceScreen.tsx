@@ -15,6 +15,7 @@ import {
 import { useTheme, fonts, radii } from '../context/ThemeContext';
 import {
   getContactsByClient,
+  getSectors,
   getVisits,
   upsertClient,
   upsertContact,
@@ -78,6 +79,7 @@ export default function ClientWorkspaceScreen({
   // Editable fields
   const [editStatus, setEditStatus] = useState<ClientStatus>('Active');
   const [editAccountType, setEditAccountType] = useState<AccountType>('Named Account');
+  const [editSector, setEditSector] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
   const [infoNotice, setInfoNotice] = useState<InlineNotice | null>(null);
@@ -106,11 +108,14 @@ export default function ClientWorkspaceScreen({
   // Picker modals
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showSectorPicker, setShowSectorPicker] = useState(false);
+  const [sectors, setSectors] = useState<string[]>([]);
 
   useEffect(() => {
     if (client) {
       setEditStatus(client.status);
       setEditAccountType(client.account_type ?? 'Named Account');
+      setEditSector(client.sector ?? '');
       setEditNotes(client.notes ?? '');
       setEditName(client.name);
       setEditAddress(client.address ?? '');
@@ -122,6 +127,26 @@ export default function ClientWorkspaceScreen({
       setShowContactModal(false);
     }
   }, [client?._id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await getSectors();
+        if (!cancelled) {
+          setSectors(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setSectors([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadVisits = useCallback(async () => {
     if (!client) return;
@@ -167,6 +192,7 @@ export default function ClientWorkspaceScreen({
         _id: client._id,
         status: editStatus,
         account_type: editAccountType,
+        sector: editSector.trim() || undefined,
         notes: editNotes.trim() || undefined,
       };
       if (user.role === 'admin') {
@@ -498,6 +524,12 @@ export default function ClientWorkspaceScreen({
                   <Text style={s.chevron}>▾</Text>
                 </TouchableOpacity>
 
+                <Text style={s.label}>Sector</Text>
+                <TouchableOpacity style={s.pickerBtn} onPress={() => setShowSectorPicker(true)}>
+                  <Text style={s.pickerBtnText}>{editSector || 'Select sector'}</Text>
+                  <Text style={s.chevron}>▾</Text>
+                </TouchableOpacity>
+
                 {isAdmin ? (
                   <>
                     <Text style={s.label}>Address</Text>
@@ -696,6 +728,32 @@ export default function ClientWorkspaceScreen({
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={s.pickerCancel} onPress={() => setShowTypePicker(false)}>
+              <Text style={s.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSectorPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSectorPicker(false)}
+      >
+        <View style={s.pickerOverlay}>
+          <View style={s.pickerCard}>
+            {sectors.map((sector) => (
+              <TouchableOpacity
+                key={sector}
+                style={[s.pickerItem, editSector === sector && s.pickerItemSelected]}
+                onPress={() => { setEditSector(sector); setShowSectorPicker(false); }}
+              >
+                <Text style={[s.pickerItemText, editSector === sector && s.pickerItemTextSelected]}>
+                  {sector}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={s.pickerCancel} onPress={() => setShowSectorPicker(false)}>
               <Text style={s.pickerCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

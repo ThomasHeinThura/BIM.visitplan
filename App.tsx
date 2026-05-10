@@ -13,7 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { useAuth } from './src/hooks/useAuth';
-import type { CockpitClient, CockpitVisit, UserRole } from './src/types';
+import type { CockpitClient, CockpitUser, CockpitVisit, CockpitVisitOutcome, UserRole } from './src/types';
 
 import { LoginScreen } from './src/components/LoginScreen';
 import PendingApprovalScreen from './src/components/PendingApprovalScreen';
@@ -23,14 +23,15 @@ import ClientListScreen from './src/components/ClientListScreen';
 import AdminScreen from './src/components/AdminScreen';
 import ReportsScreen from './src/components/ReportsScreen';
 import ProfileScreen from './src/components/ProfileScreen';
-import TeamReportScreen, { type AmKey } from './src/components/TeamReportScreen';
+import TeamReportScreen from './src/components/TeamReportScreen';
 import AmVisitListScreen from './src/components/AmVisitListScreen';
 import EditVisitModal, { type EditVisitContext, type VisitStatus } from './src/components/EditVisitModal';
 import CreateVisitModal from './src/components/CreateVisitModal';
 import VisitDetailModal from './src/components/VisitDetailModal';
 import ClientWorkspaceScreen from './src/components/ClientWorkspaceScreen';
 import { BottomNavigation, type AppPage } from './src/components/BottomNavigation';
-import { upsertVisit, upsertVisitOutcome } from './src/lib/cockpit';
+import { getOutcomeByVisit, upsertVisit, upsertVisitOutcome } from './src/lib/cockpit';
+import { saveUserJson, saveUserRole } from './src/lib/storage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,11 +42,12 @@ const queryClient = new QueryClient({
 function AppShell() {
   const { theme } = useTheme();
   const { status, user, role, login, logout, loginReady, error } = useAuth();
+  const [currentUser, setCurrentUser] = useState<CockpitUser | null>(null);
   const [activePage, setActivePage] = useState<AppPage>("today");
   // v2.4 sub-screens reachable from Profile or Reports → Teams
   const [adminOpen, setAdminOpen] = useState(false);
   const [teamReportOpen, setTeamReportOpen] = useState(false);
-  const [amDrilldown, setAmDrilldown] = useState<AmKey | null>(null);
+  const [amDrilldown, setAmDrilldown] = useState<string | null>(null);
   // Dev role override for web preview
   const [previewRole, setPreviewRole] = useState<UserRole | null>(null);
 
@@ -60,6 +62,16 @@ function AppShell() {
   useEffect(() => {
     setActivePage("today");
   }, [status]);
+
+  useEffect(() => {
+    setCurrentUser(user);
+  }, [user]);
+
+  const handleUserUpdated = (nextUser: CockpitUser) => {
+    setCurrentUser(nextUser);
+    void saveUserJson(nextUser);
+    void saveUserRole(nextUser.role);
+  };
 
   const handleNavigate = (page: AppPage) => {
     setActivePage(page);
@@ -115,7 +127,15 @@ function AppShell() {
     );
   }
 
-  const toEditCtx = (v: CockpitVisit): EditVisitContext => {
+  const effectiveUser = currentUser ?? user;
+
+  const parsePipelineValue = (nextAction?: string | null) => {
+    if (!nextAction) return '';
+    const match = nextAction.match(/pipeline value:\s*usd\s*([\d,]+)/i);
+    return match?.[1]?.replace(/,/g, '') ?? '';
+  };
+
+  const toEditCtx = (v: CockpitVisit, outcome?: CockpitVisitOutcome | null): EditVisitContext => {
     const status: VisitStatus =
       v.status === 'completed' ? 'done'
       : v.status === 'in_progress' ? 'active'
@@ -127,7 +147,18 @@ function AppShell() {
       date: v.date ?? '',
       time: (v.start_time ?? '').slice(0, 5),
       status,
+      initialOutcome:
+        outcome?.result === 'positive' || outcome?.result === 'neutral' || outcome?.result === 'negative'
+          ? outcome.result
+          : 'pending',
+      initialPipelineUsd: parsePipelineValue(outcome?.next_action),
+      initialNotes: outcome?.summary ?? '',
     };
+  };
+
+  const openEditVisit = async (visit: CockpitVisit) => {
+    const outcome = await getOutcomeByVisit(visit._id);
+    setEditVisitCtx(toEditCtx(visit, outcome));
   };
 
   const currentRole: UserRole = previewRole ?? (role ?? "am");
@@ -145,55 +176,57 @@ function AppShell() {
         <View style={{ flex: 1 }}>
           {showAmDrill ? (
             <AmVisitListScreen
-              amKey={amDrilldown!}
+              amUserId={amDrilldown!}
               onBack={() => setAmDrilldown(null)}
             />
           ) : showTeamReport ? (
             <TeamReportScreen
+              currentUser={effectiveUser}
+              viewerRole={currentRole}
               onBack={() => setTeamReportOpen(false)}
               onOpenAm={(k) => setAmDrilldown(k)}
             />
           ) : showAdmin ? (
-            <AdminScreen currentUser={user} />
+            <AdminScreen currentUser={effectiveUser} onBack={() => setAdminOpen(false)} />
           ) : (
             <>
               {activePage === "today" && (
                 <TodayDashboard
                   key={`today-${visitDataVersion}`}
-                  user={user}
+                  user={effectiveUser}
                   onOpenVisit={setSelectedVisit}
                   onAddVisit={() => setShowCreateVisit(true)}
-                  onEditVisit={(v) => setEditVisitCtx(toEditCtx(v))}
+                  onEditVisit={(v) => { void openEditVisit(v); }}
                   onOpenPlan={() => setActivePage("visits")}
                 />
               )}
               {activePage === "visits" && (
                 <VisitListScreen
                   key={`visits-${visitDataVersion}`}
-                  user={user}
+                  user={effectiveUser}
                   onOpenVisit={setSelectedVisit}
                   onAddVisit={() => setShowCreateVisit(true)}
-                  onEditVisit={(v) => setEditVisitCtx(toEditCtx(v))}
+                  onEditVisit={(v) => { void openEditVisit(v); }}
                 />
               )}
               {activePage === "clients" && (
                 <ClientListScreen
                   key={`clients-${visitDataVersion}`}
-                  user={user}
+                  user={effectiveUser}
                   onOpenClient={setSelectedClient}
                 />
               )}
               {activePage === "reports" && (
                 <ReportsScreen
                   key={`reports-${visitDataVersion}`}
-                  user={user}
+                  user={effectiveUser}
                   role={currentRole}
                   onOpenTeamReport={() => setTeamReportOpen(true)}
                 />
               )}
               {activePage === "profile" && (
                 <ProfileScreen
-                  user={user}
+                  user={effectiveUser}
                   role={currentRole}
                   onOpenAdmin={() => setAdminOpen(true)}
                   onOpenTeamOverview={() => {
@@ -202,6 +235,7 @@ function AppShell() {
                   }}
                   onLogout={logout}
                   onSwitchRole={(r: UserRole) => setPreviewRole(r)}
+                  onUserUpdated={handleUserUpdated}
                 />
               )}
             </>
@@ -216,7 +250,7 @@ function AppShell() {
 
       <CreateVisitModal
         visible={showCreateVisit}
-        user={user}
+        user={effectiveUser}
         onClose={() => { setShowCreateVisit(false); setCreateVisitForClient(null); }}
         onSaved={() => {
           setShowCreateVisit(false);
@@ -228,7 +262,7 @@ function AppShell() {
       <VisitDetailModal
         visible={selectedVisit !== null}
         visit={selectedVisit}
-        user={user}
+        user={effectiveUser}
         onClose={() => setSelectedVisit(null)}
         onUpdated={() => {
           setSelectedVisit(null);
@@ -239,7 +273,7 @@ function AppShell() {
         key={`workspace-${selectedClient?._id ?? 'none'}-${visitDataVersion}`}
         visible={selectedClient !== null}
         client={selectedClient}
-        user={user}
+        user={effectiveUser}
         onClose={() => setSelectedClient(null)}
         onOpenVisit={setSelectedVisit}
         onAddVisit={(c) => {
@@ -273,14 +307,22 @@ function AppShell() {
               start_time: patch.status === 'rescheduled' ? patch.rescheduleTime || editVisitCtx.time : undefined,
             });
 
-            if (patch.outcome !== 'pending' || patch.notes.trim()) {
+            const hasOutcomePayload =
+              patch.outcome !== 'pending'
+              || !!patch.notes.trim()
+              || !!patch.pipelineUsd.trim()
+              || (patch.status === 'rescheduled' && !!patch.rescheduleDate);
+
+            if (hasOutcomePayload) {
+              const existingOutcome = await getOutcomeByVisit(patch.id);
               await upsertVisitOutcome({
+                _id: existingOutcome?._id,
                 visit: { _id: patch.id, title: editVisitCtx.client },
                 result: patch.outcome === 'pending' ? 'neutral' : patch.outcome,
                 summary: patch.notes.trim() || undefined,
                 next_action: patch.pipelineUsd.trim() ? `Pipeline value: USD ${patch.pipelineUsd.trim()}` : undefined,
                 next_visit_date: patch.status === 'rescheduled' ? patch.rescheduleDate || undefined : undefined,
-                submitted_by: { _id: user._id, name: user.name },
+                submitted_by: { _id: effectiveUser._id, name: effectiveUser.name },
                 submitted_at: new Date().toISOString(),
               });
             }

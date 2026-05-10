@@ -39,6 +39,7 @@ const ACCOUNT_FILTERS = ['Key Account', 'Named Account'] as const;
 
 export default function ClientListScreen({ user: _user, onOpenClient }: Props) {
   const { theme } = useTheme();
+  const preferredSectors = _user.owned_sectors?.filter(Boolean) ?? [];
 
   const [clients, setClients] = useState<CockpitClient[]>([]);
   const [sectors, setSectors] = useState<string[]>([]);
@@ -46,7 +47,7 @@ export default function ClientListScreen({ user: _user, onOpenClient }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [activeFilter, setActiveFilter] = useState<string>(preferredSectors[0] ?? 'All');
   const [error, setError] = useState<string | null>(null);
 
   // Palette colours (bg + fg) indexed 0–5
@@ -96,10 +97,18 @@ export default function ClientListScreen({ user: _user, onOpenClient }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  const filterTabs = useMemo(
-    () => ['All', ...ACCOUNT_FILTERS, ...STATUS_FILTERS, ...sectors],
-    [sectors],
-  );
+  const filterTabs = useMemo(() => {
+    const preferred = preferredSectors.filter((sector) => sectors.includes(sector));
+    const remaining = sectors.filter((sector) => !preferred.includes(sector));
+    return ['All', ...preferred, ...ACCOUNT_FILTERS, ...STATUS_FILTERS, ...remaining];
+  }, [preferredSectors, sectors]);
+
+  useEffect(() => {
+    const nextDefault = preferredSectors.find((sector) => sectors.includes(sector)) ?? 'All';
+    if (!filterTabs.includes(activeFilter)) {
+      setActiveFilter(nextDefault);
+    }
+  }, [preferredSectors, sectors, filterTabs, activeFilter]);
 
   const filtered = useMemo(() => {
     let list = clients;

@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { useTheme, fonts, radii } from '../context/ThemeContext';
 import { getClients, getFinancialQuarters, getFinancialYears, upsertAgendaItem, upsertVisit } from '../lib/cockpit';
-import type { CockpitClient, CockpitFinancialQuarter, CockpitFinancialYear, CockpitUser } from '../types';
+import type { CockpitClient, CockpitFinancialQuarter, CockpitFinancialYear, CockpitUser, MeetingGroup } from '../types';
 import { Card, Icon, PrimaryButton, SearchBar, SecondaryButton } from './ui';
+import { getVisitMeetingGroupOptions, normalizeMeetingGroup, formatMeetingGroup } from '../utils/meetingGroups';
 import {
   addMinutes,
   formatDisplayTime,
@@ -46,14 +47,12 @@ function getInitials(name: string) {
 
 type CreateStep = 1 | 2 | 3;
 
-type GroupOption = 'infra' | 'es' | 'app' | 'ms';
+type GroupOption = Exclude<MeetingGroup, 'all'>;
 
-const MEETING_GROUPS: Array<{ label: string; value: GroupOption }> = [
-  { label: 'Infra', value: 'infra' },
-  { label: 'ES', value: 'es' },
-  { label: 'App', value: 'app' },
-  { label: 'MS', value: 'ms' },
-];
+const MEETING_GROUPS: Array<{ label: string; value: GroupOption }> = getVisitMeetingGroupOptions().map((value) => ({
+  value,
+  label: formatMeetingGroup(value),
+}));
 
 const VISIT_PURPOSES = ['Account Review', 'New Product', 'Collections', 'Follow Up'];
 const START_TIME_OPTIONS = getOfficeTimeOptions(16 * 60);
@@ -80,6 +79,7 @@ export default function CreateVisitModal({
 }: Props) {
   const { theme, isDark } = useTheme();
   const defaultSchedule = useMemo(() => getCurrentOfficeScheduleDefaults(), [visible]);
+  const preferredSectors = useMemo(() => user.owned_sectors?.filter(Boolean) ?? [], [user.owned_sectors]);
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(defaultSchedule.date);
@@ -87,7 +87,7 @@ export default function CreateVisitModal({
   const [endTime, setEndTime] = useState(defaultSchedule.endTime);
   const [location, setLocation] = useState('');
   const [agenda, setAgenda] = useState('');
-  const [meetingGroup, setMeetingGroup] = useState<GroupOption>('app');
+  const [meetingGroup, setMeetingGroup] = useState<GroupOption>((normalizeMeetingGroup(user.meeting_group) as GroupOption | null) ?? 'app');
   const [visitPurpose, setVisitPurpose] = useState('Account Review');
   const [agendaItems, setAgendaItems] = useState(['Review meeting goals', 'Capture agenda notes']);
   const [saving, setSaving] = useState(false);
@@ -122,7 +122,7 @@ export default function CreateVisitModal({
       setEndTime(nextDefaults.endTime);
       setLocation('');
       setAgenda('');
-      setMeetingGroup('app');
+      setMeetingGroup((normalizeMeetingGroup(user.meeting_group) as GroupOption | null) ?? 'app');
       setVisitPurpose('Account Review');
       setAgendaItems(['Review meeting goals', 'Capture agenda notes']);
       setClientSearch('');
@@ -162,13 +162,20 @@ export default function CreateVisitModal({
     setClientLoadError(null);
     try {
       const clientData = await getClients({ limit: 300, sort: { name: 1 } });
-      setClients(clientData);
+      const preferredSet = new Set(preferredSectors);
+      const sortedClients = [...clientData].sort((left, right) => {
+        const leftPreferred = !!left.sector && preferredSet.has(left.sector);
+        const rightPreferred = !!right.sector && preferredSet.has(right.sector);
+        if (leftPreferred !== rightPreferred) return leftPreferred ? -1 : 1;
+        return left.name.localeCompare(right.name);
+      });
+      setClients(sortedClients);
     } catch {
       setClientLoadError('Could not load clients. Please try again.');
     } finally {
       setClientsLoading(false);
     }
-  }, []);
+  }, [preferredSectors]);
 
   const loadScheduleLookups = useCallback(async () => {
     setScheduleLookupLoading(true);
@@ -800,7 +807,7 @@ export default function CreateVisitModal({
                   </View>
                 ) : null}
 
-                <Text style={s.label}>Meeting Group</Text>
+                <Text style={s.label}>Department</Text>
                 <View style={s.purposeRow}>
                   {MEETING_GROUPS.map((group) => {
                     const active = meetingGroup === group.value;

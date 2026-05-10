@@ -29,6 +29,33 @@ function fmtTime(t?: string | null) {
   return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function durationText(start?: string | null, end?: string | null) {
+  if (!start || !end) return null;
+  const [startHour = 0, startMinute = 0] = start.split(':').map(Number);
+  const [endHour = 0, endMinute = 0] = end.split(':').map(Number);
+  if ([startHour, startMinute, endHour, endMinute].some((value) => Number.isNaN(value))) return null;
+  const totalMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+  if (totalMinutes <= 0) return null;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0 && minutes > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}
+
+function visitPurpose(agenda?: string | null) {
+  if (!agenda) return null;
+  const match = agenda.match(/Purpose:\s*(.+)/i);
+  return match?.[1]?.trim() || null;
+}
+
+function visitSubtitle(visit: CockpitVisit) {
+  const purpose = visitPurpose(visit.agenda);
+  const duration = durationText(visit.start_time, visit.end_time);
+  const location = visit.location?.trim();
+  return [purpose, duration ?? location].filter(Boolean).join(' · ') || visit.title;
+}
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return 'morning';
@@ -182,7 +209,8 @@ export default function TodayDashboard({
                   time={fmtTime(v.start_time)}
                   title={v.title}
                   client={v.client?.name ?? undefined}
-                  location={v.location ?? undefined}
+                  subtitle={visitSubtitle(v)}
+                  showTimeLabel={false}
                   status={v.status}
                   onPress={() => onOpenVisit?.(v)}
                   onMore={onEditVisit ? () => onEditVisit(v) : undefined}

@@ -1,9 +1,37 @@
 # VisitPlan MVP — Product & Development Plan
 
-**Version:** 2.4 (May 10, 2026)  
+**Version:** 2.6 (May 10, 2026)  
 **Stack:** Expo React Native (SDK 55) + Cockpit CMS (cms.bimats.com)  
 **Repo:** https://github.com/ThomasHeinThura/BIM.visitplan  
 **Goal:** Unblock sales team — visit tracking + client management + management reports.
+
+---
+
+## Changelog — v2.6 (May 10, 2026)
+
+| # | Change |
+|---|--------|
+| 1 | **Team Report (S-14)** department and sector drilldowns now open in a centered detail modal instead of a bottom sheet. |
+| 2 | **By Departments** now drills into the actual visit owners and contributors and shows each member's total visits for the quarter. |
+| 3 | **By Sector** now drills into sector clients and shows the top 5 AM / Sales / Solution contributors under each client. |
+| 4 | **Profile (S-12)** owned-sector picker now loads from the Cockpit `sectors` collection plus existing client sector values, so new sectors appear immediately. |
+| 5 | **Profile (S-12)** no longer shows or depends on the old seniority field. |
+| 6 | **Today Dashboard (S-02)** visit rows now use a compact summary line instead of repeating client names. |
+| 7 | **Team Report dark mode** now uses theme-aware initials contrast for department, sector, and AM avatars. |
+| 8 | **MVP documentation updated** to match current screen routing and Cockpit collection names: `agendaitems` and `visitoutcomes`. |
+
+## Changelog — v2.5 (May 10, 2026)
+
+| # | Change |
+|---|--------|
+| 1 | **Team Report (S-14) view controls changed** from sort tabs into report views: `By AMs`, `By Departments`, and `By Sector`. |
+| 2 | **By AMs** keeps the existing AM drilldown flow into S-15. |
+| 3 | **By Departments** now aggregates quarter visit totals, completed totals, AM counts, and pipeline totals by department. |
+| 4 | **By Sector** now aggregates quarter visit totals, completed totals, client counts, and pipeline totals by sector. |
+| 5 | **Admin Create Client** now uses the live sector list instead of a fixed hardcoded list, including newly created sectors. |
+| 6 | **Client Workspace (S-08)** now allows sector editing in the client profile info form. |
+| 7 | **Visit detail and edit flows** now preload and display saved pipeline values in summary and edit state. |
+| 8 | **Individual Reports (S-10)** now show pipeline values inside completed visit rows for 7-day and 30-day views. |
 
 ---
 
@@ -12,14 +40,14 @@
 | # | Change |
 |---|--------|
 | 1 | **Unified bottom nav across all roles:** `Today · Plan · Clients · Reports · Profile` (5 tabs). Team Overview and Admin moved out of nav for admin/management. |
-| 2 | **Profile (S-12) now hosts "Admin Tools" card** — visible only to admin/management. Provides shortcut entries to Admin (S-09) and Team Overview (S-06). |
+| 2 | **Profile (S-12) now hosts "Admin Tools" card** — visible only to admin/management. Provides shortcut entries to Admin (S-09) and Team Report (S-14). |
 | 3 | **New screen S-13 — Edit Visit (Outcome & Status).** Reached from a 3-dot ⋮ menu on visit cards in Today (S-02), Plan (S-03), and Client Workspace (S-08). Edits status (Planned / Active / Done / No-show / Rescheduled / Cancelled), outcome (Positive / Neutral / Negative / No-show), pipeline value, notes, and reschedule date/time. Also exposes Delete. |
 | 4 | **Reports (S-10) for AM/Sales/Solution — Teams tab removed.** They only see All / Mine. |
 | 5 | **Reports (S-10) for Admin/Management — Teams tab navigates to a dedicated Team Report flow** (S-14 → S-15) instead of an inline list. |
-| 6 | **New screen S-14 — Team Report.** Lists every AM in the current quarter with avatar, sector, client count, visit count, and pipeline. Sortable by Visits / Pipeline / Sector. Admin/management only. |
+| 6 | **New screen S-14 — Team Report.** Lists current-quarter AM activity with report views for AMs, Departments, and Sectors. Admin/management only. |
 | 7 | **New screen S-15 — AM Visit List (drilldown from S-14).** Shows the selected AM's full visit list for the current quarter, grouped by date with status badges and outcomes. Filters: All / Done / Pending / No-show. |
 | 8 | **Sales + Solution merged on the login screen** into a single "Sales / Solution" entry (the underlying roles remain distinct in RBAC). |
-| 9 | **Admin Tools (S-09) simplified** — Sectors tab removed; "Create Sector" inlined into Tools. Sign Out card added to Tools. |
+| 9 | **Admin Tools (S-09) simplified** — Sectors tab removed and "Create Sector" inlined into Tools. |
 | 10 | **3-dot ⋮ menu on every visit card** in S-02, S-03, S-08 opens S-13 Edit Visit without disturbing card-level navigation. |
 
 ---
@@ -37,6 +65,16 @@
 - Edit Visit is working, including visible time options and office-hour enforcement.
 - Client profile is working, including client save feedback, contact creation, and clean launch of Schedule Visit.
 - Reports screen period filters now use backward-looking ranges for `7 Days`, `30 Days`, and `3 Months`.
+- Team Overview is working with live Cockpit data.
+- Team Overview report views now support `By AMs`, `By Departments`, and `By Sector`.
+- Admin client creation now uses the live sector list, including newly created sectors.
+- Client profile now supports sector editing.
+- Visit summary and edit mode now show previously saved pipeline values.
+- Department handling now follows role-based rules in Profile and approvals.
+- Owned sectors are now user-specific and drive the default sector shown first in Clients and visit client selection.
+- Department drilldowns now show each member with total visits only.
+- Today screen visit rows now use the compact summary layout.
+- Team Report initials now remain readable in dark mode.
 
 ### Verified Report Fixes
 
@@ -61,9 +99,8 @@
 | 5 | **All roles can add participants and agenda items to any visit they can see** |
 | 6 | **Target changed from MMK to USD** — `target_usd` field; default $30,000 |
 | 7 | **Permission matrix simplified** to 5 columns (Admin / Management / Sales / Solution / AM) |
-| 8 | **Seniority (junior/senior) applies to all non-admin roles** — management, sales, solution, am |
-| 9 | **users collection updated** — `role` options: `admin`, `management`, `sales`, `solution`, `am`; `target_usd` default 30000 |
-| 10 | **Visit visibility rules** — management sees all in group; sales/solution see all in group; am sees own only |
+| 8 | **Users collection updated** — `role` options: `admin`, `management`, `sales`, `solution`, `am`; `target_usd` default 30000 |
+| 9 | **Visit visibility rules** — management sees all in group; sales/solution see all in group; am sees own only |
 
 
 ## Changelog — v2.2 (May 10, 2026)
@@ -116,25 +153,35 @@ Pipeline tracking is a **separate app**. Not in this MVP.
 
 > **AM sells across all departments.** An AM visit to a Banking client may involve Infra, App, and Solution staff — all added as participants via the participant selector.
 
-### Seniority
+### Departments
 
-Applies to `management`, `sales`, `solution`, and `am`. Stored on the user record.
+User `meeting_group` is treated as a department selector in the app UI. Visit `meeting_group` still represents the visit's business department.
 
-| Seniority | Description |
-|-----------|-------------|
-| `junior` | Standard access within their role/group |
-| `senior` | Same access for MVP; future: mentee visibility, extended reporting |
+| Department | Description |
+|------------|-------------|
+| `infra` | Infrastructure |
+| `es` | Enterprise Solutions |
+| `app` | Application |
+| `ms` | Microsoft |
+| `account` | Account Manager department; AM users default here and cannot change it |
+| `all` | All Departments; only for `admin` and `management` |
 
-### Meeting Groups
+### Department Rules By Role
 
-Every visit belongs to one meeting group. Users scoped to a group see only that group's visits (plus any visit where they are added as participant).
+| Role | Department Options |
+|------|--------------------|
+| `am` | Fixed to `account` |
+| `sales` | `infra`, `es`, `app`, `ms` |
+| `solution` | `infra`, `es`, `app`, `ms` |
+| `management` | `infra`, `es`, `app`, `ms`, `all` |
+| `admin` | `infra`, `es`, `app`, `ms`, `all` |
 
-| Group | Description |
-|-------|-------------|
-| `infra` | Infrastructure — Management, Sales, Solution |
-| `es` | Enterprise Solutions — Management, Sales, Solution |
-| `app` | Application — Management, Sales, Solution |
-| `ms` | Managed Services — Management, Sales, Solution |
+### Owned Sectors
+
+- Every role can see and edit their own owned sectors in Profile.
+- Owned sectors are stored on the user record as `owned_sectors`.
+- The first owned sector becomes the default active sector in the Clients screen when present.
+- Visit client picking prioritizes clients from the user's owned sectors first.
 
 ### Visit Visibility Rules
 
@@ -191,7 +238,7 @@ Cockpit CMS stores user profile + role. Microsoft handles identity only.
 10. Special case: job title contains "Admin" → auto-assign `admin` role + `approval_status: approved`
 
 **Admin approves users via:**
-- **In-app**: Admin screen (S-09) → Approvals tab → assign role + seniority + meeting group (Admin: any role; Management: can approve within own group)
+- **In-app**: Admin screen (S-09) → Approvals tab → assign role + meeting group (Admin: any role; Management: can approve within own group)
 - **Cockpit CMS**: `users` collection → update `role` + `approval_status` fields directly
 
 No passwords. No separate registration. Users sign in with Microsoft; admin assigns roles.
@@ -217,10 +264,10 @@ Go to **cms.bimats.com → Content → Add Collection** and create each one belo
 | `name` | Text | Required |
 | `email` | Text | Required |
 | `role` | Select | Options: `am`, `sales`, `solution`, `management`, `admin` |
-| `seniority` | Select | Options: `junior`, `senior`; applicable to all roles except `admin` |
 | `approval_status` | Select | Options: `pending`, `approved`, `rejected`; Default: `pending` |
 | `job_title` | Text | From Microsoft Entra ID — auto-populated on first login |
-| `meeting_group` | Select | Options: `infra`, `es`, `app`, `ms`; required for `sales`, `solution`, `management`; nullable for `am`/`admin` |
+| `meeting_group` | Select | Options: `infra`, `es`, `app`, `ms`, `account`, `all`; role-restricted in app UI |
+| `owned_sectors` | Tags / JSON array | User-selected sectors shown in Profile and used as default client-sector preference |
 | `target_usd` | Number | Personal target in USD; Default: `30000` ($30,000) |
 | `ms_email` | Text | Must match Microsoft work email exactly |
 | `ms_id` | Text | Microsoft Entra ID object ID (optional) |
@@ -247,7 +294,7 @@ Each sector has an optional `owner_am` — the AM responsible for that sector. A
 | Field | Type | Notes |
 |-------|------|-------|
 | `name` | Text | Required |
-| `sector` | Collection Link | Links to `sectors` — required |
+| `sector` | Text | Stored as plain text sector name; values come from the `sectors` collection list |
 | `account_type` | Select | Options: `Named Account`, `Key Account` |
 | `status` | Select | Options: `Active`, `Hold`, `Inactive`, `Churned`, `Prospect`; Default: `Prospect` |
 | `am` | Collection Link | Links to `users` — assigned AM |
@@ -298,11 +345,9 @@ Each sector has an optional `owner_am` — the AM responsible for that sector. A
 | `checkin_lat` | Number | GPS latitude |
 | `checkin_lng` | Number | GPS longitude |
 
-> **Agenda items are now stored in the `agenda_items` collection** (not a textarea field on the visit). This allows adding many agenda items with individual completion tracking.
+> **Agenda items are now stored in the `agendaitems` collection** (not a textarea field on the visit). This allows adding many agenda items with individual completion tracking.
 
----
-
-#### Collection: `agenda_items`
+#### Collection: `agendaitems`
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -314,7 +359,7 @@ Each sector has an optional `owner_am` — the AM responsible for that sector. A
 
 ---
 
-#### Collection: `visit_outcomes`
+#### Collection: `visitoutcomes`
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -355,7 +400,7 @@ All roles share the same 5-tab bottom navigation:
 
 Role-specific surfaces are reached **inside** these tabs:
 
-- **Admin / Management** open Admin (S-09) and Team Overview (S-06) from the **Admin Tools** card on Profile (S-12).
+- **Admin / Management** open Admin (S-09) and Team Report (S-14) from the **Admin Tools** card on Profile (S-12).
 - **Admin / Management** open the Team Report flow (S-14 → S-15) from the **Teams** sub-tab on Reports (S-10). The Teams sub-tab is hidden for AM / Sales / Solution.
 - **All roles** open Edit Visit (S-13) from the **⋮** menu on any visit card in S-02 / S-03 / S-08.
 
@@ -370,19 +415,19 @@ Screens adapt based on the user's role. The bottom navigation is the same for ev
 | S-02 | Today Dashboard | All approved | Today's visits (scoped by role), quick actions, KPIs. AM sees own; Sales/Solution/Management sees group; Admin sees all |
 | S-03 | Visit Plan (Calendar & List) | All approved | Month calendar + daily visit list. Same scoping as S-02 |
 | S-04 | Create / Edit Visit (Modal) | AM + Admin + Management + Sales | POPUP modal: client, meeting group, date/time, **participant selector** (multi-user from any group). AM limited to own clients; Sales/Management limited to own group |
-| S-05 | Team Overview | Admin + Management | Admin: all groups; Management: own group only. Shows group members, visit counts, role/seniority badges |
+| S-05 | Team Overview | Admin + Management | Admin: all groups; Management: own group only. Legacy concept replaced in-app by the Team Report flow and admin shortcuts |
 | S-06 | Visit Detail / Active Visit | All approved | Check-in/out, agenda checklist (→ S-11), notes, start/finish. Participants listed. All roles can add agenda items and participants |
 | S-07 | Client List | All approved | Full client directory; search + filter by sector/status/AM. AM sees own clients prominently |
 | S-08 | Client Workspace / Detail | All approved | Client record, total meetings count, outcome summary. **Instruction tab** (admin-edit, all-read). Tabs: Overview / Instruction / Visits / Outcomes |
-| S-09 | Admin Screen | Admin + Management | Tools + Approvals tab (set role + seniority + group) + Sector management. Management sees own group only |
+| S-09 | Admin Screen | Admin + Management | Tools + Approvals tab (set role + group) + sector and client creation. Management sees own group only |
 | S-10 | Reports | All approved | AM: personal. Management: group. Admin: full team. Shows target (USD) vs. actuals |
 | S-11 | Add / Edit Agenda Item | All approved | Dedicated screen from S-06. Add/edit/delete/reorder agenda items. Any participant or group-scoped user can add items |
-| S-12 | Profile | All approved | View/edit: meeting group, seniority, personal target (USD), owned sectors (AM/Management), theme. **Admin Tools card** (admin/management only) links to S-09 and S-06. Sign out. |
+| S-12 | Profile | All approved | View/edit: meeting group, personal target (USD), owned sectors, theme. **Admin Tools card** (admin/management only) links to S-09 and S-14. Sign out. |
 | S-13 | Edit Visit | All approved | Opened from ⋮ menu on any visit card. Edit status, outcome, pipeline value, notes, reschedule date/time. Delete option. |
-| S-14 | Team Report | Admin + Management | Reached from Teams sub-tab on S-10. Lists all AMs in current quarter with visit counts, pipeline, sector. Sort by Visits / Pipeline / Sector. |
+| S-14 | Team Report | Admin + Management | Reached from Teams sub-tab on S-10. View tabs: By AMs / By Departments / By Sector. Departments and sectors open centered live drilldown modals. |
 | S-15 | AM Visit List | Admin + Management | Drilldown from S-14. Selected AM's Q visits with date, client, outcome, status. Filter All / Done / Pending / No-show. |
 
-> S-04 is a modal overlay (not standalone navigation). S-11 pushes onto the navigation stack from S-06 (Visit Detail). S-13 is reached from the ⋮ menu on visit cards (S-02 / S-03 / S-08). S-14 is reached from the Teams sub-tab on S-10 and is admin/management only. S-15 is a drilldown from S-14.
+> S-04 is a modal overlay (not standalone navigation). S-11 pushes onto the navigation stack from S-06 (Visit Detail). S-13 is reached from the ⋮ menu on visit cards (S-02 / S-03 / S-08). S-14 is reached from the Teams sub-tab on S-10 and from the Admin Tools card on S-12. S-15 remains the AM-only drilldown from S-14.
 
 ---
 
@@ -421,7 +466,7 @@ Bottom navigation tabs (added in v2.1):
 
 The Team Overview itself shows:
 - Group filter (Admin: dropdown; Management: pre-locked to their group)
-- Member list with role + seniority badges
+- Member list with role badges and visit activity indicators
 - Today's visit count per member
 - Weekly visit count per member
 
@@ -453,7 +498,7 @@ Dedicated screen pushed from Visit Detail (S-06). Handles visits with many agend
 - Delete item (swipe left)
 - Reorder (drag handle)
 
-Data saved to `agenda_items` collection linked to the visit.
+Data saved to `agendaitems` collection linked to the visit.
 
 ---
 
@@ -465,8 +510,8 @@ Available to all roles. Accessed from header avatar or bottom nav.
 - **My Info** — name, email, job title, role (read-only)
 - **My Group** — select meeting group (`infra` / `es` / `app` / `ms`); editable
 - **My Target** — target in USD; editable; default $30,000
-- **My Sectors** — list of sectors where `owner_am = me`; read-only (set by Admin or Management)
-- **Admin Tools** — admin/management only; links to Admin (S-09) and Team Overview (S-06)
+- **Owned Sectors** — editable multi-select sourced from Cockpit sectors plus live client sector values
+- **Admin Tools** — admin/management only; links to Admin (S-09) and Team Report (S-14)
 - **Theme** — light / dark toggle
 - **Sign out**
 
@@ -495,9 +540,12 @@ Admin / Management only. Reached from the **Teams** sub-tab on Reports (S-10).
 
 **KPI strip (3 cells):** total visits in Q · % completed · pipeline USD.
 
-**Sort tabs:** `By Visits` (default) · `By Pipeline` · `By Sector`.
+**View tabs:** `By AMs` (default) · `By Departments` · `By Sector`.
 
-**List:** one row per AM — avatar, name, sector badge, client count, visits in Q, pipeline USD, chevron. Tap row → S-15.
+**List behavior:**
+- `By AMs`: one row per AM — avatar, name, department badge, client count, visits in Q, pipeline USD, chevron. Tap row → S-15.
+- `By Departments`: one row per department — member count, completed count, visits in Q, pipeline USD. Tap row → centered detail modal with the actual visit owners and contributors and their total visit counts.
+- `By Sector`: one row per sector — client count, completed count, visits in Q, pipeline USD. Tap row → centered detail modal with clients and top 5 contributors.
 
 ---
 
@@ -655,7 +703,7 @@ GET  https://cms.bimats.com/api/content/items/users
   ?filter[ms_email]=user@bimgroup.com&limit=1
 
 # Create outcome
-POST https://cms.bimats.com/api/content/item/visit_outcomes
+POST https://cms.bimats.com/api/content/item/visitoutcomes
   body: { data: { visit: { _id: "..." }, result: "positive", ... } }
 
 # Report: all visits in date range
@@ -718,7 +766,7 @@ The Admin screen has three tabs:
 **Approvals tab:**
 - Lists users with `approval_status = pending`
 - Shows: name, MS email, job title (from Entra ID)
-- Approve action: select **Role** (`am` / `sales` / `solution` / `management` / `admin`) + **Seniority** (junior / senior) + **Meeting Group** (`infra` / `es` / `app` / `ms`, if applicable)
+- Approve action: select **Role** (`am` / `sales` / `solution` / `management` / `admin`) + **Meeting Group** (`infra` / `es` / `app` / `ms`, if applicable)
 - Confirm → sets `approval_status: approved` on the user record
 - Approved users immediately get app access
 
@@ -772,7 +820,7 @@ These are deferred to Phase 2:
 - WSO2 IS / APIM integration — UAT demo environment only
 - Management KPI dashboard (web) — Phase 2
 - Excel / PDF report export — Phase 2
-- Mentee / senior visibility rules for sales seniority — Phase 2
+- Additional team drilldown analytics beyond the current centered Team Report modal — future phase
 - Multi-group Management (management scoped to 2+ groups simultaneously) — Phase 2; for MVP Management is bound to one group
 
 > **Moved INTO MVP from Phase 2:** Agenda Items (S-11), Client Instruction field, Meeting Groups, Profile screen (S-12), expanded RBAC (5 roles), Participants on visits.

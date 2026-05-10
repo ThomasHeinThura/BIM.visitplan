@@ -20,6 +20,9 @@ export type EditVisitContext = {
   date: string;
   time: string;
   status: VisitStatus;
+  initialOutcome?: VisitOutcome;
+  initialPipelineUsd?: string;
+  initialNotes?: string;
 };
 
 export type VisitStatus = 'planned' | 'active' | 'done' | 'noshow' | 'rescheduled' | 'cancelled';
@@ -75,9 +78,9 @@ export default function EditVisitModal({ visible, visit, onClose, onSave, onDele
   useEffect(() => {
     if (visit) {
       setStatus(visit.status || 'planned');
-      setOutcome('pending');
-      setPipeline('');
-      setNotes('');
+      setOutcome(visit.initialOutcome || 'pending');
+      setPipeline(visit.initialPipelineUsd || '');
+      setNotes(visit.initialNotes || '');
       setRDate(visit.date || '');
       setRTime(visit.time || '09:00');
       setDatePickerOpen(false);
