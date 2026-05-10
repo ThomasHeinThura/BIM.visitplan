@@ -44,6 +44,7 @@ export default function ProfileScreen({
 }: Props) {
   const { theme, isDark, setMode } = useTheme();
   const isMgmt = role === 'admin' || role === 'management';
+  const ownedSectors = ['Software', 'Banking', 'Microfinance'];
 
   // Editable local copy of profile (so changes show immediately).
   const [me, setMe] = useState<CockpitUser>(user);
@@ -114,6 +115,9 @@ export default function ProfileScreen({
           <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>
             {me.email}
           </Text>
+          <Text style={{ fontSize: 11, color: theme.textFaint, marginTop: 4 }}>
+            {ROLE_LABEL[role]} profile
+          </Text>
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
             <Badge tone="teal">{ROLE_LABEL[role]}</Badge>
             {me.seniority ? (
@@ -148,6 +152,9 @@ export default function ProfileScreen({
       <SectionHead title="Preview as role (dev)" />
       <View style={{ paddingHorizontal: 16 }}>
         <Card>
+          <Text style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 10 }}>
+            Preview navigation and access states directly from this account.
+          </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {(['admin', 'management', 'sales', 'solution', 'am'] as UserRole[]).map((r2) => {
               const active = r2 === role;
@@ -182,6 +189,18 @@ export default function ProfileScreen({
       {/* Admin tools */}
       {isMgmt ? (
         <>
+          <SectionHead title="Owned Sectors" />
+          <View style={{ paddingHorizontal: 16 }}>
+            <Card>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {ownedSectors.map((sector) => (
+                  <Badge key={sector} tone="teal">{sector}</Badge>
+                ))}
+                <Badge tone="muted">+ Add</Badge>
+              </View>
+            </Card>
+          </View>
+
           <SectionHead title="Tools" />
           <View style={{ paddingHorizontal: 16 }}>
             <Card padded={false} onPress={onOpenAdmin}>
@@ -192,7 +211,7 @@ export default function ProfileScreen({
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text }}>Admin Tools</Text>
                   <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>
-                    Sectors, approvals, users
+                    Sectors, quarters, approvals
                   </Text>
                 </View>
                 <Icon.ChevronRight size={16} color={theme.textFaint} />

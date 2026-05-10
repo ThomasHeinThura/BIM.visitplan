@@ -4,6 +4,8 @@ import type {
   CockpitUser,
   CockpitClient,
   CockpitContact,
+  CockpitSector,
+  CockpitAgendaItem,
   CockpitVisit,
   CockpitVisitOutcome,
   CockpitFinancialYear,
@@ -31,6 +33,35 @@ type CollectionResponse<T> = T[];
 // ─── Query Helpers ─────────────────────────────────────────────────────────
 
 export type FilterRecord = Record<string, string | number | boolean | Record<string, string | number>>;
+
+function getNestedValue(record: Record<string, unknown>, path: string) {
+  return path.split('.').reduce<unknown>((value, segment) => {
+    if (value && typeof value === 'object' && segment in (value as Record<string, unknown>)) {
+      return (value as Record<string, unknown>)[segment];
+    }
+    return undefined;
+  }, record);
+}
+
+function compareValues(left: unknown, right: unknown) {
+  if (left == null && right == null) return 0;
+  if (left == null) return 1;
+  if (right == null) return -1;
+  if (typeof left === 'number' && typeof right === 'number') return left - right;
+  return String(left).localeCompare(String(right));
+}
+
+function sortItems<T extends Record<string, unknown>>(items: T[], sort?: Record<string, 1 | -1>) {
+  if (!sort || Object.keys(sort).length === 0) return items;
+
+  return [...items].sort((left, right) => {
+    for (const [key, direction] of Object.entries(sort)) {
+      const comparison = compareValues(getNestedValue(left, key), getNestedValue(right, key));
+      if (comparison !== 0) return comparison * direction;
+    }
+    return 0;
+  });
+}
 
 function buildParams(options?: {
   filter?: FilterRecord;
@@ -132,9 +163,23 @@ export async function getClients(options?: {
   sort?: Record<string, 1 | -1>;
 }) {
   const res = await cockpit.get<CollectionResponse<CockpitClient>>('/content/items/clients', {
-    params: buildParams({ ...options, populate: 1 }),
+    params: buildParams({
+      filter: options?.filter,
+      limit: options?.limit,
+      skip: options?.skip,
+      populate: 1,
+    }),
   });
-  return res.data;
+
+  const clients = [...res.data];
+  const sortKey = options?.sort ? Object.keys(options.sort)[0] : null;
+  const sortDir = sortKey ? options?.sort?.[sortKey] ?? 1 : 1;
+
+  if (sortKey === 'name') {
+    clients.sort((left, right) => left.name.localeCompare(right.name) * sortDir);
+  }
+
+  return clients;
 }
 
 /**
@@ -151,8 +196,9 @@ export async function getClientsByFilter(opts: {
   const filter: FilterRecord = {};
   if (opts.sector) filter['sector'] = opts.sector;
   if (opts.status) filter['status'] = opts.status;
-  if (opts.amId) filter['am._id'] = opts.amId;
-  return getClients({ filter, limit: opts.limit ?? 200, skip: opts.skip, sort: { name: 1 } });
+  const clients = await getClients({ filter, limit: opts.limit ?? 200, skip: opts.skip, sort: { name: 1 } });
+  if (!opts.amId) return clients;
+  return clients.filter((client) => client.am?._id === opts.amId);
 }
 
 /**
@@ -171,6 +217,11 @@ export async function getSectors(): Promise<string[]> {
     if (c.sector) seen.add(c.sector);
   }
   return Array.from(seen).sort();
+}
+
+export async function upsertSector(data: Partial<CockpitSector> & { _id?: string }) {
+  const res = await cockpit.post<CockpitSector>('/content/item/sectors', { data });
+  return res.data;
 }
 
 export async function getClient(id: string): Promise<CockpitClient | null> {
@@ -207,6 +258,13 @@ export async function upsertContact(data: Partial<CockpitContact> & { _id?: stri
   return res.data;
 }
 
+// ─── Agenda Items ─────────────────────────────────────────────────────────
+
+export async function upsertAgendaItem(data: Partial<CockpitAgendaItem> & { _id?: string }) {
+  const res = await cockpit.post<CockpitAgendaItem>('/content/item/agendaitems', { data });
+  return res.data;
+}
+
 // ─── Visits ────────────────────────────────────────────────────────────────
 
 export async function getVisits(options?: {
@@ -217,15 +275,38 @@ export async function getVisits(options?: {
   fields?: string;
 }) {
   const res = await cockpit.get<CollectionResponse<CockpitVisit>>('/content/items/visits', {
-    params: buildParams({ limit: 20, sort: { date: -1 }, ...options, populate: 1 }),
+    // Cockpit currently returns HTTP 500 for visit collection sort params, so we sort locally.
+    params: buildParams({
+      filter: options?.filter,
+      limit: options?.limit ?? 20,
+      skip: options?.skip,
+      populate: 1,
+      fields: options?.fields,
+    }),
   });
-  return res.data;
+  return sortItems(res.data, options?.sort);
 }
 
-export async function getVisitsByAm(amId: string, options?: { limit?: number; skip?: number }) {
-  return getVisits({
-    filter: { 'assigned_am._id': amId },
-    ...options,
+export async function getVisitsByAm(amId: string, options?: {
+  limit?: number;
+  skip?: number;
+  sort?: Record<string, 1 | -1>;
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
+  const visits = await getVisits({
+    limit: options?.limit ?? 200,
+    skip: options?.skip,
+    sort: options?.sort ?? { date: -1, start_time: 1 },
+  });
+
+  return visits.filter((visit) => {
+    if (visit.assigned_am?._id !== amId) return false;
+    if (options?.date && visit.date !== options.date) return false;
+    if (options?.dateFrom && (!visit.date || visit.date < options.dateFrom)) return false;
+    if (options?.dateTo && (!visit.date || visit.date > options.dateTo)) return false;
+    return true;
   });
 }
 
@@ -301,9 +382,9 @@ export async function getFinancialYears(options?: {
 }) {
   const res = await cockpit.get<CollectionResponse<CockpitFinancialYear>>(
     '/content/items/financialyears',
-    { params: buildParams({ ...options, sort: { year: -1 } }) },
+    { params: buildParams({ ...options }) },
   );
-  return res.data;
+  return sortItems(res.data, { year: -1 });
 }
 
 export async function upsertFinancialYear(
@@ -322,9 +403,9 @@ export async function getFinancialQuarters(options?: {
 }) {
   const res = await cockpit.get<CollectionResponse<CockpitFinancialQuarter>>(
     '/content/items/financialquarters',
-    { params: buildParams({ ...options, sort: { quarter_number: 1 }, populate: 1 }) },
+    { params: buildParams({ ...options, populate: 1 }) },
   );
-  return res.data;
+  return sortItems(res.data, { quarter_number: 1 });
 }
 
 export async function upsertFinancialQuarter(

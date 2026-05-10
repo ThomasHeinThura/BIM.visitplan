@@ -187,6 +187,11 @@ export function Card({ children, style, padded = true, onPress }: {
     padding: padded ? 16 : 0,
     borderWidth: 1,
     borderColor: theme.border,
+    shadowColor: theme.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    elevation: 2,
   };
   if (onPress) {
     return (
@@ -224,7 +229,7 @@ export function Badge({ children, tone = 'muted', style }: {
       backgroundColor: c.bg,
       paddingHorizontal: 8,
       paddingVertical: 3,
-      borderRadius: radii.sm,
+      borderRadius: radii.full,
       alignSelf: 'flex-start',
     }, style]}>
       <Text style={{ color: c.fg, fontSize: 11, fontWeight: '600', fontFamily: fonts.body }}>
@@ -248,11 +253,11 @@ export function KPICard({ value, label, delta, deltaTone, accent }: {
     : deltaTone === 'down' ? theme.warning
     : theme.textSecondary;
   return (
-    <Card style={{ flex: 1, padding: 14 }}>
+    <Card style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 10, alignItems: 'center' }}>
       <Text style={{
-        fontSize: 26, fontWeight: '800', color: accent ?? theme.primary, fontFamily: fonts.display,
+        fontSize: 24, fontWeight: '700', color: accent ?? theme.text, fontFamily: fonts.display,
       }}>{value}</Text>
-      <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 10, color: theme.textSecondary, marginTop: 4, textAlign: 'center', lineHeight: 13 }}>{label}</Text>
       {delta ? (
         <Text style={{ fontSize: 10, color: deltaColor, marginTop: 4, fontWeight: '600' }}>
           {deltaTone === 'up' ? '↑ ' : deltaTone === 'down' ? '↓ ' : ''}{delta}
@@ -273,9 +278,9 @@ export function SectionHead({ title, action, onAction }: {
   return (
     <View style={{
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, marginTop: 24, marginBottom: 10,
+      paddingHorizontal: 16, marginTop: 18, marginBottom: 8,
     }}>
-      <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
         {title}
       </Text>
       {action ? (
@@ -313,12 +318,12 @@ export function FAB({ onPress, icon }: { onPress: () => void; icon?: React.React
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [{
-        position: 'absolute', right: 20, bottom: 96,
-        width: 52, height: 52, borderRadius: 26,
+        position: 'absolute', right: 16, bottom: 72,
+        width: 48, height: 48, borderRadius: 24,
         backgroundColor: theme.primary,
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: theme.primary, shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+        shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35, shadowRadius: 10, elevation: 8,
       }, pressed && { transform: [{ scale: 0.96 }] }]}
     >
       {icon ?? <Icon.Plus size={24} color="#fff" />}
@@ -342,7 +347,7 @@ export function PrimaryButton({ label, onPress, disabled, icon, style }: {
       disabled={disabled}
       style={({ pressed }) => [{
         backgroundColor: disabled ? theme.surfaceOffset : theme.primary,
-        paddingVertical: 14, paddingHorizontal: 18,
+        paddingVertical: 13, paddingHorizontal: 18,
         borderRadius: radii.md,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
       }, pressed && !disabled && { opacity: 0.9 }, style]}
@@ -350,7 +355,7 @@ export function PrimaryButton({ label, onPress, disabled, icon, style }: {
       {icon}
       <Text style={{
         color: disabled ? theme.textFaint : '#fff',
-        fontWeight: '700', fontSize: 15, fontFamily: fonts.body,
+        fontWeight: '700', fontSize: 14, fontFamily: fonts.display,
       }}>{label}</Text>
     </Pressable>
   );
@@ -364,13 +369,15 @@ export function SecondaryButton({ label, onPress, style }: {
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [{
-        backgroundColor: theme.surfaceOffset,
-        paddingVertical: 14, paddingHorizontal: 18,
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: theme.primary,
+        paddingVertical: 11, paddingHorizontal: 18,
         borderRadius: radii.md,
         alignItems: 'center', justifyContent: 'center',
       }, pressed && { opacity: 0.85 }, style]}
     >
-      <Text style={{ color: theme.text, fontWeight: '600', fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: theme.primary, fontWeight: '600', fontSize: 14, fontFamily: fonts.display }}>{label}</Text>
     </Pressable>
   );
 }
@@ -385,14 +392,16 @@ export function FilterTab({ label, active, onPress }: {
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [{
-        paddingHorizontal: 14, paddingVertical: 8,
+        paddingHorizontal: 14, paddingVertical: 6,
         borderRadius: radii.full,
         backgroundColor: active ? theme.primary : theme.surfaceOffset,
+        borderWidth: 1,
+        borderColor: active ? theme.primary : theme.border,
       }, pressed && { opacity: 0.85 }]}
     >
       <Text style={{
         color: active ? '#fff' : theme.textSecondary,
-        fontSize: 12, fontWeight: '600',
+        fontSize: 12, fontWeight: active ? '600' : '500',
       }}>{label}</Text>
     </Pressable>
   );
@@ -421,36 +430,28 @@ export function VisitItem({ time, title, client, location, status, onPress, onMo
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [{
-      flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12,
+      flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10,
     }, pressed && { backgroundColor: theme.surfaceOffset }]}>
-      <View style={{ width: 56, alignItems: 'center' }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text }}>{time}</Text>
-        <View style={{ width: 1, flex: 1, backgroundColor: theme.divider, marginTop: 6 }} />
+      <View style={{ width: 36, alignItems: 'center', flexShrink: 0 }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, fontFamily: fonts.display, lineHeight: 16 }}>{time}</Text>
+        <Text style={{ fontSize: 9, color: theme.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 1 }}>Time</Text>
       </View>
-      <View style={{ width: 12, alignItems: 'center', paddingTop: 4 }}>
-        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: dot, borderWidth: 2, borderColor: theme.surface }} />
+      <View style={{ width: 2, height: 38, backgroundColor: status === 'in_progress' ? theme.primary : theme.divider, borderRadius: 2, position: 'relative', flexShrink: 0 }}>
+        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot, position: 'absolute', top: '50%', left: '50%', marginTop: -4, marginLeft: -4 }} />
       </View>
-      <View style={{ flex: 1, paddingLeft: 8 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.text, flex: 1 }} numberOfLines={1}>
-            {title}
-          </Text>
-          <Badge tone={tone} style={{ marginLeft: 8 }}>
-            {status === 'in_progress' ? 'Active' : status === 'completed' ? 'Done' : status === 'missed' ? 'Missed' : 'Planned'}
-          </Badge>
-        </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: fonts.display }} numberOfLines={1}>{client ?? title}</Text>
+        <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{title}</Text>
         {client ? (
-          <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 3 }} numberOfLines={1}>{client}</Text>
+          <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{client}</Text>
         ) : null}
-        {location ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
-            <Icon.MapPin size={11} color={theme.textFaint} />
-            <Text style={{ fontSize: 11, color: theme.textFaint }} numberOfLines={1}>{location}</Text>
-          </View>
-        ) : null}
+        {location ? <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>{location}</Text> : null}
       </View>
+      <Badge tone={tone}>
+        {status === 'in_progress' ? 'Active' : status === 'completed' ? 'Done' : status === 'missed' ? 'Missed' : 'Planned'}
+      </Badge>
       {onMore ? (
-        <Pressable onPress={onMore} hitSlop={10} style={{ padding: 6, marginLeft: 4 }}>
+        <Pressable onPress={onMore} hitSlop={10} style={{ padding: 6, marginLeft: 2 }}>
           <Icon.Edit size={14} color={theme.textFaint} />
         </Pressable>
       ) : null}
@@ -469,8 +470,10 @@ export function SearchBar({ value, onChange, placeholder }: {
   return (
     <View style={{
       flexDirection: 'row', alignItems: 'center', gap: 8,
-      backgroundColor: theme.surfaceOffset, borderRadius: radii.md,
+      backgroundColor: theme.inputBg, borderRadius: radii.md,
       paddingHorizontal: 12, height: 40,
+      borderWidth: 1.5,
+      borderColor: theme.inputBorder,
     }}>
       <Icon.Search size={16} color={theme.textFaint} />
       <TextInput

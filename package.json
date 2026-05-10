@@ -7,6 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "audit:cockpit": "node scripts/audit-cockpit.mjs",
+    "seed:financial-calendar": "node scripts/seed-financial-calendar.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { useTheme, fonts, radii } from '../context/ThemeContext';
-import { Card, Icon, PrimaryButton } from './ui';
+import { Icon, PrimaryButton } from './ui';
 
 type AuthStatus =
   | 'restoring' | 'unauthenticated' | 'signing_in' | 'authenticated'
@@ -15,7 +15,7 @@ export function LoginScreen({
   error: string | null;
   onLogin: () => void;
 }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const isLoading = status === 'restoring' || status === 'signing_in';
   const isBlocked = status === 'pending_approval' || status === 'inactive';
 
@@ -33,76 +33,73 @@ export function LoginScreen({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: theme.bg }}
     >
-      {/* Background gradient stack */}
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-        <View style={{ flex: 1, backgroundColor: theme.loginBgFrom ?? theme.bg }} />
-        <View style={{ flex: 1, backgroundColor: theme.loginBgVia ?? theme.bg }} />
-        <View style={{ flex: 1, backgroundColor: theme.loginBgTo ?? theme.bg }} />
-        {/* Soft accent orb */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.loginBgVia ?? theme.bg }} pointerEvents="none">
         <View style={{
           position: 'absolute', top: -80, right: -80, width: 240, height: 240,
-          borderRadius: 120, backgroundColor: theme.primary, opacity: 0.08,
+          borderRadius: 120, backgroundColor: theme.primary, opacity: 0.12,
         }} />
         <View style={{
           position: 'absolute', bottom: -60, left: -60, width: 200, height: 200,
-          borderRadius: 100, backgroundColor: theme.primary, opacity: 0.05,
+          borderRadius: 100, backgroundColor: theme.primary, opacity: 0.08,
         }} />
       </View>
 
       <ScrollView
         contentContainerStyle={{
-          flexGrow: 1, justifyContent: 'center', alignItems: 'center',
-          paddingHorizontal: 24, paddingVertical: 48,
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: 20,
+          paddingTop: 56,
+          paddingBottom: 28,
         }}
       >
-        <View style={{ width: '100%', maxWidth: 380, alignItems: 'center' }}>
-          {/* Brand mark */}
+        <View style={{ width: '100%', maxWidth: 380, alignSelf: 'center' }}>
+          <View style={{ alignItems: 'center', marginBottom: 24 }}>
+            <View style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              backgroundColor: theme.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 14,
+              shadowColor: theme.primary,
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.3,
+              shadowRadius: 16,
+              elevation: 8,
+            }}>
+              <Icon.BrandMark size={32} color="#fff" />
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 6 }}>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: theme.text, fontFamily: fonts.display }}>
+                Visit
+              </Text>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: theme.primary, fontFamily: fonts.display }}>
+                Plan
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 12, color: theme.textSecondary, textAlign: 'center' }}>
+              Field Visit Management · BIM Group
+            </Text>
+          </View>
+
           <View style={{
-            width: 56, height: 56, borderRadius: radii.lg,
-            backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center',
-            marginBottom: 18,
-            shadowColor: theme.primary, shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
+            width: '100%',
+            paddingHorizontal: 16,
+            paddingVertical: 18,
+            borderRadius: radii.xl,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(255,255,255,0.08)' : theme.border,
           }}>
-            <Icon.BrandMark size={32} color="#fff" />
-          </View>
-
-          {/* Wordmark */}
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 6 }}>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: theme.text, fontFamily: fonts.display }}>
-              Visit
-            </Text>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: theme.primary, fontFamily: fonts.display }}>
-              Plan
-            </Text>
-          </View>
-
-          {/* Tagline */}
-          <Text style={{
-            fontSize: 14, color: theme.textSecondary, marginBottom: 32, textAlign: 'center',
-          }}>
-            Account-based field execution
-          </Text>
-
-          {/* Sign-in card */}
-          <Card style={{ width: '100%', padding: 24, alignItems: 'stretch' }}>
-            <Text style={{
-              fontSize: 16, fontWeight: '700', color: theme.text,
-              textAlign: 'center', marginBottom: 6, fontFamily: fonts.display,
-            }}>
-              Welcome back
-            </Text>
-            <Text style={{
-              fontSize: 13, color: theme.textSecondary,
-              textAlign: 'center', marginBottom: 20,
-            }}>
-              Sign in with your Microsoft work account
-            </Text>
 
             {banner ? (
               <View style={{
                 backgroundColor: banner.tone === 'error' ? theme.errorLight : theme.primaryLight,
-                padding: 12, borderRadius: radii.md, marginBottom: 16,
+                padding: 12, borderRadius: radii.md, marginBottom: 14,
               }}>
                 <Text style={{
                   fontSize: 12,
@@ -121,17 +118,15 @@ export function LoginScreen({
               icon={isLoading ? <ActivityIndicator color="#fff" size="small" /> : <Icon.Microsoft size={18} />}
             />
 
-            <Text style={{
-              fontSize: 11, color: theme.textFaint, textAlign: 'center', marginTop: 16,
-            }}>
-              Use your @bimgoc.com work account
-            </Text>
-          </Card>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 14 }}>
+              <Text style={{ fontSize: 11, color: theme.textFaint, textAlign: 'center' }}>
+                Secured with Microsoft Entra ID
+              </Text>
+            </View>
+          </View>
 
-          <Text style={{
-            fontSize: 11, color: theme.textFaint, marginTop: 24, textAlign: 'center',
-          }}>
-            VisitPlan v2.4 · BIM Group Myanmar
+          <Text style={{ fontSize: 10, color: theme.textFaint, marginTop: 18, textAlign: 'center' }}>
+            VisitPlan v2.4 · BIM Group Myanmar · Entra ID SSO
           </Text>
         </View>
       </ScrollView>

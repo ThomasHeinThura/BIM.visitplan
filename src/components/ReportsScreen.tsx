@@ -1,17 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
-import { getVisits, getVisitsByAm } from '../lib/cockpit';
+import { useTheme, fonts, radii } from '../context/ThemeContext';
+import { getVisitOutcomes, getVisits, getVisitsByAm } from '../lib/cockpit';
 import type { FilterRecord } from '../lib/cockpit';
-import type { CockpitUser, CockpitVisit, UserRole } from '../types';
+import type { CockpitUser, CockpitVisit, CockpitVisitOutcome, UserRole } from '../types';
+import { Badge, Card, FilterTab } from './ui';
 
 type Period = 'week' | 'month' | 'quarter' | 'all';
 
@@ -21,23 +22,41 @@ type Props = {
   onOpenTeamReport?: () => void;
 };
 
-function getDateRange(period: Period) {
-  const now = new Date();
-  const from = new Date(now);
+function toIsoDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentWeekWindow() {
+  const today = startOfDay(new Date());
+  const monday = new Date(today);
+  const dayIndex = (today.getDay() + 6) % 7;
+  monday.setDate(today.getDate() - dayIndex);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { from: toIsoDate(monday), to: toIsoDate(sunday), monday, sunday };
+}
+
+function getDateWindow(period: Period) {
+  const today = startOfDay(new Date());
+  const from = new Date(today);
+  const to = new Date(today);
   switch (period) {
     case 'week':
-      from.setDate(now.getDate() - 7);
+      from.setDate(today.getDate() - 6);
       break;
     case 'month':
-      from.setMonth(now.getMonth() - 1);
+      from.setDate(today.getDate() - 29);
       break;
     case 'quarter':
-      from.setMonth(now.getMonth() - 3);
+      from.setMonth(today.getMonth() - 3);
       break;
     case 'all':
       return null;
   }
-  return from.toISOString().slice(0, 10);
+  return { from: toIsoDate(from), to: toIsoDate(to) };
 }
 
 type Stats = {
@@ -50,7 +69,7 @@ type Stats = {
 
 function computeStats(visits: CockpitVisit[]): Stats {
   const completed = visits.filter((v) => v.status === 'completed').length;
-  const scheduled = visits.filter((v) => v.status === 'scheduled').length;
+  const scheduled = visits.filter((v) => v.status === 'scheduled' || v.status === 'in_progress').length;
   const missed = visits.filter((v) => v.status === 'missed').length;
   const total = visits.length;
   return {
@@ -62,6 +81,64 @@ function computeStats(visits: CockpitVisit[]): Stats {
   };
 }
 
+function parsePipelineValue(nextAction?: string | null) {
+  if (!nextAction) return 0;
+  const match = nextAction.match(/pipeline value:\s*usd\s*([\d,]+)/i);
+  if (!match) return 0;
+  const value = Number(match[1].replace(/,/g, ''));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function formatCurrencyCompact(value: number) {
+  if (!value) return '$0';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function startOfDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function isSameDay(left: Date, right: Date) {
+  return left.getFullYear() === right.getFullYear()
+    && left.getMonth() === right.getMonth()
+    && left.getDate() === right.getDate();
+}
+
+function fmtTimeRange(visit: CockpitVisit) {
+  const formatTime = (time?: string | null) => {
+    if (!time) return null;
+    const [hourRaw, minuteRaw] = time.split(':');
+    const hour = Number(hourRaw);
+    const minute = Number(minuteRaw);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return time;
+    const suffix = hour < 12 ? 'AM' : 'PM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${String(minute).padStart(2, '0')} ${suffix}`;
+  };
+
+  const start = formatTime(visit.start_time);
+  const end = formatTime(visit.end_time);
+  if (start && end) return `${start} - ${end}`;
+  return start || end || 'No time set';
+}
+
+function statusTone(status: CockpitVisit['status']): 'success' | 'warn' | 'error' | 'info' {
+  if (status === 'completed') return 'success';
+  if (status === 'missed') return 'error';
+  if (status === 'in_progress') return 'info';
+  return 'warn';
+}
+
+function statusLabel(status: CockpitVisit['status']) {
+  if (status === 'in_progress') return 'In Progress';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
 export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
   const { theme } = useTheme();
   const effectiveRole: UserRole = role ?? (user.role as UserRole);
@@ -69,6 +146,8 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
   const [tab, setTab] = useState<'mine' | 'team'>('mine');
   const [period, setPeriod] = useState<Period>('month');
   const [visits, setVisits] = useState<CockpitVisit[]>([]);
+  const [weekVisits, setWeekVisits] = useState<CockpitVisit[]>([]);
+  const [visitOutcomes, setVisitOutcomes] = useState<CockpitVisitOutcome[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,18 +155,38 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
   const load = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const fromDate = getDateRange(period);
+      const dateWindow = getDateWindow(period);
+      const currentWeekWindow = getCurrentWeekWindow();
       const filter: FilterRecord = {};
-      if (fromDate) filter['date'] = { $gte: fromDate };
+      if (dateWindow) filter['date'] = { $gte: dateWindow.from, $lte: dateWindow.to };
 
       let data: CockpitVisit[];
-      if (user.role === 'admin') {
-        data = await getVisits({ filter, limit: 1000 });
+      let currentWeekData: CockpitVisit[];
+      if (isMgmt) {
+        [data, currentWeekData] = await Promise.all([
+          getVisits({ filter, limit: 1000, sort: { date: -1, start_time: -1 } }),
+          getVisits({ filter: { date: { $gte: currentWeekWindow.from, $lte: currentWeekWindow.to } }, limit: 1000, sort: { date: 1, start_time: 1 } }),
+        ]);
       } else {
-        data = await getVisitsByAm(user._id, { limit: 1000 });
-        if (fromDate) data = data.filter((v) => v.date != null && v.date >= fromDate);
+        [data, currentWeekData] = await Promise.all([
+          getVisitsByAm(user._id, {
+            limit: 1000,
+            sort: { date: -1, start_time: -1 },
+            dateFrom: dateWindow?.from,
+            dateTo: dateWindow?.to,
+          }),
+          getVisitsByAm(user._id, {
+            limit: 1000,
+            sort: { date: 1, start_time: 1 },
+            dateFrom: currentWeekWindow.from,
+            dateTo: currentWeekWindow.to,
+          }),
+        ]);
       }
+      const outcomes = await getVisitOutcomes({ limit: 1000 });
       setVisits(data);
+      setWeekVisits(currentWeekData);
+      setVisitOutcomes(outcomes);
       setError(null);
     } catch {
       setError('Could not load reports.');
@@ -97,47 +196,121 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
     }
   };
 
-  useEffect(() => { load(); }, [period, user._id]);
+  useEffect(() => { load(); }, [period, user._id, isMgmt]);
 
   const stats = computeStats(visits);
+  const successRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+  const currentWeekWindow = useMemo(() => getCurrentWeekWindow(), []);
+  const currentWeekRangeLabel = `${currentWeekWindow.monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}–${currentWeekWindow.sunday.toLocaleDateString('en-US', { day: 'numeric' })}`;
+  const pipelineValue = useMemo(() => {
+    const visitIds = new Set(visits.map((visit) => visit._id));
+    return visitOutcomes.reduce((sum, outcome) => {
+      if (!outcome.visit?._id || !visitIds.has(outcome.visit._id)) return sum;
+      return sum + parsePipelineValue(outcome.next_action);
+    }, 0);
+  }, [visitOutcomes, visits]);
+  const weekBars = useMemo(() => {
+    const monday = new Date(`${currentWeekWindow.from}T00:00:00`);
+    const bars = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      const iso = toIsoDate(date);
+      const count = weekVisits.filter((visit) => visit.date === iso).length;
+      return {
+        key: iso,
+        label: date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1),
+        count,
+      };
+    });
+    const max = Math.max(...bars.map((bar) => bar.count), 1);
+    return { bars, max };
+  }, [currentWeekWindow.from, weekVisits]);
 
-  const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.bg },
-    header: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 4 },
-    title: { fontSize: 20, fontWeight: '700', color: theme.text },
-    periodRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
-    chip: {
-      paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-      borderWidth: 1, borderColor: theme.border,
+  const recentGroups = useMemo(() => {
+    const sorted = [...visits]
+      .filter((visit) => visit.date)
+      .sort((left, right) => {
+        const leftKey = `${left.date ?? ''} ${left.start_time ?? ''}`;
+        const rightKey = `${right.date ?? ''} ${right.start_time ?? ''}`;
+        return rightKey.localeCompare(leftKey);
+      })
+      .slice(0, 12);
+
+    const today = startOfDay(new Date());
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const groups = new Map<string, CockpitVisit[]>();
+
+    for (const visit of sorted) {
+      const date = new Date(`${visit.date}T00:00:00`);
+      const label = isSameDay(date, today)
+        ? `Today · ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+        : isSameDay(date, yesterday)
+          ? `Yesterday · ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+          : date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+      const bucket = groups.get(label) ?? [];
+      bucket.push(visit);
+      groups.set(label, bucket);
+    }
+
+    return Array.from(groups.entries());
+  }, [visits]);
+
+  const styles = StyleSheet.create({
+    hero: { paddingHorizontal: 16, paddingBottom: 8 },
+    kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, paddingBottom: 8 },
+    kpiCard: { width: '31.8%', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 },
+    kpiValue: { fontSize: 18, fontWeight: '700', fontFamily: fonts.display },
+    kpiLabel: { fontSize: 9, color: theme.textSecondary, marginTop: 2 },
+    kpiLabelAccent: { fontSize: 9, color: theme.textSecondary, marginTop: 1, textTransform: 'uppercase' },
+    chartCard: { marginHorizontal: 16, marginBottom: 8, padding: 12 },
+    chartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 78, marginTop: 10 },
+    chartCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
+    chartCount: { fontSize: 10, fontWeight: '700', color: theme.textSecondary, marginBottom: 6 },
+    chartBarTrack: {
+      width: 18,
+      height: 48,
+      borderRadius: radii.md,
+      backgroundColor: theme.surfaceOffset,
+      justifyContent: 'flex-end',
+      overflow: 'hidden',
     },
-    chipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
-    chipText: { fontSize: 13, color: theme.textSecondary },
-    chipTextActive: { fontSize: 13, color: '#fff', fontWeight: '600' },
-    card: {
-      backgroundColor: theme.surface, marginHorizontal: 16, marginBottom: 12,
-      borderRadius: 14, padding: 20, elevation: 1,
-      shadowColor: theme.cardShadow, shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 1, shadowRadius: 4,
+    chartBar: {
+      width: '100%',
+      borderRadius: radii.md,
+      backgroundColor: theme.primary,
+      minHeight: 6,
     },
-    cardTitle: { fontSize: 13, color: theme.textSecondary, marginBottom: 6, fontWeight: '500' },
-    bigNum: { fontSize: 40, fontWeight: '800', color: theme.primary },
-    bigLabel: { fontSize: 14, color: theme.textSecondary, marginTop: 2 },
-    rateRow: {
-      flexDirection: 'row', justifyContent: 'space-between',
-      backgroundColor: theme.surfaceAlt, borderRadius: 10, padding: 14, marginTop: 8,
+    chartLabel: { fontSize: 10, color: theme.textSecondary, marginTop: 6 },
+    teamBanner: {
+      marginHorizontal: 16,
+      marginTop: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      backgroundColor: theme.primaryLight,
+      borderRadius: radii.md,
     },
-    rateStat: { alignItems: 'center', flex: 1 },
-    rateNum: { fontSize: 22, fontWeight: '700' },
-    rateLabel: { fontSize: 11, color: theme.textSecondary, marginTop: 2 },
-    divider: { width: 1, backgroundColor: theme.border, alignSelf: 'stretch', marginVertical: 4 },
-    progressBar: {
-      height: 10, borderRadius: 5, backgroundColor: theme.border,
-      marginTop: 12, overflow: 'hidden',
+    sectionLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: theme.textSecondary,
+      paddingHorizontal: 16,
+      paddingTop: 2,
+      paddingBottom: 2,
     },
-    progressFill: { height: 10, borderRadius: 5, backgroundColor: theme.success },
-    progressLabel: { fontSize: 12, color: theme.textSecondary, marginTop: 6 },
-    errText: { color: theme.error, textAlign: 'center', margin: 16 },
-    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    historyCard: { marginHorizontal: 16, padding: 0, overflow: 'hidden' },
+    historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
+    datePill: {
+      width: 48,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      paddingVertical: 6,
+      backgroundColor: theme.surfaceOffset,
+      flexShrink: 0,
+    },
+    emptyCard: { marginHorizontal: 16, alignItems: 'center', paddingVertical: 18 },
   });
 
   const PERIODS: { key: Period; label: string }[] = [
@@ -149,101 +322,149 @@ export default function ReportsScreen({ user, role, onOpenTeamReport }: Props) {
 
   return (
     <ScrollView
-      style={s.container}
+      style={{ flex: 1, backgroundColor: theme.bg }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={theme.primary} />
       }
-      contentContainerStyle={{ paddingBottom: 100 }}
+      contentContainerStyle={{ paddingBottom: 110, paddingTop: 12 }}
     >
-      <View style={s.header}>
-        <Text style={s.title}>Reports</Text>
+      <View style={styles.hero}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>Reports</Text>
       </View>
 
-      {/* v2.4: Mine / Teams sub-tabs (Teams gated to admin/management) */}
-      <View style={s.periodRow}>
-        <TouchableOpacity
-          style={[s.chip, tab === 'mine' && s.chipActive]}
-          onPress={() => setTab('mine')}
-        >
-          <Text style={tab === 'mine' ? s.chipTextActive : s.chipText}>My Reports</Text>
-        </TouchableOpacity>
+      <View style={styles.kpiGrid}>
+        <Card style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, { color: theme.text }]}>{stats.total}</Text>
+          <Text style={styles.kpiLabel}>Visits</Text>
+        </Card>
+        <Card style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, { color: theme.success }]}>{successRate}%</Text>
+          <Text style={styles.kpiLabel}>Success</Text>
+        </Card>
+        <Card style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, { color: theme.primary }]}>{formatCurrencyCompact(pipelineValue)}</Text>
+          <Text style={styles.kpiLabel}>USD</Text>
+        </Card>
+        <Card style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, { color: theme.success }]}>{stats.completed}</Text>
+          <Text style={styles.kpiLabel}>Completed</Text>
+        </Card>
+        <Card style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, { color: theme.text }]}>{stats.scheduled}</Text>
+          <Text style={styles.kpiLabel}>Scheduled</Text>
+        </Card>
+        <Card style={styles.kpiCard}>
+          <Text style={[styles.kpiValue, { color: theme.error }]}>{stats.missed}</Text>
+          <Text style={styles.kpiLabel}>Missed</Text>
+        </Card>
+      </View>
+
+      <Card style={styles.chartCard}>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: theme.textSecondary }}>
+          {`Visits This Week (${currentWeekRangeLabel})`}
+        </Text>
+        <View style={styles.chartRow}>
+          {weekBars.bars.map((bar) => (
+            <View key={bar.key} style={styles.chartCol}>
+              <Text style={styles.chartCount}>{bar.count}</Text>
+              <View style={styles.chartBarTrack}>
+                <View style={[styles.chartBar, { height: `${Math.max((bar.count / weekBars.max) * 100, bar.count > 0 ? 12 : 0)}%` as `${number}%`, opacity: bar.count > 0 ? 1 : 0.25 }]} />
+              </View>
+              <Text style={styles.chartLabel}>{bar.label}</Text>
+            </View>
+          ))}
+        </View>
+      </Card>
+
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 }}>
+        <FilterTab label="My Reports" active={tab === 'mine'} onPress={() => setTab('mine')} />
         {isMgmt && (
-          <TouchableOpacity
-            style={[s.chip, tab === 'team' && s.chipActive]}
+          <FilterTab
+            label="Teams"
+            active={tab === 'team'}
             onPress={() => {
               setTab('team');
               onOpenTeamReport?.();
             }}
-          >
-            <Text style={tab === 'team' ? s.chipTextActive : s.chipText}>Teams</Text>
-          </TouchableOpacity>
+          />
         )}
       </View>
 
-      {/* Period selector */}
-      <View style={s.periodRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 10, gap: 8 }}>
         {PERIODS.map((p) => (
-          <TouchableOpacity
+          <View
             key={p.key}
-            style={[s.chip, period === p.key && s.chipActive]}
-            onPress={() => setPeriod(p.key)}
           >
-            <Text style={period === p.key ? s.chipTextActive : s.chipText}>{p.label}</Text>
-          </TouchableOpacity>
+            <FilterTab label={p.label} active={period === p.key} onPress={() => setPeriod(p.key)} />
+          </View>
         ))}
-      </View>
+      </ScrollView>
 
-      {error && <Text style={s.errText}>{error}</Text>}
+      {isMgmt ? (
+        <Pressable
+          onPress={onOpenTeamReport}
+          style={({ pressed }) => [styles.teamBanner, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={{ fontSize: 10, color: theme.primary, fontWeight: '600' }}>
+            Q2 2026 · All users · Team Overview lives in Reports → Teams
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {error && <Text style={{ color: theme.error, textAlign: 'center', margin: 16 }}>{error}</Text>}
 
       {loading ? (
         <ActivityIndicator color={theme.primary} style={{ marginTop: 40 }} />
       ) : (
-        <>
-          {/* Total visits */}
-          <View style={s.card}>
-            <Text style={s.cardTitle}>TOTAL VISITS</Text>
-            <Text style={s.bigNum}>{stats.total}</Text>
-            <Text style={s.bigLabel}>visits logged</Text>
-          </View>
-
-          {/* Breakdown */}
-          <View style={s.card}>
-            <Text style={s.cardTitle}>BREAKDOWN</Text>
-            <View style={s.rateRow}>
-              <View style={s.rateStat}>
-                <Text style={[s.rateNum, { color: theme.success }]}>{stats.completed}</Text>
-                <Text style={s.rateLabel}>Completed</Text>
+        <View>
+          <Text style={styles.sectionLabel}>Recent Activity</Text>
+          {recentGroups.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <Text style={{ fontSize: 14, color: theme.textSecondary }}>No report data found for this period.</Text>
+            </Card>
+          ) : (
+            recentGroups.map(([label, rows]) => (
+              <View key={label}>
+                <Text style={styles.sectionLabel}>{label}</Text>
+                <Card style={styles.historyCard}>
+                  {rows.map((visit, index) => (
+                    <View
+                      key={visit._id}
+                      style={[styles.historyRow, index < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.divider }]}
+                    >
+                      <View style={styles.datePill}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
+                          {new Date(`${visit.date}T00:00:00`).getDate()}
+                        </Text>
+                        <Text style={{ fontSize: 9, color: theme.textSecondary }}>
+                          {new Date(`${visit.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, fontFamily: fonts.display }} numberOfLines={1}>
+                          {visit.client?.name ?? visit.title}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                          {visit.assigned_am?.name ?? user.name} · {fmtTimeRange(visit)}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                          {visit.status === 'completed'
+                            ? 'Completed visit logged'
+                            : visit.status === 'missed'
+                              ? 'Missed visit needs follow-up'
+                              : visit.status === 'in_progress'
+                                ? 'Visit is currently in progress'
+                                : 'Visit scheduled'}
+                        </Text>
+                      </View>
+                      <Badge tone={statusTone(visit.status)}>{statusLabel(visit.status)}</Badge>
+                    </View>
+                  ))}
+                </Card>
               </View>
-              <View style={s.divider} />
-              <View style={s.rateStat}>
-                <Text style={[s.rateNum, { color: theme.info }]}>{stats.scheduled}</Text>
-                <Text style={s.rateLabel}>Scheduled</Text>
-              </View>
-              <View style={s.divider} />
-              <View style={s.rateStat}>
-                <Text style={[s.rateNum, { color: theme.error }]}>{stats.missed}</Text>
-                <Text style={s.rateLabel}>Missed</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Completion rate */}
-          <View style={s.card}>
-            <Text style={s.cardTitle}>COMPLETION RATE</Text>
-            <Text style={[s.bigNum, { color: stats.completionRate >= 70 ? theme.success : stats.completionRate >= 40 ? theme.warning : theme.error }]}>
-              {stats.completionRate}%
-            </Text>
-            <View style={s.progressBar}>
-              <View style={[s.progressFill, {
-                width: `${stats.completionRate}%` as `${number}%`,
-                backgroundColor: stats.completionRate >= 70 ? theme.success : stats.completionRate >= 40 ? theme.warning : theme.error,
-              }]} />
-            </View>
-            <Text style={s.progressLabel}>
-              {stats.completed} of {stats.total} visits completed
-            </Text>
-          </View>
-        </>
+            ))
+          )}
+        </View>
       )}
     </ScrollView>
   );

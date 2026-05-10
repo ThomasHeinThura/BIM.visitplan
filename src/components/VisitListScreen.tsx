@@ -31,6 +31,27 @@ function toISO(y: number, m: number, d: number) {
 }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
+function startOfWeekISO(isoDate: string) {
+  const current = new Date(`${isoDate}T00:00:00`);
+  const dayIndex = (current.getDay() + 6) % 7;
+  current.setDate(current.getDate() - dayIndex);
+  return toISO(current.getFullYear(), current.getMonth(), current.getDate());
+}
+
+function buildWeekDays(anchorIsoDate: string) {
+  const start = new Date(`${startOfWeekISO(anchorIsoDate)}T00:00:00`);
+  return Array.from({ length: 7 }, (_, index) => {
+    const current = new Date(start);
+    current.setDate(start.getDate() + index);
+    return {
+      iso: toISO(current.getFullYear(), current.getMonth(), current.getDate()),
+      label: current.toLocaleDateString('en-US', { weekday: 'short' }),
+      fullLabel: current.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      dayNumber: current.getDate(),
+    };
+  });
+}
+
 function fmtTime(t?: string | null) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
@@ -85,23 +106,28 @@ export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditV
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const monthStartISO = toISO(year, month, 1);
-  const monthEndISO   = toISO(year, month, new Date(year, month + 1, 0).getDate());
+  const grid = useMemo(() => buildGrid(year, month), [year, month]);
+  const visibleRangeStartISO = grid[0]?.iso ?? toISO(year, month, 1);
+  const visibleRangeEndISO = grid[grid.length - 1]?.iso ?? toISO(year, month, new Date(year, month + 1, 0).getDate());
+  const weekDays = useMemo(() => buildWeekDays(selected), [selected]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const filter: Record<string, string> = {
-        'date[$gte]': monthStartISO,
-        'date[$lte]': monthEndISO,
-      };
       let data: CockpitVisit[];
       if (user.role === 'am' || user.role === 'sales' || user.role === 'solution') {
-        const all = await getVisitsByAm(user._id, { limit: 200 });
-        data = all.filter(v => v.date != null && v.date >= monthStartISO && v.date <= monthEndISO);
+        data = await getVisitsByAm(user._id, {
+          limit: 300,
+          sort: { date: 1, start_time: 1 },
+          dateFrom: visibleRangeStartISO,
+          dateTo: visibleRangeEndISO,
+        });
       } else {
-        data = await getVisits({ filter, limit: 300, sort: { date: 1, start_time: 1 } });
+        data = await getVisits({
+          filter: { date: { $gte: visibleRangeStartISO, $lte: visibleRangeEndISO } },
+          limit: 300,
+          sort: { date: 1, start_time: 1 },
+        });
       }
       setVisits(data);
       setError(null);
@@ -111,22 +137,25 @@ export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditV
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user._id, user.role, monthStartISO, monthEndISO]);
+  }, [user._id, user.role, visibleRangeStartISO, visibleRangeEndISO]);
 
   useEffect(() => { load(); }, [load]);
-
-  const grid = useMemo(() => buildGrid(year, month), [year, month]);
   const hasVisitSet = useMemo(() => {
     const s = new Set<string>();
     for (const v of visits) if (v.date) s.add(v.date);
     return s;
   }, [visits]);
 
-  const dayVisits = useMemo(
-    () => visits.filter(v => v.date === selected)
-                .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
-    [visits, selected],
+  const weekVisitGroups = useMemo(
+    () => weekDays.map((day) => ({
+      ...day,
+      visits: visits
+        .filter((visit) => visit.date === day.iso)
+        .sort((left, right) => (left.start_time ?? '').localeCompare(right.start_time ?? '')),
+    })),
+    [visits, weekDays],
   );
+  const weekVisitCount = weekVisitGroups.reduce((sum, day) => sum + day.visits.length, 0);
 
   const goPrev = () => {
     if (month === 0) { setYear(y => y - 1); setMonth(11); }
@@ -158,15 +187,13 @@ export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditV
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 140, paddingTop: 12 }}
+        contentContainerStyle={{ paddingBottom: 128, paddingTop: 12 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={theme.primary} />
         }
       >
-        {/* Calendar card */}
         <View style={{ paddingHorizontal: 16 }}>
           <Card>
-            {/* header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <Pressable
                 onPress={goPrev}
@@ -227,27 +254,27 @@ export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditV
                       height: cellSize - 6,
                       borderRadius: radii.full,
                       alignItems: 'center', justifyContent: 'center',
-                      backgroundColor: isSelected ? theme.primary
-                        : isToday ? theme.primaryLight
+                      backgroundColor: isToday ? theme.primary
+                        : isSelected ? theme.primaryLight
                         : 'transparent',
-                      borderWidth: isToday && !isSelected ? 1 : 0,
+                      borderWidth: isSelected && !isToday ? 1 : 0,
                       borderColor: theme.primary,
                     }}>
                       <Text style={{
                         fontSize: 13,
                         fontWeight: isSelected || isToday ? '700' : '500',
-                        color: isSelected ? '#fff'
+                        color: isToday ? '#fff'
                           : c.otherMonth ? theme.textFaint
-                          : isToday ? theme.primary
+                          : isSelected ? theme.primary
                           : theme.text,
                       }}>
                         {c.day}
                       </Text>
                     </View>
-                    {hasVisit && !isSelected ? (
+                    {hasVisit && !isToday ? (
                       <View style={{
                         width: 4, height: 4, borderRadius: 2,
-                        backgroundColor: isToday ? theme.primary : theme.accent,
+                        backgroundColor: theme.accent,
                         position: 'absolute', bottom: 4,
                       }} />
                     ) : null}
@@ -258,19 +285,18 @@ export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditV
           </Card>
         </View>
 
-        {/* Selected day section */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          paddingHorizontal: 20, marginTop: 22, marginBottom: 8,
+          paddingHorizontal: 16, marginTop: 12, marginBottom: 8,
         }}>
           <Text style={{
-            fontSize: 14, fontWeight: '700', color: theme.text,
+            fontSize: 13, fontWeight: '700', color: theme.text,
             fontFamily: fonts.display,
           }}>
-            {selectedLabel}
+            {selectedLabel} · Current Week
           </Text>
-          <Badge tone="muted">
-            {dayVisits.length} visit{dayVisits.length !== 1 ? 's' : ''}
+          <Badge tone="teal">
+            {weekVisitCount} visit{weekVisitCount !== 1 ? 's' : ''}
           </Badge>
         </View>
 
@@ -281,30 +307,62 @@ export default function VisitListScreen({ user, onOpenVisit, onAddVisit, onEditV
         ) : null}
 
         <View style={{ paddingHorizontal: 16 }}>
-          {dayVisits.length === 0 ? (
+          {weekVisitCount === 0 ? (
             <Card>
               <Text style={{
                 fontSize: 14, color: theme.textSecondary,
                 textAlign: 'center', paddingVertical: 16,
               }}>
-                No visits scheduled for this day.
+                No visits scheduled for this week.
               </Text>
             </Card>
           ) : (
-            <Card padded={false}>
-              {dayVisits.map((v) => (
-                <VisitItem
-                  key={v._id}
-                  time={fmtTime(v.start_time)}
-                  title={v.title}
-                  client={v.client?.name ?? undefined}
-                  location={v.location ?? undefined}
-                  status={v.status}
-                  onPress={() => onOpenVisit?.(v)}
-                  onMore={onEditVisit ? () => onEditVisit(v) : undefined}
-                />
+            <View style={{ gap: 10 }}>
+              {weekVisitGroups.map((day) => (
+                <Card key={day.iso} padded={false}>
+                  <View style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    borderBottomWidth: day.visits.length > 0 ? 1 : 0,
+                    borderBottomColor: theme.divider,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <View>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
+                        {day.fullLabel}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: day.iso === today ? theme.primary : theme.textSecondary, marginTop: 2 }}>
+                        {day.iso === today ? 'Today' : 'Scheduled visits'}
+                      </Text>
+                    </View>
+                    <Badge tone={day.iso === selected ? 'teal' : 'muted'}>
+                      {day.visits.length} visit{day.visits.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </View>
+
+                  {day.visits.length === 0 ? (
+                    <View style={{ paddingHorizontal: 14, paddingVertical: 14 }}>
+                      <Text style={{ fontSize: 13, color: theme.textSecondary }}>No visits scheduled.</Text>
+                    </View>
+                  ) : (
+                    day.visits.map((v) => (
+                      <VisitItem
+                        key={v._id}
+                        time={fmtTime(v.start_time)}
+                        title={v.title}
+                        client={v.client?.name ?? undefined}
+                        location={v.location ?? undefined}
+                        status={v.status}
+                        onPress={() => onOpenVisit?.(v)}
+                        onMore={onEditVisit ? () => onEditVisit(v) : undefined}
+                      />
+                    ))
+                  )}
+                </Card>
               ))}
-            </Card>
+            </View>
           )}
         </View>
       </ScrollView>

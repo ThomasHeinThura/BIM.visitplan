@@ -92,20 +92,24 @@ export default function TodayDashboard({
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 140, paddingTop: 12 }}
+        contentContainerStyle={{ paddingBottom: 128, paddingTop: 8 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={theme.primary} />
         }
       >
-        {/* Greeting block */}
         <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 }}>
           <Text style={{
-            fontSize: 22, fontWeight: '700', color: theme.text,
+            fontSize: 13, fontWeight: '500', color: theme.textSecondary,
+          }}>
+            Good {getGreeting()},
+          </Text>
+          <Text style={{
+            fontSize: 24, fontWeight: '700', color: theme.text,
             fontFamily: fonts.display,
           }}>
-            Good {getGreeting()}, {firstName}
+            {firstName}
           </Text>
-          <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 4 }}>
+          <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4 }}>
             {todayLabel}
           </Text>
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
@@ -115,14 +119,12 @@ export default function TodayDashboard({
           </View>
         </View>
 
-        {/* KPI strip */}
-        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16 }}>
-          <KPICard value={completed} label="Done" accent={theme.success} />
-          <KPICard value={`${coverage}%`} label="Coverage" accent={theme.primary} />
-          <KPICard value={pending} label="Pending" accent={theme.warning} />
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
+          <KPICard value={completed} label="Done" accent={theme.text} delta={completed > 0 ? 'on track' : undefined} deltaTone="up" />
+          <KPICard value={`${coverage}%`} label="Coverage" accent={theme.text} delta={coverage > 0 ? `+${coverage}%` : undefined} deltaTone="up" />
+          <KPICard value={pending} label="Pending" accent={pending > 0 ? theme.warning : theme.text} delta={pending > 0 ? 'outcomes due' : undefined} deltaTone={pending > 0 ? 'down' : 'flat'} />
         </View>
 
-        {/* Error banner */}
         {error ? (
           <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
             <Card>
@@ -131,7 +133,6 @@ export default function TodayDashboard({
           </View>
         ) : null}
 
-        {/* Missed visits warning banner */}
         {missed > 0 ? (
           <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
             <Card style={{
@@ -150,7 +151,6 @@ export default function TodayDashboard({
           </View>
         ) : null}
 
-        {/* Today's Schedule */}
         <SectionHead
           title="Today's Schedule"
           action={onOpenPlan ? 'View Plan' : undefined}

@@ -5,13 +5,12 @@ import {
   RefreshControl,
   ScrollView,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts } from '../context/ThemeContext';
 import { getClientsByFilter, getVisits } from '../lib/cockpit';
 import type { CockpitClient, CockpitUser } from '../types';
+import { Card, FilterTab, Icon, SearchBar } from './ui';
 
 type Props = {
   user: CockpitUser;
@@ -38,7 +37,7 @@ function paletteIdx(id: string): number {
 const STATUS_FILTERS = ['Active', 'Hold', 'Prospect', 'Churned', 'Inactive'] as const;
 const ACCOUNT_FILTERS = ['Key Account', 'Named Account'] as const;
 
-export default function ClientListScreen({ user, onOpenClient }: Props) {
+export default function ClientListScreen({ user: _user, onOpenClient }: Props) {
   const { theme } = useTheme();
 
   const [clients, setClients] = useState<CockpitClient[]>([]);
@@ -64,10 +63,7 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      const amId = user.role === 'am' ? user._id : undefined;
-
-      // Fetch clients first — this is the critical call
-      const clientData = await getClientsByFilter({ amId: amId ?? null, limit: 500 });
+      const clientData = await getClientsByFilter({ amId: null, limit: 500 });
       setClients(clientData);
 
       // Extract sectors from already-fetched client data (no extra API call needed)
@@ -78,7 +74,6 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
       // Fetch visit counts separately — non-fatal if visits collection is empty/missing
       try {
         const visitData = await getVisits({
-          filter: amId ? { 'assigned_am._id': amId } : {},
           limit: 500,
           sort: { date: -1 },
         });
@@ -97,7 +92,7 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user._id, user.role]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -138,9 +133,9 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
       {/* ── Header ── */}
       <View style={{
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6,
+        paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8,
       }}>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: theme.text, letterSpacing: -0.3 }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, letterSpacing: -0.3, fontFamily: fonts.display }}>
           All Clients
         </Text>
         <View style={{
@@ -154,20 +149,11 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
       </View>
 
       {/* ── Search ── */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'center', backgroundColor: theme.inputBg,
-        borderRadius: 10, borderWidth: 1, borderColor: theme.inputBorder,
-        marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 9,
-      }}>
-        <Text style={{ fontSize: 14, color: theme.textFaint, marginRight: 8 }}>🔍</Text>
-        <TextInput
-          style={{ flex: 1, fontSize: 14, color: theme.text, padding: 0 }}
-          placeholder="Search by name or sector…"
-          placeholderTextColor={theme.textFaint}
+      <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+        <SearchBar
           value={search}
-          onChangeText={setSearch}
-          clearButtonMode="while-editing"
-          autoCorrect={false}
+          onChange={setSearch}
+          placeholder="Search all clients…"
         />
       </View>
 
@@ -179,25 +165,13 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 10, paddingTop: 2, gap: 6, flexDirection: 'row', alignItems: 'center' }}
       >
         {filterTabs.map((tab) => {
-          const active = activeFilter === tab;
           return (
-            <TouchableOpacity
+            <FilterTab
               key={tab}
+              label={tab}
+              active={activeFilter === tab}
               onPress={() => setActiveFilter(tab)}
-              style={{
-                paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999,
-                backgroundColor: active ? theme.primary : theme.surface,
-                borderWidth: 1,
-                borderColor: active ? theme.primary : theme.border,
-              }}
-            >
-              <Text style={{
-                fontSize: 12, fontWeight: active ? '600' : '400',
-                color: active ? '#fff' : theme.textSecondary,
-              }}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
+            />
           );
         })}
       </ScrollView>
@@ -208,7 +182,6 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
         </Text>
       )}
 
-      {/* ── Client list (one card, rows separated by dividers) ── */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item._id}
@@ -220,27 +193,16 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
           const pal = palettes[paletteIdx(item._id)];
           const initials = getInitials(item.name);
           const count = visitCounts[item._id] ?? 0;
-          const meta = [item.sector, item.account_type].filter(Boolean).join(' · ');
-          const isFirst = index === 0;
-          const isLast = index === filtered.length - 1;
+          const meta = [item.sector, item.account_type, count > 0 ? `${count} visit${count !== 1 ? 's' : ''}` : null].filter(Boolean).join(' · ');
           return (
-            <TouchableOpacity
-              activeOpacity={0.7}
+            <Card
               onPress={() => onOpenClient?.(item)}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: 10,
                 paddingHorizontal: 14, paddingVertical: 12,
-                backgroundColor: theme.surface,
-                borderTopLeftRadius: isFirst ? 16 : 0,
-                borderTopRightRadius: isFirst ? 16 : 0,
-                borderBottomLeftRadius: isLast ? 16 : 0,
-                borderBottomRightRadius: isLast ? 16 : 0,
-                borderWidth: 1, borderColor: theme.border,
-                borderBottomWidth: isLast ? 1 : 0,
-                marginTop: isFirst ? 0 : -1,
+                marginTop: index === 0 ? 0 : 8,
               }}
             >
-              {/* Initials logo */}
               <View style={{
                 width: 36, height: 36, borderRadius: 10,
                 backgroundColor: pal.bg,
@@ -249,29 +211,24 @@ export default function ClientListScreen({ user, onOpenClient }: Props) {
                 <Text style={{ fontSize: 12, fontWeight: '700', color: pal.fg }}>{initials}</Text>
               </View>
 
-              {/* Name + meta */}
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text }} numberOfLines={1}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: fonts.display }} numberOfLines={1}>
                   {item.name}
                 </Text>
-                {meta ? (
-                  <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }} numberOfLines={1}>
-                    {meta}
-                  </Text>
-                ) : null}
+                <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }} numberOfLines={2}>
+                  {meta || 'No sector'}
+                </Text>
               </View>
 
-              {/* Visit count */}
-              <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text }}>{count}</Text>
-                <Text style={{ fontSize: 10, color: theme.textFaint, marginTop: 1 }}>visits</Text>
+              <View style={{ alignItems: 'flex-end', gap: 6, marginLeft: 8 }}>
+                <Text style={{ fontSize: 11, color: theme.textFaint }}>{item.status}</Text>
+                <Icon.ChevronRight size={16} color={theme.textFaint} />
               </View>
-            </TouchableOpacity>
+            </Card>
           );
         }}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontSize: 32, marginBottom: 12 }}>🔍</Text>
             <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text, marginBottom: 4 }}>
               No clients found
             </Text>

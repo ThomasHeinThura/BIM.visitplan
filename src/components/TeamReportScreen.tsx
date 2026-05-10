@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts, radii } from '../context/ThemeContext';
+import { Badge, Card } from './ui';
 
 export type AmKey = 'thida' | 'kyaw' | 'nilar' | 'aung' | 'su';
 
@@ -137,12 +138,13 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
       contentContainerStyle={{ paddingBottom: 120 }}
     >
       {/* Header */}
-      <View style={[s.header, { backgroundColor: theme.surface, borderBottomColor: theme.divider }]}>
-        <Pressable onPress={onBack} hitSlop={10} style={s.backBtn}>
+      <View style={s.hero}> 
+        <Pressable onPress={onBack} hitSlop={10} style={[s.backBtn, { backgroundColor: theme.surface }]}> 
           <Text style={[s.backIcon, { color: theme.text }]}>‹</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[s.title, { color: theme.text }]}>Team Report</Text>
+          <Text style={[s.eyebrow, { color: theme.textFaint }]}>Team Overview</Text>
+          <Text style={[s.title, { color: theme.text }]}>My Clients and AM Activity</Text>
           <Text style={[s.subtitle, { color: theme.textSecondary }]}>
             Q2 2026 · Apr–Jun · {AM_DATA.length} AMs
           </Text>
@@ -152,8 +154,8 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
       {/* KPI strip */}
       <View style={s.kpiStrip}>
         <KpiCell value={String(totalVisits)} label="Visits" theme={theme} />
-        <KpiCell value="82%" label="Completed" theme={theme} />
-        <KpiCell value={`$${(totalPipeline / 1000).toFixed(0)}K`} label="Pipeline" theme={theme} />
+        <KpiCell value="82%" label="Completed" theme={theme} accent={theme.success} />
+        <KpiCell value={`$${(totalPipeline / 1000).toFixed(0)}K`} label="Pipeline" theme={theme} accent={theme.primary} />
       </View>
 
       {/* Sort tabs */}
@@ -164,7 +166,7 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
             style={[
               s.tab,
               {
-                backgroundColor: i === 0 ? theme.primary : theme.surfaceAlt,
+                backgroundColor: i === 0 ? theme.primaryLight : theme.surface,
                 borderColor: i === 0 ? theme.primary : theme.border,
               },
             ]}
@@ -173,7 +175,8 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
               style={{
                 fontSize: 11,
                 fontWeight: '700',
-                color: i === 0 ? '#fff' : theme.textSecondary,
+                color: i === 0 ? theme.primary : theme.textSecondary,
+                fontFamily: fonts.display,
               }}
             >
               {t}
@@ -185,7 +188,7 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
       <Text style={[s.caption, { color: theme.textSecondary }]}>Account Managers · Q2</Text>
 
       {/* AM list */}
-      <View style={[s.card, { backgroundColor: theme.surface }]}>
+      <Card style={s.card}> 
         {AM_DATA.map((am, idx) => {
           const sc = SECTOR_COLOR[am.sectorColor];
           return (
@@ -198,20 +201,14 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
                 pressed && { opacity: 0.6 },
               ]}
             >
-              <View style={[s.amAvatar, { backgroundColor: theme.primary }]}>
+              <View style={[s.amAvatar, { backgroundColor: theme.primaryLight }]}> 
                 <Text style={s.amAvatarText}>{am.initials}</Text>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[s.amName, { color: theme.text }]}>{am.name}</Text>
                 <View style={{ flexDirection: 'row', gap: 4, marginTop: 2 }}>
-                  <View style={[s.badge, { backgroundColor: sc.bg }]}>
-                    <Text style={[s.badgeText, { color: sc.fg }]}>{am.sector}</Text>
-                  </View>
-                  <View style={[s.badge, { backgroundColor: theme.surfaceAlt }]}>
-                    <Text style={[s.badgeText, { color: theme.textSecondary }]}>
-                      {am.clients} clients
-                    </Text>
-                  </View>
+                  <Badge tone="muted">{am.sector}</Badge>
+                  <Badge tone="teal">{am.clients} clients</Badge>
                 </View>
                 <Text style={[s.amStatus, { color: TONE_COLOR[am.status.tone] }]}>
                   {am.status.emoji} {am.status.text}
@@ -223,11 +220,11 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
                   visits · ${(am.pipelineUsd / 1000).toFixed(0)}K
                 </Text>
               </View>
-              <Text style={[s.chev, { color: theme.textSecondary }]}>›</Text>
+              <Text style={[s.chev, { color: theme.textFaint }]}>›</Text>
             </Pressable>
           );
         })}
-      </View>
+      </Card>
 
       <Text style={[s.footnote, { color: theme.textSecondary }]}>
         Tap an AM to see their Q2 visit list
@@ -236,34 +233,28 @@ export default function TeamReportScreen({ onBack, onOpenAm }: Props) {
   );
 }
 
-function KpiCell({ value, label, theme }: { value: string; label: string; theme: any }) {
+function KpiCell({ value, label, theme, accent }: { value: string; label: string; theme: any; accent?: string }) {
   return (
-    <View style={[s.kpi, { backgroundColor: theme.surface }]}>
-      <Text style={[s.kpiVal, { color: theme.text }]}>{value}</Text>
+    <Card style={s.kpi}> 
+      <Text style={[s.kpiVal, { color: accent || theme.text }]}>{value}</Text>
       <Text style={[s.kpiLbl, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
+    </Card>
   );
 }
 
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    gap: 8,
-  },
-  backBtn: { padding: 6 },
+  hero: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: 18, gap: 12 },
+  backBtn: { padding: 8, borderRadius: radii.full },
   backIcon: { fontSize: 24, fontWeight: '300' },
-  title: { fontSize: 16, fontWeight: '700' },
-  subtitle: { fontSize: 11, marginTop: 1 },
+  eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  title: { fontSize: 24, fontWeight: '700', fontFamily: fonts.display },
+  subtitle: { fontSize: 12, marginTop: 4 },
   kpiStrip: { flexDirection: 'row', gap: 8, padding: 12 },
-  kpi: { flex: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
-  kpiVal: { fontSize: 18, fontWeight: '700' },
+  kpi: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  kpiVal: { fontSize: 18, fontWeight: '700', fontFamily: fonts.display },
   kpiLbl: { fontSize: 10, marginTop: 2 },
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 8 },
-  tab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  tab: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radii.full, borderWidth: 1 },
   caption: {
     fontSize: 10,
     fontWeight: '700',
@@ -273,7 +264,7 @@ const s = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 6,
   },
-  card: { marginHorizontal: 16, borderRadius: 14, overflow: 'hidden' },
+  card: { marginHorizontal: 16, borderRadius: radii.lg, overflow: 'hidden', padding: 0 },
   amRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -283,21 +274,15 @@ const s = StyleSheet.create({
   amAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  amAvatarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  amName: { fontSize: 13, fontWeight: '700' },
+  amAvatarText: { color: '#0f172a', fontSize: 12, fontWeight: '700', fontFamily: fonts.display },
+  amName: { fontSize: 13, fontWeight: '700', fontFamily: fonts.display },
   amStatus: { fontSize: 10, fontWeight: '600', marginTop: 3 },
-  amVisits: { fontSize: 16, fontWeight: '700' },
+  amVisits: { fontSize: 16, fontWeight: '700', fontFamily: fonts.display },
   amPipe: { fontSize: 9 },
   chev: { fontSize: 18, marginLeft: 4 },
-  badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  badgeText: { fontSize: 9, fontWeight: '700' },
   footnote: { fontSize: 10, textAlign: 'center', paddingVertical: 12 },
 });

@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts, radii } from '../context/ThemeContext';
 import { AM_DATA, AM_VISITS, type AmKey } from './TeamReportScreen';
+import { Card } from './ui';
 
 type Filter = 'all' | 'done' | 'pending' | 'noshow';
 
@@ -45,8 +46,8 @@ export default function AmVisitListScreen({ amKey, onBack }: Props) {
       contentContainerStyle={{ paddingBottom: 120 }}
     >
       {/* Header */}
-      <View style={[s.header, { backgroundColor: theme.surface, borderBottomColor: theme.divider }]}>
-        <Pressable onPress={onBack} hitSlop={10} style={s.backBtn}>
+      <View style={s.hero}> 
+        <Pressable onPress={onBack} hitSlop={10} style={[s.backBtn, { backgroundColor: theme.surface }]}> 
           <Text style={[s.backIcon, { color: theme.text }]}>‹</Text>
         </Pressable>
         <View style={[s.amAvatar, { backgroundColor: theme.primary }]}>
@@ -88,12 +89,12 @@ export default function AmVisitListScreen({ amKey, onBack }: Props) {
               style={[
                 s.chip,
                 {
-                  backgroundColor: active ? theme.primary : theme.surfaceAlt,
+                  backgroundColor: active ? theme.primaryLight : theme.surface,
                   borderColor: active ? theme.primary : theme.border,
                 },
               ]}
             >
-              <Text style={{ fontSize: 11, fontWeight: '700', color: active ? '#fff' : theme.textSecondary }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: active ? theme.primary : theme.textSecondary, fontFamily: fonts.display }}>
                 {c.label}
               </Text>
             </Pressable>
@@ -109,7 +110,7 @@ export default function AmVisitListScreen({ amKey, onBack }: Props) {
       {grouped.map(([bucket, rows]) => (
         <View key={bucket} style={{ paddingHorizontal: 16, marginBottom: 14 }}>
           <Text style={[s.bucket, { color: theme.textSecondary }]}>{bucket}</Text>
-          <View style={[s.card, { backgroundColor: theme.surface }]}>
+          <Card style={s.card}> 
             {rows.map((v, i) => (
               <View
                 key={`${bucket}-${i}`}
@@ -118,7 +119,7 @@ export default function AmVisitListScreen({ amKey, onBack }: Props) {
                   i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.divider },
                 ]}
               >
-                <View style={[s.dateBox, { backgroundColor: theme.surfaceAlt }]}>
+                <View style={[s.dateBox, { backgroundColor: theme.primaryLight }]}> 
                   <Text style={[s.dateText, { color: theme.text }]}>{v.date}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -132,7 +133,7 @@ export default function AmVisitListScreen({ amKey, onBack }: Props) {
                 </View>
               </View>
             ))}
-          </View>
+          </Card>
         </View>
       ))}
     </ScrollView>
@@ -141,34 +142,27 @@ export default function AmVisitListScreen({ amKey, onBack }: Props) {
 
 function Stat({ val, lbl, theme, color }: { val: number; lbl: string; theme: any; color?: string }) {
   return (
-    <View style={[s.stat, { backgroundColor: theme.surface }]}>
+    <Card style={s.stat}> 
       <Text style={[s.statVal, { color: color || theme.text }]}>{val}</Text>
       <Text style={[s.statLbl, { color: theme.textSecondary }]}>{lbl}</Text>
-    </View>
+    </Card>
   );
 }
 
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    gap: 10,
-  },
-  backBtn: { padding: 4 },
+  hero: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 18, gap: 12 },
+  backBtn: { padding: 8, borderRadius: radii.full },
   backIcon: { fontSize: 24, fontWeight: '300' },
-  amAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  amAvatarText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  title: { fontSize: 15, fontWeight: '700' },
-  subtitle: { fontSize: 11, marginTop: 1 },
+  amAvatar: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  amAvatarText: { color: '#fff', fontWeight: '700', fontSize: 12, fontFamily: fonts.display },
+  title: { fontSize: 18, fontWeight: '700', fontFamily: fonts.display },
+  subtitle: { fontSize: 11, marginTop: 2 },
   statStrip: { flexDirection: 'row', gap: 6, padding: 12 },
-  stat: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  statVal: { fontSize: 16, fontWeight: '700' },
+  stat: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+  statVal: { fontSize: 16, fontWeight: '700', fontFamily: fonts.display },
   statLbl: { fontSize: 9, marginTop: 2 },
   chips: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 12 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radii.full, borderWidth: 1 },
   empty: { textAlign: 'center', fontSize: 12, paddingVertical: 24 },
   bucket: {
     fontSize: 10,
@@ -177,11 +171,11 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
   },
-  card: { borderRadius: 12, overflow: 'hidden' },
+  card: { borderRadius: radii.lg, overflow: 'hidden', padding: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
-  dateBox: { width: 50, paddingVertical: 6, borderRadius: 8, alignItems: 'center' },
-  dateText: { fontSize: 11, fontWeight: '700' },
-  client: { fontSize: 13, fontWeight: '700' },
+  dateBox: { width: 50, paddingVertical: 6, borderRadius: radii.md, alignItems: 'center' },
+  dateText: { fontSize: 11, fontWeight: '700', fontFamily: fonts.display },
+  client: { fontSize: 13, fontWeight: '700', fontFamily: fonts.display },
   meta: { fontSize: 11, marginTop: 2 },
   outcome: { fontSize: 11, marginTop: 1 },
 });

@@ -24,6 +24,32 @@
 
 ---
 
+## Current Build Status — May 10, 2026
+
+### Finished and Working
+
+- Login screen is working.
+- Pending approval screen is working.
+- Today screen is working.
+- Plan screen is working, including the grouped current-week visit view.
+- Client list screen is working and shows client data for all users.
+- Create Visit is working, including financial year / quarter selection and office-hour time selection.
+- Edit Visit is working, including visible time options and office-hour enforcement.
+- Client profile is working, including client save feedback, contact creation, and clean launch of Schedule Visit.
+- Reports screen period filters now use backward-looking ranges for `7 Days`, `30 Days`, and `3 Months`.
+
+### Verified Report Fixes
+
+- `3 Months` no longer uses the same window logic as `30 Days`.
+- Older visits such as March 31 are now included in `3 Months` instead of only appearing in `All Time`.
+- Weekly chart date math uses local dates rather than timezone-shifted UTC conversion.
+
+### Still Needs Live Recheck
+
+- Reports screen should be refreshed once in the web app to confirm the corrected totals and chart values after the latest bundle reload.
+
+---
+
 ## Changelog — v2.3 (May 10, 2026)
 
 | # | Change |

@@ -29,12 +29,12 @@ export function BottomNavigation({
   return (
     <View style={[s.shell, {
       backgroundColor: theme.surface,
-      borderTopColor: theme.border,
+      borderTopColor: theme.divider,
     }]}>
       {NAV.map((item) => {
         const active = item.id === activePage;
         const IconCmp = Icon[item.icon];
-        const color = active ? theme.primary : theme.textSecondary;
+        const color = active ? theme.primary : theme.textFaint;
         return (
           <Pressable
             key={item.id}
@@ -60,11 +60,11 @@ const s = StyleSheet.create({
   shell: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row',
-    paddingTop: 8, paddingBottom: 20, paddingHorizontal: 4,
+    paddingTop: 8, paddingBottom: 14, paddingHorizontal: 0,
     borderTopWidth: 1,
   },
   btn: {
-    flex: 1, alignItems: 'center', paddingVertical: 6,
+    flex: 1, alignItems: 'center', paddingVertical: 4,
     gap: 3,
   },
   label: { fontSize: 10 },

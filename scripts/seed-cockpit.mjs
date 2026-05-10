@@ -2,7 +2,7 @@
  * seed-cockpit.mjs
  *
  * Seeds Cockpit CMS with:
- *   1. Sectors collection (9 sectors)
+ *   1. Optional sectors collection values when the collection exists
  *   2. Clients from clientdb.csv (with AM, Account Type, Sector, Status)
  *
  * Usage:
@@ -105,6 +105,7 @@ async function seedSectors() {
     existing = res.items ?? res ?? [];
   } catch (e) {
     console.warn('Could not fetch existing sectors (collection may not exist yet):', e.message);
+    return {};
   }
 
   const existingNames = new Set(existing.map((s) => s.name?.toLowerCase()));
@@ -181,12 +182,6 @@ async function seedClients(sectorMap, userMap) {
   const raw = readFileSync(csvPath, 'utf8');
   const rows = parseCsv(raw);
 
-  // Build reverse lookup for sector IDs (case-insensitive)
-  const sectorLookup = {};
-  for (const [name, id] of Object.entries(sectorMap)) {
-    sectorLookup[name.toLowerCase()] = { _id: id, name };
-  }
-
   // Fetch existing clients to avoid duplicates
   let existingClients = [];
   try {
@@ -212,7 +207,6 @@ async function seedClients(sectorMap, userMap) {
     }
 
     const sectorRaw = (row['Sector'] || row['sector'] || row['Industry'] || '').trim();
-    const sectorRef = sectorLookup[sectorRaw.toLowerCase()] ?? null;
 
     const statusRaw = (row['Status'] || row['status'] || 'Prospect').trim();
     const status = STATUS_MAP[statusRaw] ?? 'Prospect';
@@ -228,7 +222,7 @@ async function seedClients(sectorMap, userMap) {
       name,
       status,
       account_type,
-      sector: sectorRef,
+      sector: sectorRaw || undefined,
       am: amRef,
       address: (row['Address'] || row['address'] || '').trim() || undefined,
       phone: (row['Phone'] || row['phone'] || '').trim() || undefined,

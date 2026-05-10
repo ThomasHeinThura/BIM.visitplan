@@ -52,7 +52,11 @@ export function useVisits({ userId, role, date, limit = 50 }: UseVisitsOptions) 
     queryKey: visitKeys.list(userId, role),
     queryFn: () => {
       if (isAm) {
-        return getVisitsByAm(userId, { limit });
+        return getVisitsByAm(userId, {
+          limit,
+          date: date ?? undefined,
+          sort: { date: -1, start_time: 1 },
+        });
       }
       return getVisits({
         filter: date ? { date } : undefined,
@@ -69,7 +73,7 @@ export function useVisits({ userId, role, date, limit = 50 }: UseVisitsOptions) 
     queryKey: visitKeys.today(userId, role),
     queryFn: () => {
       if (isAm) {
-        return getVisits({ filter: { 'assigned_am._id': userId, date: today }, limit: 20, sort: { start_time: 1 } });
+        return getVisitsByAm(userId, { limit: 20, date: today, sort: { start_time: 1 } });
       }
       return getVisits({ filter: { date: today }, limit: 50, sort: { start_time: 1 } });
     },

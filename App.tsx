@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   SafeAreaView,
   StatusBar as NativeStatusBar,
@@ -29,6 +30,7 @@ import CreateVisitModal from './src/components/CreateVisitModal';
 import VisitDetailModal from './src/components/VisitDetailModal';
 import ClientWorkspaceScreen from './src/components/ClientWorkspaceScreen';
 import { BottomNavigation, type AppPage } from './src/components/BottomNavigation';
+import { upsertVisit, upsertVisitOutcome } from './src/lib/cockpit';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +55,7 @@ function AppShell() {
   const [showCreateVisit, setShowCreateVisit] = useState(false);
   const [createVisitForClient, setCreateVisitForClient] = useState<CockpitClient | null>(null);
   const [editVisitCtx, setEditVisitCtx] = useState<EditVisitContext | null>(null);
+  const [visitDataVersion, setVisitDataVersion] = useState(0);
 
   useEffect(() => {
     setActivePage("today");
@@ -156,6 +159,7 @@ function AppShell() {
             <>
               {activePage === "today" && (
                 <TodayDashboard
+                  key={`today-${visitDataVersion}`}
                   user={user}
                   onOpenVisit={setSelectedVisit}
                   onAddVisit={() => setShowCreateVisit(true)}
@@ -165,6 +169,7 @@ function AppShell() {
               )}
               {activePage === "visits" && (
                 <VisitListScreen
+                  key={`visits-${visitDataVersion}`}
                   user={user}
                   onOpenVisit={setSelectedVisit}
                   onAddVisit={() => setShowCreateVisit(true)}
@@ -173,12 +178,14 @@ function AppShell() {
               )}
               {activePage === "clients" && (
                 <ClientListScreen
+                  key={`clients-${visitDataVersion}`}
                   user={user}
                   onOpenClient={setSelectedClient}
                 />
               )}
               {activePage === "reports" && (
                 <ReportsScreen
+                  key={`reports-${visitDataVersion}`}
                   user={user}
                   role={currentRole}
                   onOpenTeamReport={() => setTeamReportOpen(true)}
@@ -211,7 +218,11 @@ function AppShell() {
         visible={showCreateVisit}
         user={user}
         onClose={() => { setShowCreateVisit(false); setCreateVisitForClient(null); }}
-        onSaved={() => { setShowCreateVisit(false); setCreateVisitForClient(null); }}
+        onSaved={() => {
+          setShowCreateVisit(false);
+          setCreateVisitForClient(null);
+          setVisitDataVersion((current) => current + 1);
+        }}
         preselectedClient={createVisitForClient}
       />
       <VisitDetailModal
@@ -219,21 +230,67 @@ function AppShell() {
         visit={selectedVisit}
         user={user}
         onClose={() => setSelectedVisit(null)}
-        onUpdated={() => setSelectedVisit(null)}
+        onUpdated={() => {
+          setSelectedVisit(null);
+          setVisitDataVersion((current) => current + 1);
+        }}
       />
       <ClientWorkspaceScreen
+        key={`workspace-${selectedClient?._id ?? 'none'}-${visitDataVersion}`}
         visible={selectedClient !== null}
         client={selectedClient}
         user={user}
         onClose={() => setSelectedClient(null)}
         onOpenVisit={setSelectedVisit}
-        onAddVisit={(c) => { setCreateVisitForClient(c); setShowCreateVisit(true); }}
+        onAddVisit={(c) => {
+          setSelectedClient(null);
+          setCreateVisitForClient(c);
+          setShowCreateVisit(true);
+        }}
+        onClientUpdated={(updatedClient) => {
+          setSelectedClient(updatedClient);
+          setVisitDataVersion((current) => current + 1);
+        }}
       />
       <EditVisitModal
         visible={editVisitCtx !== null}
         visit={editVisitCtx}
         onClose={() => setEditVisitCtx(null)}
-        onSave={() => setEditVisitCtx(null)}
+        onSave={async (patch) => {
+          if (!editVisitCtx) return;
+
+          const nextStatus =
+            patch.status === 'done' ? 'completed'
+            : patch.status === 'active' ? 'in_progress'
+            : patch.status === 'noshow' || patch.status === 'cancelled' ? 'missed'
+            : 'scheduled';
+
+          try {
+            await upsertVisit({
+              _id: patch.id,
+              status: nextStatus,
+              date: patch.status === 'rescheduled' ? patch.rescheduleDate || editVisitCtx.date : undefined,
+              start_time: patch.status === 'rescheduled' ? patch.rescheduleTime || editVisitCtx.time : undefined,
+            });
+
+            if (patch.outcome !== 'pending' || patch.notes.trim()) {
+              await upsertVisitOutcome({
+                visit: { _id: patch.id, title: editVisitCtx.client },
+                result: patch.outcome === 'pending' ? 'neutral' : patch.outcome,
+                summary: patch.notes.trim() || undefined,
+                next_action: patch.pipelineUsd.trim() ? `Pipeline value: USD ${patch.pipelineUsd.trim()}` : undefined,
+                next_visit_date: patch.status === 'rescheduled' ? patch.rescheduleDate || undefined : undefined,
+                submitted_by: { _id: user._id, name: user.name },
+                submitted_at: new Date().toISOString(),
+              });
+            }
+
+            setEditVisitCtx(null);
+            setVisitDataVersion((current) => current + 1);
+          } catch {
+            Alert.alert('Error', 'Could not save visit changes. Please try again.');
+          }
+        }}
       />
     </SafeAreaView>
   );

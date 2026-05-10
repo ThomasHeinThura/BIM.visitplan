@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,9 +10,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts, radii } from '../context/ThemeContext';
+import { Icon, PrimaryButton, SecondaryButton } from './ui';
 import { checkInVisit, checkOutVisit, upsertVisit, upsertVisitOutcome } from '../lib/cockpit';
 import type { CockpitUser, CockpitVisit } from '../types';
+import { formatDisplayTime, getOfficeTimeOptions, isOutsideOfficeHours } from '../utils/schedule';
+import { buildCalendarDays, formatCalendarHeader, getMonthStart } from '../utils/visitplan';
 
 type OutcomeResult = 'positive' | 'neutral' | 'negative' | 'no_show';
 
@@ -59,9 +62,12 @@ const OUTCOME_OPTIONS: { id: OutcomeResult; label: string; emoji: string }[] = [
   { id: 'no_show', label: 'No Show', emoji: '🚫' },
 ];
 
+const OFFICE_TIME_OPTIONS = getOfficeTimeOptions();
+
 export default function VisitDetailModal({ visit, user, visible, onClose, onUpdated }: Props) {
   const { theme } = useTheme();
   const [acting, setActing] = useState(false);
+  const [showMissedChoices, setShowMissedChoices] = useState(false);
 
   // Outcome form state
   const [showOutcome, setShowOutcome] = useState(false);
@@ -69,7 +75,11 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
   const [outcomeSummary, setOutcomeSummary] = useState('');
   const [nextAction, setNextAction] = useState('');
   const [nextVisitDate, setNextVisitDate] = useState('');
+  const [nextVisitTime, setNextVisitTime] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(() => getMonthStart(new Date()));
 
   // Reset state when visit changes
   useEffect(() => {
@@ -79,9 +89,16 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
       setOutcomeSummary('');
       setNextAction('');
       setNextVisitDate('');
+      setNextVisitTime('');
       setActing(false);
+      setShowMissedChoices(false);
+      setDatePickerOpen(false);
+      setTimePickerOpen(false);
+      setPickerMonth(getMonthStart(new Date()));
     }
   }, [visit?._id]);
+
+  const calendarDays = useMemo(() => buildCalendarDays(pickerMonth, []), [pickerMonth]);
 
   if (!visit) return null;
 
@@ -89,8 +106,23 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
   const canCheckOut = visit.status === 'in_progress';
   const canMarkMissed = visit.status === 'scheduled' || visit.status === 'in_progress';
   const canAddOutcome = visit.status === 'completed' || visit.status === 'in_progress';
+  const hasOfficeHourWarning = !!nextVisitTime && isOutsideOfficeHours(nextVisitTime);
+
+  const markVisitMissed = async (afterMark?: () => void) => {
+    setActing(true);
+    try {
+      await upsertVisit({ _id: visit._id, status: 'missed' });
+      afterMark?.();
+      onUpdated();
+    } catch {
+      Alert.alert('Error', 'Could not update visit.');
+    } finally {
+      setActing(false);
+    }
+  };
 
   const handleCheckIn = async () => {
+    setShowMissedChoices(false);
     setActing(true);
     try {
       const now = new Date().toISOString();
@@ -104,6 +136,7 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
   };
 
   const handleCheckOut = async () => {
+    setShowMissedChoices(false);
     setActing(true);
     try {
       const now = new Date().toISOString();
@@ -118,29 +151,17 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
   };
 
   const handleMarkMissed = () => {
-    Alert.alert('Mark as Missed?', 'This visit will be marked as missed.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Mark Missed',
-        style: 'destructive',
-        onPress: async () => {
-          setActing(true);
-          try {
-            await upsertVisit({ _id: visit._id, status: 'missed' });
-            onUpdated();
-          } catch {
-            Alert.alert('Error', 'Could not update visit.');
-          } finally {
-            setActing(false);
-          }
-        },
-      },
-    ]);
+    setShowMissedChoices(true);
+    setShowOutcome(false);
   };
 
   const handleSaveOutcome = async () => {
     if (!outcomeResult) {
       Alert.alert('Required', 'Please select an outcome result.');
+      return;
+    }
+    if (nextVisitTime && isOutsideOfficeHours(nextVisitTime)) {
+      Alert.alert('Outside office hours', 'Next visit time must be between 9:00 AM and 5:00 PM.');
       return;
     }
     setSavingOutcome(true);
@@ -150,11 +171,12 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
         result: outcomeResult,
         summary: outcomeSummary.trim() || undefined,
         next_action: nextAction.trim() || undefined,
-        next_visit_date: nextVisitDate.trim() || undefined,
+        next_visit_date: nextVisitDate.trim() ? `${nextVisitDate.trim()}${nextVisitTime ? ` ${nextVisitTime}` : ''}` : undefined,
         submitted_by: { _id: user._id, name: user.name },
         submitted_at: new Date().toISOString(),
       });
       setShowOutcome(false);
+      setNextVisitTime('');
       onUpdated();
     } catch {
       Alert.alert('Error', 'Could not save outcome.');
@@ -166,36 +188,36 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
   const s = StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.62)',
       justifyContent: 'flex-end',
     },
     sheet: {
-      backgroundColor: theme.surface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      backgroundColor: theme.bg,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
       maxHeight: '92%',
+      paddingBottom: 28,
     },
     handle: {
-      width: 40, height: 4, borderRadius: 2,
+      width: 36, height: 4, borderRadius: radii.full,
       backgroundColor: theme.border,
       alignSelf: 'center',
-      marginTop: 10, marginBottom: 4,
+      marginTop: 10, marginBottom: 8,
     },
     headerRow: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 16, paddingVertical: 12,
-      borderBottomWidth: 1, borderBottomColor: theme.border,
+      paddingHorizontal: 20, paddingBottom: 10,
     },
-    headerTitle: { fontSize: 16, fontWeight: '700', color: theme.text, flex: 1, marginRight: 8 },
-    closeBtnText: { fontSize: 22, color: theme.textSecondary },
+    headerTitle: { fontSize: 16, fontWeight: '700', color: theme.text, flex: 1, marginRight: 8, fontFamily: fonts.display },
+    closeBtnText: { fontSize: 18, color: theme.textSecondary, lineHeight: 18 },
     statusBadge: {
       paddingHorizontal: 10, paddingVertical: 4,
-      borderRadius: 12,
+      borderRadius: radii.full,
     },
     statusText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-    body: { padding: 16 },
+    body: { paddingHorizontal: 20 },
     metaRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-    metaIcon: { fontSize: 15, width: 22, marginTop: 1 },
+    metaIconWrap: { width: 22, marginTop: 1, alignItems: 'center' },
     metaText: { fontSize: 14, color: theme.text, flex: 1 },
     metaSecondary: { fontSize: 13, color: theme.textSecondary, flex: 1 },
     sectionTitle: {
@@ -204,8 +226,9 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
       marginTop: 16, marginBottom: 8,
     },
     agendaBox: {
-      backgroundColor: theme.surfaceAlt,
-      borderRadius: 10, padding: 12,
+      backgroundColor: theme.surface,
+      borderRadius: radii.md, padding: 12,
+      borderWidth: 1, borderColor: theme.border,
     },
     agendaText: { fontSize: 14, color: theme.text, lineHeight: 20 },
     actionsRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
@@ -216,16 +239,17 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
     actionBtnText: { fontSize: 14, fontWeight: '700' },
     // outcome
     outcomeSection: {
-      backgroundColor: theme.surfaceAlt,
-      borderRadius: 12, padding: 14, marginTop: 16,
+      backgroundColor: theme.surface,
+      borderRadius: radii.md, padding: 14, marginTop: 16,
+      borderWidth: 1, borderColor: theme.border,
     },
     outcomeSectionTitle: {
-      fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 12,
+      fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 12, fontFamily: fonts.display,
     },
     outcomeChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
     outcomeChip: {
       paddingHorizontal: 12, paddingVertical: 7,
-      borderRadius: 20, borderWidth: 1.5, borderColor: theme.border,
+      borderRadius: radii.full, borderWidth: 1.5, borderColor: theme.border,
       flexDirection: 'row', alignItems: 'center', gap: 4,
     },
     outcomeChipActive: { borderColor: theme.primary, backgroundColor: theme.primary },
@@ -239,15 +263,44 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
     input: {
       backgroundColor: theme.surface,
       borderWidth: 1, borderColor: theme.inputBorder,
-      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9,
+      borderRadius: radii.md, paddingHorizontal: 10, paddingVertical: 10,
       fontSize: 14, color: theme.text,
     },
     textArea: { minHeight: 70, textAlignVertical: 'top' },
     saveOutcomeBtn: {
-      backgroundColor: theme.success, borderRadius: 12,
+      backgroundColor: theme.success, borderRadius: radii.md,
       paddingVertical: 13, alignItems: 'center', marginTop: 14,
     },
     saveOutcomeBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+    pickerTrigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    pickerCard: { borderRadius: radii.md },
+    warningCard: {
+      backgroundColor: theme.warningLight,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: theme.warning,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    warningText: { fontSize: 11, color: theme.text, lineHeight: 16 },
+    calendarInner: { width: '100%', maxWidth: 320, alignSelf: 'center' },
+    calendarNavRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+    calendarActionRow: { flexDirection: 'row', gap: 8 },
+    calendarActionBtn: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: radii.full, borderWidth: 1 },
+    calendarMonthTitle: { fontSize: 11, fontWeight: '700', fontFamily: fonts.display, marginBottom: 5 },
+    calendarWeekHeaderRow: { flexDirection: 'row', marginBottom: 2 },
+    calendarWeekHeaderText: { flex: 1, textAlign: 'center', fontSize: 8, fontWeight: '700' },
+    calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
+    calendarCell: { width: '13.5%', aspectRatio: 1, borderRadius: 7, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+    calendarCellMuted: { opacity: 0.45 },
+    timeOptionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   });
 
   return (
@@ -260,7 +313,7 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
             <View style={[s.statusBadge, { backgroundColor: statusColor(visit.status, theme) }]}>
               <Text style={s.statusText}>{visit.status.replace('_', ' ')}</Text>
             </View>
-            <Pressable onPress={onClose} style={{ marginLeft: 10 }} hitSlop={10}>
+            <Pressable onPress={onClose} style={{ marginLeft: 10, width: 28, height: 28, borderRadius: radii.full, backgroundColor: theme.surfaceOffset, alignItems: 'center', justifyContent: 'center' }} hitSlop={10}>
               <Text style={s.closeBtnText}>✕</Text>
             </Pressable>
           </View>
@@ -268,12 +321,12 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
           <ScrollView style={s.body} keyboardShouldPersistTaps="handled">
             {visit.client?.name && (
               <View style={s.metaRow}>
-                <Text style={s.metaIcon}>🏢</Text>
+                <View style={s.metaIconWrap}><Icon.Building size={14} color={theme.textFaint} /></View>
                 <Text style={s.metaText}>{visit.client.name}</Text>
               </View>
             )}
             <View style={s.metaRow}>
-              <Text style={s.metaIcon}>📅</Text>
+              <View style={s.metaIconWrap}><Icon.Calendar size={14} color={theme.textFaint} /></View>
               <Text style={s.metaText}>
                 {fmtDate(visit.date)}
                 {visit.start_time ? ` · ${fmtTime(visit.start_time)}` : ''}
@@ -282,19 +335,19 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
             </View>
             {visit.location && (
               <View style={s.metaRow}>
-                <Text style={s.metaIcon}>📍</Text>
+                <View style={s.metaIconWrap}><Icon.MapPin size={14} color={theme.textFaint} /></View>
                 <Text style={s.metaSecondary}>{visit.location}</Text>
               </View>
             )}
             {visit.assigned_am?.name && (
               <View style={s.metaRow}>
-                <Text style={s.metaIcon}>👤</Text>
+                <View style={s.metaIconWrap}><Icon.User size={14} color={theme.textFaint} /></View>
                 <Text style={s.metaSecondary}>{visit.assigned_am.name}</Text>
               </View>
             )}
             {visit.checkin_at && (
               <View style={s.metaRow}>
-                <Text style={s.metaIcon}>✅</Text>
+                <View style={s.metaIconWrap}><Icon.Check size={14} color={theme.success} /></View>
                 <Text style={s.metaSecondary}>
                   Checked in: {new Date(visit.checkin_at).toLocaleTimeString()}
                 </Text>
@@ -302,7 +355,7 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
             )}
             {visit.checkout_at && (
               <View style={s.metaRow}>
-                <Text style={s.metaIcon}>🏁</Text>
+                <View style={s.metaIconWrap}><Icon.Clock size={14} color={theme.textFaint} /></View>
                 <Text style={s.metaSecondary}>
                   Checked out: {new Date(visit.checkout_at).toLocaleTimeString()}
                 </Text>
@@ -324,40 +377,59 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
               : (
                 <View style={s.actionsRow}>
                   {canCheckIn && (
-                    <Pressable
-                      style={[s.actionBtn, { backgroundColor: theme.info }]}
-                      onPress={handleCheckIn}
-                    >
-                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Check In</Text>
-                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <PrimaryButton label="Check In" onPress={handleCheckIn} />
+                    </View>
                   )}
                   {canCheckOut && (
-                    <Pressable
-                      style={[s.actionBtn, { backgroundColor: theme.success }]}
-                      onPress={handleCheckOut}
-                    >
-                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Check Out</Text>
-                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <PrimaryButton label="Check Out" onPress={handleCheckOut} />
+                    </View>
                   )}
                   {canMarkMissed && (
-                    <Pressable
-                      style={[s.actionBtn, { backgroundColor: theme.surfaceAlt, borderWidth: 1, borderColor: theme.error }]}
-                      onPress={handleMarkMissed}
-                    >
-                      <Text style={[s.actionBtnText, { color: theme.error }]}>Missed</Text>
-                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <SecondaryButton label="Missed" onPress={handleMarkMissed} />
+                    </View>
                   )}
                   {canAddOutcome && !showOutcome && (
-                    <Pressable
-                      style={[s.actionBtn, { backgroundColor: theme.accent }]}
-                      onPress={() => setShowOutcome(true)}
-                    >
-                      <Text style={[s.actionBtnText, { color: '#FFFFFF' }]}>Outcome</Text>
-                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <PrimaryButton label="Outcome" onPress={() => setShowOutcome(true)} />
+                    </View>
                   )}
                 </View>
               )
             }
+
+            {showMissedChoices ? (
+              <View style={s.outcomeSection}>
+                <Text style={s.outcomeSectionTitle}>Missed Visit</Text>
+                <Text style={{ fontSize: 13, color: theme.textSecondary, lineHeight: 19, marginBottom: 12 }}>
+                  Choose what should happen for this missed visit.
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <SecondaryButton label="Close" onPress={() => setShowMissedChoices(false)} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <SecondaryButton
+                      label="Project Cancel"
+                      onPress={() => void markVisitMissed(() => setShowMissedChoices(false))}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <PrimaryButton
+                      label="Reschedule Later"
+                      onPress={() => void markVisitMissed(() => {
+                        setShowMissedChoices(false);
+                        setOutcomeResult('no_show');
+                        setNextAction((current) => current || 'Reschedule later');
+                        setShowOutcome(true);
+                      })}
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
 
             {/* Outcome form */}
             {showOutcome && (
@@ -398,14 +470,103 @@ export default function VisitDetailModal({ visit, user, visible, onClose, onUpda
                 />
 
                 <Text style={s.label}>Next Visit Date</Text>
-                <TextInput
-                  style={s.input}
-                  value={nextVisitDate}
-                  onChangeText={setNextVisitDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.textSecondary}
-                  keyboardType="numbers-and-punctuation"
-                />
+                <Pressable
+                  onPress={() => setDatePickerOpen((current) => !current)}
+                  style={[s.input, s.pickerTrigger]}
+                >
+                  <Text style={{ fontSize: 13, color: nextVisitDate ? theme.text : theme.textSecondary, fontFamily: fonts.display, fontWeight: '600' }}>
+                    {nextVisitDate || 'YYYY-MM-DD'}
+                  </Text>
+                  <Icon.Calendar size={16} color={theme.textSecondary} />
+                </Pressable>
+                {datePickerOpen ? (
+                  <View style={[s.pickerCard, { marginTop: 8, padding: 8, backgroundColor: theme.surfaceOffset, borderColor: theme.border, borderWidth: 1 }]}> 
+                    <View style={s.calendarInner}>
+                      <View style={s.calendarNavRow}>
+                        <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '700' }}>Choose date</Text>
+                        <View style={s.calendarActionRow}>
+                          <Pressable onPress={() => setPickerMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} style={[s.calendarActionBtn, { borderColor: theme.border, backgroundColor: theme.bg }]}> 
+                            <Text style={{ fontSize: 11, color: theme.text }}>Prev</Text>
+                          </Pressable>
+                          <Pressable onPress={() => setPickerMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} style={[s.calendarActionBtn, { borderColor: theme.border, backgroundColor: theme.bg }]}> 
+                            <Text style={{ fontSize: 11, color: theme.text }}>Next</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                      <Text style={[s.calendarMonthTitle, { color: theme.text }]}>{formatCalendarHeader(pickerMonth)}</Text>
+                      <View style={s.calendarWeekHeaderRow}>
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                          <Text key={day} style={[s.calendarWeekHeaderText, { color: theme.textSecondary }]}>{day}</Text>
+                        ))}
+                      </View>
+                      <View style={s.calendarGrid}>
+                        {calendarDays.map((day) => {
+                          const active = nextVisitDate === day.isoDate;
+                          return (
+                            <Pressable
+                              key={day.isoDate}
+                              onPress={() => {
+                                setNextVisitDate(day.isoDate);
+                                setDatePickerOpen(false);
+                              }}
+                              style={[
+                                s.calendarCell,
+                                { backgroundColor: theme.bg, borderColor: theme.border },
+                                !day.isCurrentMonth && s.calendarCellMuted,
+                                active && { backgroundColor: theme.primaryLight, borderColor: theme.primary },
+                              ]}
+                            >
+                              <Text style={{ fontSize: 9, color: active ? theme.primary : theme.textSecondary, fontWeight: active ? '700' : '500' }}>{day.dayOfMonth}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                <Text style={s.label}>Next Visit Time</Text>
+                <Pressable
+                  onPress={() => setTimePickerOpen((current) => !current)}
+                  style={[s.input, s.pickerTrigger]}
+                >
+                  <Text style={{ fontSize: 13, color: nextVisitTime ? theme.text : theme.textSecondary, fontFamily: fonts.display, fontWeight: '600' }}>
+                    {nextVisitTime ? formatDisplayTime(nextVisitTime) : 'HH:MM'}
+                  </Text>
+                  <Icon.Clock size={16} color={theme.textSecondary} />
+                </Pressable>
+                {hasOfficeHourWarning ? (
+                  <View style={s.warningCard}>
+                    <Text style={s.warningText}>Office hours are 9:00 AM to 5:00 PM. This next visit time is outside office hours.</Text>
+                  </View>
+                ) : null}
+                {timePickerOpen ? (
+                  <View style={[s.pickerCard, { marginTop: 8, padding: 8, backgroundColor: theme.surfaceOffset, borderColor: theme.border, borderWidth: 1 }]}> 
+                    <Text style={{ fontSize: 12, color: theme.textSecondary, fontWeight: '700', marginBottom: 8 }}>Choose time</Text>
+                    <View style={s.timeOptionGrid}>
+                      {OFFICE_TIME_OPTIONS.map((timeValue) => {
+                        const active = nextVisitTime === timeValue;
+                        return (
+                          <Pressable
+                            key={timeValue}
+                            onPress={() => {
+                              setNextVisitTime(timeValue);
+                              setTimePickerOpen(false);
+                            }}
+                            style={[s.outcomeChip, active && s.outcomeChipActive]}
+                          >
+                            <Text style={[s.outcomeChipText, active && s.outcomeChipTextActive]}>
+                              {formatDisplayTime(timeValue)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <View style={{ marginTop: 10 }}>
+                      <SecondaryButton label="Close" onPress={() => setTimePickerOpen(false)} />
+                    </View>
+                  </View>
+                ) : null}
 
                 <Pressable
                   style={[s.saveOutcomeBtn, savingOutcome && { opacity: 0.6 }]}

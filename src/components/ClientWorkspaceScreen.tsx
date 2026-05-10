@@ -12,11 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, fonts, radii } from '../context/ThemeContext';
 import {
   getContactsByClient,
   getVisits,
   upsertClient,
+  upsertContact,
 } from '../lib/cockpit';
 import type {
   AccountType,
@@ -27,6 +28,7 @@ import type {
   CockpitVisit,
 } from '../types';
 import { ACCOUNT_TYPES as ACCT_TYPES, CLIENT_STATUSES as STATUSES } from '../types';
+import { Badge, Card, Icon, PrimaryButton, SecondaryButton } from './ui';
 
 type Tab = 'info' | 'visits' | 'contacts';
 
@@ -37,6 +39,12 @@ type Props = {
   onClose: () => void;
   onOpenVisit?: (visit: CockpitVisit) => void;
   onAddVisit?: (client: CockpitClient) => void;
+  onClientUpdated?: (client: CockpitClient) => void;
+};
+
+type InlineNotice = {
+  tone: 'success' | 'error';
+  message: string;
 };
 
 function fmtDate(d: string | null | undefined) {
@@ -62,6 +70,7 @@ export default function ClientWorkspaceScreen({
   onClose,
   onOpenVisit,
   onAddVisit,
+  onClientUpdated,
 }: Props) {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>('info');
@@ -71,6 +80,7 @@ export default function ClientWorkspaceScreen({
   const [editAccountType, setEditAccountType] = useState<AccountType>('Named Account');
   const [editNotes, setEditNotes] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
+  const [infoNotice, setInfoNotice] = useState<InlineNotice | null>(null);
 
   // Admin-only editable
   const [editName, setEditName] = useState('');
@@ -85,6 +95,13 @@ export default function ClientWorkspaceScreen({
   // Contacts
   const [contacts, setContacts] = useState<CockpitContact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactNotice, setContactNotice] = useState<InlineNotice | null>(null);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPosition, setNewContactPosition] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
 
   // Picker modals
   const [showStatusPicker, setShowStatusPicker] = useState(false);
@@ -100,6 +117,9 @@ export default function ClientWorkspaceScreen({
       setEditPhone(client.phone ?? '');
       setEditWebsite(client.website ?? '');
       setActiveTab('info');
+      setInfoNotice(null);
+      setContactNotice(null);
+      setShowContactModal(false);
     }
   }, [client?._id]);
 
@@ -141,6 +161,7 @@ export default function ClientWorkspaceScreen({
   const handleSaveInfo = async () => {
     if (!client) return;
     setSavingInfo(true);
+    setInfoNotice(null);
     try {
       const patch: Partial<CockpitClient> & { _id: string } = {
         _id: client._id,
@@ -154,12 +175,61 @@ export default function ClientWorkspaceScreen({
         patch.phone = editPhone.trim() || undefined;
         patch.website = editWebsite.trim() || undefined;
       }
-      await upsertClient(patch);
-      Alert.alert('Saved', 'Client updated successfully.');
+      const savedClient = await upsertClient(patch);
+      const mergedClient: CockpitClient = {
+        ...client,
+        ...patch,
+        ...savedClient,
+      };
+      onClientUpdated?.(mergedClient);
+      setInfoNotice({ tone: 'success', message: 'Client saved successfully.' });
     } catch {
-      Alert.alert('Error', 'Could not save changes.');
+      setInfoNotice({ tone: 'error', message: 'Client could not be saved. Please try again.' });
     } finally {
       setSavingInfo(false);
+    }
+  };
+
+  const resetContactForm = () => {
+    setNewContactName('');
+    setNewContactPosition('');
+    setNewContactEmail('');
+    setNewContactPhone('');
+  };
+
+  const handleOpenContactModal = () => {
+    resetContactForm();
+    setContactNotice(null);
+    setShowContactModal(true);
+  };
+
+  const handleSaveContact = async () => {
+    if (!client) return;
+
+    const trimmedName = newContactName.trim();
+    if (!trimmedName) {
+      setContactNotice({ tone: 'error', message: 'Contact name is required.' });
+      return;
+    }
+
+    setSavingContact(true);
+    setContactNotice(null);
+    try {
+      await upsertContact({
+        name: trimmedName,
+        client: { _id: client._id, name: client.name },
+        position: newContactPosition.trim() || undefined,
+        email: newContactEmail.trim() || undefined,
+        phone: newContactPhone.trim() || undefined,
+      });
+      await loadContacts();
+      setContactNotice({ tone: 'success', message: 'Contact saved successfully.' });
+      resetContactForm();
+      setShowContactModal(false);
+    } catch {
+      setContactNotice({ tone: 'error', message: 'Contact could not be saved. Please try again.' });
+    } finally {
+      setSavingContact(false);
     }
   };
 
@@ -170,28 +240,29 @@ export default function ClientWorkspaceScreen({
   const s = StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.62)',
       justifyContent: 'flex-end',
     },
     sheet: {
-      backgroundColor: theme.surface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      backgroundColor: theme.bg,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
       height: '94%',
+      paddingBottom: 18,
     },
     handle: {
-      width: 40, height: 4, borderRadius: 2,
+      width: 36, height: 4, borderRadius: radii.full,
       backgroundColor: theme.border,
       alignSelf: 'center',
       marginTop: 10, marginBottom: 2,
     },
     headerRow: {
       paddingHorizontal: 16, paddingVertical: 12,
-      borderBottomWidth: 1, borderBottomColor: theme.border,
+      backgroundColor: 'transparent',
     },
     closeRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 },
-    closeBtnText: { fontSize: 20, color: theme.textSecondary },
-    clientName: { fontSize: 18, fontWeight: '700', color: theme.text },
+    closeBtnText: { fontSize: 18, color: theme.textSecondary, lineHeight: 18 },
+    clientName: { fontSize: 17, fontWeight: '700', color: theme.text, fontFamily: fonts.display },
     metaRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       marginTop: 4, flexWrap: 'wrap',
@@ -204,12 +275,13 @@ export default function ClientWorkspaceScreen({
     statusBadgeText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
     tabs: {
       flexDirection: 'row',
-      borderBottomWidth: 1, borderBottomColor: theme.border,
-      backgroundColor: theme.surface,
+      borderBottomWidth: 1, borderBottomColor: theme.divider,
+      paddingHorizontal: 16,
+      backgroundColor: 'transparent',
     },
-    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
     tabActive: { borderBottomWidth: 2, borderBottomColor: theme.primary },
-    tabText: { fontSize: 13, fontWeight: '500', color: theme.textSecondary },
+    tabText: { fontSize: 11, fontWeight: '600', color: theme.textFaint, fontFamily: fonts.display },
     tabTextActive: { color: theme.primary, fontWeight: '700' },
     body: { flex: 1 },
     infoForm: { padding: 16 },
@@ -219,30 +291,44 @@ export default function ClientWorkspaceScreen({
       marginTop: 14, marginBottom: 5,
     },
     textInput: {
-      backgroundColor: theme.surfaceAlt,
-      borderWidth: 1, borderColor: theme.border,
-      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
-      fontSize: 15, color: theme.text,
+      backgroundColor: theme.inputBg,
+      borderWidth: 1.5, borderColor: theme.inputBorder,
+      borderRadius: radii.md, paddingHorizontal: 12, paddingVertical: 10,
+      fontSize: 14, color: theme.text,
     },
     textArea: { minHeight: 80, textAlignVertical: 'top' },
+    notice: {
+      borderRadius: radii.md,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginTop: 14,
+    },
+    noticeSuccess: {
+      backgroundColor: `${theme.success}1A`,
+      borderWidth: 1,
+      borderColor: `${theme.success}55`,
+    },
+    noticeError: {
+      backgroundColor: `${theme.error}14`,
+      borderWidth: 1,
+      borderColor: `${theme.error}44`,
+    },
+    noticeText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
     pickerBtn: {
-      backgroundColor: theme.surfaceAlt,
-      borderWidth: 1, borderColor: theme.border,
-      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11,
+      backgroundColor: theme.inputBg,
+      borderWidth: 1.5, borderColor: theme.inputBorder,
+      borderRadius: radii.md, paddingHorizontal: 12, paddingVertical: 11,
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     },
-    pickerBtnText: { fontSize: 15, color: theme.text },
+    pickerBtnText: { fontSize: 14, color: theme.text },
     chevron: { fontSize: 14, color: theme.textSecondary },
-    saveBtn: {
-      backgroundColor: theme.primary,
-      borderRadius: 12, paddingVertical: 14,
-      alignItems: 'center', marginTop: 20, marginBottom: 10,
-    },
-    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
     visitCard: {
       marginHorizontal: 12, marginTop: 8,
       backgroundColor: theme.surface,
-      borderRadius: 12, padding: 14,
+      borderRadius: radii.md, padding: 14,
       borderWidth: 1, borderColor: theme.border,
     },
     visitRow: {
@@ -260,18 +346,39 @@ export default function ClientWorkspaceScreen({
       borderRadius: 12, padding: 14,
       borderWidth: 1, borderColor: theme.border,
     },
+    contactsSection: { flex: 1 },
+    contactsHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingTop: 12,
+      gap: 12,
+    },
+    contactsHeaderText: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      flex: 1,
+    },
+    addContactBtn: {
+      backgroundColor: theme.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: radii.full,
+    },
+    addContactBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
     contactName: { fontSize: 14, fontWeight: '600', color: theme.text },
     contactMeta: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
     empty: { padding: 40, alignItems: 'center' },
     emptyText: { fontSize: 14, color: theme.textSecondary, textAlign: 'center' },
     addVisitFab: {
       position: 'absolute', right: 16, bottom: 20,
-      backgroundColor: theme.accent,
-      paddingHorizontal: 18, paddingVertical: 12,
+      backgroundColor: theme.primary,
+      paddingHorizontal: 16, paddingVertical: 11,
       borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 6,
       elevation: 5,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.2, shadowRadius: 6,
+      shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25, shadowRadius: 8,
     },
     addVisitFabText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
     pickerOverlay: {
@@ -290,6 +397,24 @@ export default function ClientWorkspaceScreen({
     pickerItemTextSelected: { color: theme.primary, fontWeight: '700' },
     pickerCancel: { padding: 15, alignItems: 'center' },
     pickerCancelText: { fontSize: 15, color: theme.textSecondary },
+    contactModalCard: {
+      backgroundColor: theme.surface,
+      borderRadius: 18,
+      padding: 18,
+      gap: 10,
+    },
+    contactModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.text,
+      fontFamily: fonts.display,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    modalAction: { flex: 1 },
   });
 
   return (
@@ -300,20 +425,35 @@ export default function ClientWorkspaceScreen({
 
           <View style={s.headerRow}>
             <View style={s.closeRow}>
-              <Pressable onPress={onClose} hitSlop={10}>
-                <Text style={s.closeBtnText}>✕</Text>
+              <Pressable onPress={onClose} hitSlop={10} style={{ width: 28, height: 28, borderRadius: radii.full, backgroundColor: theme.surfaceOffset, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={s.closeBtnText}>×</Text>
               </Pressable>
             </View>
             <Text style={s.clientName}>{client.name}</Text>
             <View style={s.metaRow}>
               {client.sector ? <Text style={s.sectorText}>{client.sector} ·</Text> : null}
-              <View style={s.statusBadge}>
-                <Text style={s.statusBadgeText}>{client.status}</Text>
-              </View>
+              <Badge tone="teal">{client.status}</Badge>
               {client.account_type ? (
                 <Text style={s.sectorText}>{client.account_type}</Text>
               ) : null}
             </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 6 }}>
+            <Card style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>{visits.length || '—'}</Text>
+              <Text style={{ fontSize: 10, color: theme.textSecondary }}>Total Visits</Text>
+            </Card>
+            <Card style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: theme.success, fontFamily: fonts.display }}>
+                {visits.length ? `${Math.round((visits.filter((v) => v.status === 'completed').length / visits.length) * 100)}%` : '—'}
+              </Text>
+              <Text style={{ fontSize: 10, color: theme.textSecondary }}>Success Rate</Text>
+            </Card>
+            <Card style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>{contacts.length || '—'}</Text>
+              <Text style={{ fontSize: 10, color: theme.textSecondary }}>Contacts</Text>
+            </Card>
           </View>
 
           <View style={s.tabs}>
@@ -401,15 +541,24 @@ export default function ClientWorkspaceScreen({
                   numberOfLines={4}
                 />
 
+                {infoNotice ? (
+                  <View style={[s.notice, infoNotice.tone === 'success' ? s.noticeSuccess : s.noticeError]}>
+                    <Text style={[s.noticeText, { color: infoNotice.tone === 'success' ? theme.success : theme.error }]}>
+                      {infoNotice.message}
+                    </Text>
+                  </View>
+                ) : null}
+
                 <Pressable
-                  style={[s.saveBtn, savingInfo && { opacity: 0.6 }]}
                   onPress={handleSaveInfo}
                   disabled={savingInfo}
                 >
-                  {savingInfo
-                    ? <ActivityIndicator size="small" color="#FFFFFF" />
-                    : <Text style={s.saveBtnText}>Save Changes</Text>
-                  }
+                  <PrimaryButton
+                    label={savingInfo ? 'Saving…' : 'Save Changes'}
+                    onPress={handleSaveInfo}
+                    disabled={savingInfo}
+                    icon={savingInfo ? <ActivityIndicator size="small" color="#FFFFFF" /> : undefined}
+                  />
                 </Pressable>
                 <View style={{ height: 20 }} />
               </ScrollView>
@@ -457,7 +606,22 @@ export default function ClientWorkspaceScreen({
             )}
 
             {activeTab === 'contacts' && (
-              <>
+              <View style={s.contactsSection}>
+                <View style={s.contactsHeader}>
+                  <Text style={s.contactsHeaderText}>Add and manage contacts for this account.</Text>
+                  <TouchableOpacity style={s.addContactBtn} onPress={handleOpenContactModal} activeOpacity={0.85}>
+                    <Text style={s.addContactBtnText}>+ Add Contact</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {contactNotice ? (
+                  <View style={[s.notice, contactNotice.tone === 'success' ? s.noticeSuccess : s.noticeError, { marginHorizontal: 12, marginBottom: 4 }]}>
+                    <Text style={[s.noticeText, { color: contactNotice.tone === 'success' ? theme.success : theme.error }]}>
+                      {contactNotice.message}
+                    </Text>
+                  </View>
+                ) : null}
+
                 {contactsLoading ? (
                   <ActivityIndicator color={theme.primary} style={{ margin: 30 }} />
                 ) : (
@@ -480,7 +644,7 @@ export default function ClientWorkspaceScreen({
                     contentContainerStyle={{ paddingBottom: 80 }}
                   />
                 )}
-              </>
+              </View>
             )}
           </View>
         </View>
@@ -534,6 +698,83 @@ export default function ClientWorkspaceScreen({
             <TouchableOpacity style={s.pickerCancel} onPress={() => setShowTypePicker(false)}>
               <Text style={s.pickerCancelText}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showContactModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowContactModal(false)}
+      >
+        <View style={s.pickerOverlay}>
+          <View style={s.contactModalCard}>
+            <Text style={s.contactModalTitle}>Add Contact</Text>
+
+            <Text style={s.label}>Contact Name</Text>
+            <TextInput
+              style={s.textInput}
+              value={newContactName}
+              onChangeText={setNewContactName}
+              placeholder="Contact name"
+              placeholderTextColor={theme.textSecondary}
+            />
+
+            <Text style={s.label}>Position</Text>
+            <TextInput
+              style={s.textInput}
+              value={newContactPosition}
+              onChangeText={setNewContactPosition}
+              placeholder="Decision maker, finance lead, etc."
+              placeholderTextColor={theme.textSecondary}
+            />
+
+            <Text style={s.label}>Phone</Text>
+            <TextInput
+              style={s.textInput}
+              value={newContactPhone}
+              onChangeText={setNewContactPhone}
+              placeholder="+95 9 xxx xxx xxx"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="phone-pad"
+            />
+
+            <Text style={s.label}>Email</Text>
+            <TextInput
+              style={s.textInput}
+              value={newContactEmail}
+              onChangeText={setNewContactEmail}
+              placeholder="name@company.com"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            {contactNotice?.tone === 'error' ? (
+              <View style={[s.notice, s.noticeError, { marginTop: 6 }]}> 
+                <Text style={[s.noticeText, { color: theme.error }]}>{contactNotice.message}</Text>
+              </View>
+            ) : null}
+
+            <View style={s.modalActions}>
+              <View style={s.modalAction}>
+                <SecondaryButton
+                  label="Cancel"
+                  onPress={() => {
+                    if (!savingContact) setShowContactModal(false);
+                  }}
+                />
+              </View>
+              <View style={s.modalAction}>
+                <PrimaryButton
+                  label={savingContact ? 'Saving…' : 'Save Contact'}
+                  onPress={handleSaveContact}
+                  disabled={savingContact}
+                  icon={savingContact ? <ActivityIndicator size="small" color="#FFFFFF" /> : undefined}
+                />
+              </View>
+            </View>
           </View>
         </View>
       </Modal>

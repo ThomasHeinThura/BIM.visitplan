@@ -304,6 +304,8 @@ export type CockpitVisit = {
   client?: Pick<CockpitClient, '_id' | 'name'> | null;
   contact?: Pick<CockpitContact, '_id' | 'name'> | null;
   assigned_am?: Pick<CockpitUser, '_id' | 'name'> | null;
+  financial_year?: Pick<CockpitFinancialYear, '_id' | 'name'> | null;
+  financial_quarter?: Pick<CockpitFinancialQuarter, '_id' | 'name'> | null;
   participants?: Array<Pick<CockpitUser, '_id' | 'name'>> | null;
   meeting_group?: 'infra' | 'es' | 'app' | 'ms' | null;
   date?: string | null;
