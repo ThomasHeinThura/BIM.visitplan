@@ -97,9 +97,10 @@ export function useAuth() {
       scopes: ENTRA_SCOPES,
       redirectUri: ENTRA_REDIRECT_URI,
       responseType: AuthSession.ResponseType.Code,
+      prompt: AuthSession.Prompt.SelectAccount,
       usePKCE: true,
       extraParams: {
-        prompt: 'select_account', // Always show account picker
+        response_mode: 'query',
       },
     },
     ENTRA_DISCOVERY,
@@ -123,6 +124,15 @@ export function useAuth() {
 
     if (response.type === 'cancel' || response.type === 'dismiss') {
       dispatch({ type: 'SIGN_IN_FAIL', reason: 'cancelled' });
+      return;
+    }
+
+    if (response.type === 'locked') {
+      dispatch({
+        type: 'SIGN_IN_FAIL',
+        reason: 'error',
+        message: 'A Microsoft sign-in session is already in progress. Close it and try again.',
+      });
       return;
     }
 
@@ -166,7 +176,15 @@ export function useAuth() {
   // 3. Trigger login — opens Microsoft browser
   const login = useCallback(async () => {
     dispatch({ type: 'SIGN_IN_START' });
-    await promptAsync();
+    try {
+      await promptAsync();
+    } catch (err) {
+      dispatch({
+        type: 'SIGN_IN_FAIL',
+        reason: 'error',
+        message: err instanceof Error ? err.message : 'Unable to open Microsoft sign-in.',
+      });
+    }
   }, [promptAsync]);
 
   // 4. Logout

@@ -2,7 +2,7 @@
   "expo": {
     "name": "BIM.Visitplan",
     "slug": "bim-visitplan",
-    "version": "1.0.0",
+    "version": "2.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,11 +11,11 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "scheme": "msauth.com.heinthura.bimvisitplan",
+    "scheme": "msauth.com.bim.visitplan",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.heinthura.bimvisitplan",
-      "buildNumber": "2",
+      "bundleIdentifier": "com.bim.visitplan",
+      "buildNumber": "5",
       "appleTeamId": "BB26RT3JYN"
     },
     "android": {

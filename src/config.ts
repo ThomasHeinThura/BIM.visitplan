@@ -23,7 +23,7 @@ export const COCKPIT_API_TOKEN = requireEnv('EXPO_PUBLIC_COCKPIT_API_TOKEN');
 
 // ─── Microsoft Entra ID (Azure App Registration) ─────────────────────────────
 // Uses PKCE (public client) — NO client secret should ever be in client-side code.
-// iOS redirect URI:  msauth.com.heinthura.bimvisitplan://auth  (Mobile/desktop)
+// iOS redirect URI:  msauth.com.bim.visitplan://auth  (Mobile/desktop)
 // Web redirect URI:  http://localhost:8081                      (Single-page application)
 export const ENTRA_CLIENT_ID = requireEnv('EXPO_PUBLIC_ENTRA_CLIENT_ID');
 export const ENTRA_TENANT_ID = requireEnv('EXPO_PUBLIC_ENTRA_TENANT_ID');

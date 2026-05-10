@@ -1,6 +1,8 @@
 # VisitPlan MVP — Product & Development Plan
 
 **Version:** 2.6 (May 10, 2026)  
+**App Release Version:** 2.6.0  
+**iOS TestFlight Build:** 4  
 **Stack:** Expo React Native (SDK 55) + Cockpit CMS (cms.bimats.com)  
 **Repo:** https://github.com/ThomasHeinThura/BIM.visitplan  
 **Goal:** Unblock sales team — visit tracking + client management + management reports.

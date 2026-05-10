@@ -6,7 +6,7 @@
  *
  * Redirect URI registered in Azure Portal:
  *   Platform → Mobile and desktop applications
- *   URI: msauth.com.heinthura.bimvisitplan://auth
+ *   URI: msauth.com.bim.visitplan://auth
  */
 
 import * as AuthSession from 'expo-auth-session';
@@ -39,17 +39,26 @@ export const ENTRA_DISCOVERY: AuthSession.DiscoveryDocument = {
   revocationEndpoint: `https://login.microsoftonline.com/${ENTRA_TENANT_ID}/oauth2/v2.0/logout`,
 };
 
+const NATIVE_ENTRA_REDIRECT_URI = `${ENTRA_REDIRECT_SCHEME}://auth`;
+
 /**
  * Redirect URI — platform-aware:
- *   Native → msauth.com.heinthura.bimvisitplan://auth  (registered as Mobile/desktop)
- *   Web    → http://localhost:8081                      (registered as Single-page application)
+ *   Native → msauth.com.bim.visitplan://auth  (registered as Mobile/desktop)
+ *   Web    → http://localhost:8081            (registered as Single-page application)
+ *
+ * In a bare/native build, pass the native redirect explicitly so AuthSession
+ * doesn't infer a development URL shape that won't match the Entra app registration.
  */
 export const ENTRA_REDIRECT_URI = Platform.OS === 'web'
   ? AuthSession.makeRedirectUri({ preferLocalhost: true, isTripleSlashed: false })
-  : AuthSession.makeRedirectUri({ scheme: ENTRA_REDIRECT_SCHEME, path: 'auth' });
+  : AuthSession.makeRedirectUri({
+      native: NATIVE_ENTRA_REDIRECT_URI,
+      scheme: ENTRA_REDIRECT_SCHEME,
+      path: 'auth',
+    });
 
-/** OAuth scopes — all granted in the Azure App Registration */
-export const ENTRA_SCOPES = ['openid', 'profile', 'email', 'User.Read', 'offline_access'];
+/** OAuth scopes — keep the native request minimal and Entra-friendly */
+export const ENTRA_SCOPES = ['openid', 'profile', 'User.Read', 'offline_access'];
 
 // ─── Decode id_token ────────────────────────────────────────────────────────
 
