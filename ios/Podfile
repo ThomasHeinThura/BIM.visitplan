@@ -66,5 +66,31 @@ target 'BIMVisitplan' do
         build_configuration.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
       end
     end
+
+    tool_bin_dir = '${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}/usr/bin'
+    support_dir = File.join(__dir__, 'Pods', 'Target Support Files', 'Pods-BIMVisitplan')
+
+    {
+      File.join(support_dir, 'Pods-BIMVisitplan-frameworks.sh') => {
+        'xcrun otool -LX "$binary"' => '/usr/bin/otool -LX "$binary"',
+      },
+      File.join(support_dir, 'Pods-BIMVisitplan-resources.sh') => {
+        'xcrun momc' => "\"#{tool_bin_dir}/momc\"",
+        'xcrun mapc' => "\"#{tool_bin_dir}/mapc\"",
+        '[ "`xcrun --find actool`" ]' => "[ -x \"#{tool_bin_dir}/actool\" ]",
+        'xargs -0 xcrun actool' => "xargs -0 \"#{tool_bin_dir}/actool\"",
+      },
+    }.each do |script_path, replacements|
+      next unless File.exist?(script_path)
+
+      script_contents = File.read(script_path)
+      patched_contents = replacements.reduce(script_contents) do |contents, (from, to)|
+        contents.gsub(from, to)
+      end
+
+      next if patched_contents == script_contents
+
+      File.write(script_path, patched_contents)
+    end
   end
 end

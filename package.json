@@ -3,12 +3,13 @@
   "version": "2.6.0",
   "main": "index.ts",
   "scripts": {
+    "postinstall": "node scripts/patch-rn-ios-toolchain.mjs",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "ios:testflight:build": "npx eas build --platform ios --profile production",
-    "ios:testflight:submit": "npx eas submit --platform ios --profile production",
+    "ios:testflight:build": "npx eas-cli build --platform ios --profile production",
+    "ios:testflight:submit": "npx eas-cli submit --platform ios --profile production",
     "ios:testflight": "npm run ios:testflight:build && npm run ios:testflight:submit",
     "audit:cockpit": "node scripts/audit-cockpit.mjs",
     "seed:financial-calendar": "node scripts/seed-financial-calendar.mjs",
@@ -32,7 +33,18 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eas-cli": "^18.11.0",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.9.10",
+    "ajv": "8.20.0",
+    "diff": "9.0.0",
+    "minimatch": "10.2.5",
+    "node-forge": "1.4.0",
+    "postcss": "8.5.14",
+    "tar": "7.5.15",
+    "yaml": "2.8.4"
   },
   "private": true
 }

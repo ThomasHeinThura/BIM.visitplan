@@ -9,8 +9,16 @@
  * ⚠️  Never add hardcoded fallback secrets here — this file is open source.
  */
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
+const publicEnv = {
+  EXPO_PUBLIC_COCKPIT_API_URL: process.env.EXPO_PUBLIC_COCKPIT_API_URL,
+  EXPO_PUBLIC_COCKPIT_API_TOKEN: process.env.EXPO_PUBLIC_COCKPIT_API_TOKEN,
+  EXPO_PUBLIC_ENTRA_CLIENT_ID: process.env.EXPO_PUBLIC_ENTRA_CLIENT_ID,
+  EXPO_PUBLIC_ENTRA_TENANT_ID: process.env.EXPO_PUBLIC_ENTRA_TENANT_ID,
+  EXPO_PUBLIC_ENTRA_REDIRECT_SCHEME: process.env.EXPO_PUBLIC_ENTRA_REDIRECT_SCHEME,
+} as const;
+
+function requireEnv(key: keyof typeof publicEnv): string {
+  const value = publicEnv[key];
   if (!value && __DEV__) {
     console.warn(`[config] Missing env var: ${key}. Add it to your .env file.`);
   }

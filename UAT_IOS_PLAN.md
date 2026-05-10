@@ -9,11 +9,11 @@
 - Simulator build succeeds for `iPhone 17` on iOS 26.4.1.
 - iOS bundle identifier for the app is `com.bim.visitplan`.
 - Physical iPhone install already works when Xcode can auto-manage development signing.
-- The remaining blocker for TestFlight is Apple account access for team `BB26RT3JYN` plus App Store distribution/upload credentials on this Mac.
+- The remaining blocker for TestFlight is Apple account access for team `P6HM822KD4` plus App Store distribution/upload credentials on this Mac.
 
 ## Current Blocker For Device Release
 
-- This Mac has Apple Development identities, but Xcode archive failed with `No Account for Team "BB26RT3JYN"`.
+- This Mac has Apple Development identities, but Xcode archive failed with `No Account for Team "P6HM822KD4"`.
 - No App Store Connect upload credential is configured locally.
 - No App Store distribution profile is currently available locally for `com.bim.visitplan`.
 
@@ -27,7 +27,7 @@
 
 ## Remaining Local Machine Tasks
 
-1. Add the Apple account that owns team `BB26RT3JYN` in Xcode.
+1. Add the Apple account that owns team `P6HM822KD4` in Xcode.
 2. Let Xcode download signing assets for `com.bim.visitplan`.
 3. Add App Store Connect upload credentials on this Mac or use EAS-managed submit.
 4. Keep using `ios/BIMVisitplan.xcworkspace`, not the `.xcodeproj`.
@@ -36,13 +36,13 @@
 
 1. Open Xcode.
 2. Go to `Xcode > Settings > Accounts`.
-3. Add the Apple ID that has access to Developer Team `BB26RT3JYN`.
+3. Add the Apple ID that has access to Developer Team `P6HM822KD4`.
 4. Select that account and click `Manage Certificates`.
 5. Make sure at least one `Apple Distribution` certificate exists for the team.
 6. Open `ios/BIMVisitplan.xcworkspace`.
 7. Select the `BIMVisitplan` target.
 8. Open `Signing & Capabilities`.
-9. Set `Team` to `BB26RT3JYN`.
+9. Set `Team` to `P6HM822KD4`.
 10. Keep `Bundle Identifier` as `com.bim.visitplan`.
 11. Keep `Automatically manage signing` enabled.
 12. Build once for `Any iOS Device` so Xcode refreshes provisioning.
@@ -59,7 +59,7 @@
 4. Open the workspace:
    `open ios/BIMVisitplan.xcworkspace`
 5. In Xcode, select the `BIMVisitplan` target.
-6. Under Signing & Capabilities, choose team `BB26RT3JYN`.
+6. Under Signing & Capabilities, choose team `P6HM822KD4`.
 7. Keep bundle identifier as `com.bim.visitplan`.
 8. Build to a simulator first.
 9. Build to a physical iPhone for UAT testing.
@@ -69,7 +69,7 @@
 1. Connect the iPhone by cable.
 2. Trust the Mac on the iPhone if prompted.
 3. In Xcode, choose the connected iPhone as the run destination.
-4. In Signing & Capabilities, make sure team `BB26RT3JYN` resolves signing warnings.
+4. In Signing & Capabilities, make sure team `P6HM822KD4` resolves signing warnings.
 5. Press Run in Xcode.
 6. On the iPhone, if prompted, allow Developer Mode and trust the developer certificate.
 7. Launch the app on the device and test against UAT.
@@ -78,7 +78,7 @@
 
 1. Increment `ios.buildNumber` in `app.json` before each new upload.
 2. Open `ios/BIMVisitplan.xcworkspace` in Xcode.
-3. Confirm Signing & Capabilities is green for team `BB26RT3JYN`.
+3. Confirm Signing & Capabilities is green for team `P6HM822KD4`.
 4. Select `Any iOS Device` as the build destination.
 5. Use the `Release` configuration.
 6. Run `Product > Archive`.
@@ -106,7 +106,7 @@
 
 - `eas.json` now includes an iOS `production` build profile with `distribution: store`.
 - The repo now includes `submit.production` so `eas submit` uses the same profile name.
-- EAS still requires valid Apple credentials for team `BB26RT3JYN` during build or submit.
+- EAS still requires valid Apple credentials for team `P6HM822KD4` during build or submit.
 - If App Store Connect API keys are preferred, place `AuthKey_<KEYID>.p8` in one of:
   - `~/.appstoreconnect/private_keys`
   - `~/.private_keys`
@@ -127,7 +127,7 @@
 
 ## If You Need TestFlight Later
 
-1. Make sure signing is green in Xcode for team `BB26RT3JYN`.
+1. Make sure signing is green in Xcode for team `P6HM822KD4`.
 2. Increment `ios.buildNumber` in `app.json`.
 3. Use either Xcode archive/upload or the EAS production pipeline.
 4. Upload to App Store Connect.
