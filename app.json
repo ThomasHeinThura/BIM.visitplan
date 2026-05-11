@@ -2,7 +2,7 @@
   "expo": {
     "name": "BIM.Visitplan",
     "slug": "bim-visitplan",
-    "version": "2.6.0",
+    "version": "2.6.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,12 +15,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bim.visitplan",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "appleTeamId": "P6HM822KD4"
     },
     "android": {
       "package": "com.bim.visitplan",
-      "versionCode": 7,
+      "versionCode": 8,
       "intentFilters": [
         {
           "action": "VIEW",

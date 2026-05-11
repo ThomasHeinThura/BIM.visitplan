@@ -1,6 +1,6 @@
 {
   "name": "bim.visitplan",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "main": "index.ts",
   "scripts": {
     "postinstall": "node scripts/patch-rn-ios-toolchain.mjs",

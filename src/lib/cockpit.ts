@@ -19,14 +19,70 @@ import type {
 
 // ─── Axios Instance ────────────────────────────────────────────────────────
 
+function getCockpitAuthHeaders(token: string) {
+  if (token.startsWith('USR-')) {
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  return {
+    'Api-Key': token,
+    'api-key': token,
+  };
+}
+
 const cockpit = axios.create({
   baseURL: COCKPIT_API_URL,
   timeout: 15000,
   headers: {
-    'Api-Key': COCKPIT_API_TOKEN,
+    ...getCockpitAuthHeaders(COCKPIT_API_TOKEN),
     'Content-Type': 'application/json',
   },
 });
+
+export function getCockpitErrorMessage(error: unknown) {
+  if (!COCKPIT_API_URL || !COCKPIT_API_TOKEN) {
+    return 'VisitPlan is missing CRM configuration in this build. Please ask an admin to update the Android app configuration.';
+  }
+
+  if (!axios.isAxiosError(error)) {
+    return error instanceof Error ? error.message : 'Unknown CRM error.';
+  }
+
+  const status = error.response?.status;
+  const data = error.response?.data;
+
+  const serverMessage = typeof data === 'string'
+    ? data.trim()
+    : data && typeof data === 'object'
+      ? Reflect.get(data, 'message') ?? Reflect.get(data, 'error')
+      : null;
+
+  if (status === 412) {
+    if (serverMessage === 'Authentication failed') {
+      return 'CRM authentication failed. Please ask an admin to refresh the Cockpit API token in the app configuration.';
+    }
+
+    return 'The CRM server rejected this app request. Please ask an admin to refresh the Cockpit API token/configuration for this build.';
+  }
+
+  if (status === 401 || status === 403) {
+    return 'The CRM server did not accept this app configuration. Please ask an admin to check the CRM API access token.';
+  }
+
+  if (typeof serverMessage === 'string' && serverMessage.trim()) {
+    return serverMessage.trim();
+  }
+
+  if (status) {
+    return `The CRM server returned status ${status}. Please try again.`;
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return 'The CRM server took too long to respond. Please check your connection and try again.';
+  }
+
+  return error.message || 'Could not connect to the CRM server.';
+}
 
 // ─── Response Shapes ───────────────────────────────────────────────────────
 

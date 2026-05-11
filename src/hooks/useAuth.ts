@@ -12,7 +12,7 @@
  *   const { status, user, login, logout, error } = useAuth();
  */
 
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -89,6 +89,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 
 export function useAuth() {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const handledAuthCodesRef = useRef<Set<string>>(new Set());
 
   // PKCE auth request — created once, reused per login attempt
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
@@ -153,6 +154,11 @@ export function useAuth() {
         return;
       }
 
+      if (handledAuthCodesRef.current.has(code)) {
+        return;
+      }
+      handledAuthCodesRef.current.add(code);
+
       handleAuthCode(code, codeVerifier).then((result) => {
         if (result.success) {
           dispatch({ type: 'SIGN_IN_SUCCESS', user: result.user });
@@ -175,6 +181,11 @@ export function useAuth() {
 
   // 3. Trigger login — opens Microsoft browser
   const login = useCallback(async () => {
+    if (!request) {
+      dispatch({ type: 'SIGN_IN_FAIL', reason: 'error', message: 'Microsoft sign-in is still preparing. Please try again in a moment.' });
+      return;
+    }
+
     dispatch({ type: 'SIGN_IN_START' });
     try {
       await promptAsync();
@@ -185,7 +196,7 @@ export function useAuth() {
         message: err instanceof Error ? err.message : 'Unable to open Microsoft sign-in.',
       });
     }
-  }, [promptAsync]);
+  }, [promptAsync, request]);
 
   // 4. Logout
   const logout = useCallback(async () => {

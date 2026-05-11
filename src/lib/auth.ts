@@ -11,7 +11,7 @@
 
 import * as AuthSession from 'expo-auth-session';
 import { Platform } from 'react-native';
-import { getUserByMsEmail, upsertUser } from './cockpit';
+import { getCockpitErrorMessage, getUserByMsEmail, upsertUser } from './cockpit';
 import {
   clearSession,
   getMsToken,
@@ -184,7 +184,7 @@ export async function loginWithEmail(
 
     return { success: true, user };
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    const message = getCockpitErrorMessage(err);
     return { success: false, reason: 'error', message };
   }
 }
