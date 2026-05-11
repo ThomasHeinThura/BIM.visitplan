@@ -1,0 +1,3 @@
+- Build locally
+- release: android apk to Github
+- relaese: ios to App Store Connect
