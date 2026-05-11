@@ -15,11 +15,31 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bim.visitplan",
-      "buildNumber": "5",
+      "buildNumber": "7",
       "appleTeamId": "P6HM822KD4"
     },
     "android": {
       "package": "com.bim.visitplan",
+      "versionCode": 7,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "msauth.com.bim.visitplan",
+              "host": "auth"
+            },
+            {
+              "scheme": "msauth.com.bim.visitplan"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

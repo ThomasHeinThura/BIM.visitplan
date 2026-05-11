@@ -337,7 +337,7 @@
 				CODE_SIGN_ENTITLEMENTS = BIMVisitplan/BIMVisitplan.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = P6HM822KD4;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ENABLE_BITCODE = NO;
@@ -384,7 +384,7 @@
 				CODE_SIGN_ENTITLEMENTS = BIMVisitplan/BIMVisitplan.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = P6HM822KD4;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				INFOPLIST_FILE = BIMVisitplan/Info.plist;
