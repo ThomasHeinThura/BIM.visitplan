@@ -107,7 +107,7 @@ Answered 2026-08-05.
 
 | # | Risk | Impact | Status |
 | --- | --- | --- | --- |
-| R1 | bim-crm has **no API at all** — `routes/api.php` never existed on any branch | Blocks every mobile feature | Open — **Unit A** |
+| R1 | bim-crm has **no API at all** — `routes/api.php` never existed on any branch | Blocks every mobile feature | **Resolved** — Slice 0 added the foundation, Slice 1 the domain surface (17 endpoints) |
 | ~~R2~~ | ~~bim-crm hardcodes SSO to `@bimgoc.com`; mobile users are `@bimats.com`~~ | — | **WITHDRAWN 2026-08-05 — claim was false.** All users are `@bimgoc.com`; Entra login works as-is. The `bimats` strings were a server hostname and a code comment, not accounts. Making the allowlist configurable remains a low-priority hardening item (FR-4). |
 | R3 | `ai/CONSTRAINTS.md` excludes `laravel/sanctum` | Documented architecture forbids the token auth needed | **Resolved** — Q3=A; amend the doc in Unit A |
 | R4 | Cockpit ↔ bim-crm model mismatch (string `_id` vs integer PK) | Stale persisted local state after upgrade | Open — cache versioning in **Unit D** |
@@ -116,5 +116,6 @@ Answered 2026-08-05.
 | R7 | **Big-bang delivery** — hard cutover + single release + harness-first | Nothing shippable until all of it works | Accepted — 2.6.1 stays live on `cms-integration`; trunk green per wave |
 | R8 | Cross-sector data leak via a missed row-level scope across ~48 endpoints | Confidentiality breach | Open — mandatory 403 test per endpoint (NFR-11) |
 | R9 | `App.tsx` switches screens on state; will not hold at 35+ screens | Costly retrofit if deferred | **Resolved** — Expo Router, migrated in Unit D.NAV before any new screens |
-| R10 | Empty CRM on day one (Q6=C) | Every list blank at launch; reads as broken | Open — empty states (C3) become the first thing every user sees |
+| R10 | Empty CRM on day one (Q6=C) | Every list blank at launch; reads as broken | **Addressed in Slice 1** — every list has an explanatory empty state, and 403 renders as "no access" rather than "nothing here" |
+| R12 | **Search filters can escape row-level scope** | An ungrouped `orWhere` returns every sector's matching rows | **Found and fixed in Slice 1.** Real defect, not theoretical — grouped in a closure, with a leakage test per searchable endpoint |
 | R11 | Expo Router migration touches the entry point, `app.json`, and every screen's location | Could destabilise a working UAT build | Separate commits from data re-pointing; app runnable at each of the 7 migration steps; 2.6.1 untouched on `cms-integration` |

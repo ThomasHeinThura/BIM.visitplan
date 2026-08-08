@@ -320,3 +320,42 @@ unlisted role. It must be deleted once the Entra registration exists.
 **Context**: Slice 0 complete. Slice 1 (Visits) is next.
 
 ---
+
+## Construction — Slice 1
+
+**Timestamp**: 2026-08-08
+
+**User Input**: "continue and integrate ui ux and freatures in the mobile app. I don't see anything. I only see login. so continue commit and push and continue develop, test and add features ui ux according to sdlc and aidlc."
+
+**Follow-up mid-slice**: "you need to see the data from the bim-crm. and in mobile add pipeline and lead that they want to do the add the lead and edit the lead and see the pipeline clearly."
+
+**AI Response**: The "only login" observation was correct and expected — Slice 0 built the
+auth vertical only, so there were no domain endpoints and no screens behind them.
+
+Committed and pushed Slice 0 to both branches, then built Slice 1: 17 API endpoints
+(dashboard, visits, clients, deals, pipeline, sectors) and six mobile screens. The
+pipeline and lead request arrived after the slice started and was folded in rather than
+deferred, because a lead is a deal on a lead-type stage — no separate entity — and the
+deal endpoints were already being written.
+
+Six defects found and fixed during the work, recorded in
+`construction/slice-1/completion.md`. The most serious was an ungrouped `orWhere` in the
+search filters: `(visible AND title LIKE) OR (client LIKE)` escapes the row-level scope
+and returns every sector's matching rows. Logged as R12 because it is a real defect that
+was written and then caught, not a theoretical risk.
+
+One defect was found only by driving the UI in a browser: the add button read "Lead",
+which is ambiguous next to deal rows whose stage badge also reads "Lead" — the automated
+click hit a badge and opened the edit form instead. Relabelled "Add lead". Worth noting
+that neither typecheck nor the test suite could have caught it.
+
+Verified end to end at 390×844 against a local bim-crm with seeded data: dashboard
+counts and visits, pipeline board with stage columns and totals, and lead creation
+appearing in the list immediately. Backend 498/498; PHPStan project total 204 → 179;
+tsc clean.
+
+**Context**: Construction — Slice 1 complete, both branches pushed. Slice 2 (check-in/
+check-out, visit outcomes, agenda items) is next and needs migrations, being the three
+entities bim-crm lacks.
+
+---
