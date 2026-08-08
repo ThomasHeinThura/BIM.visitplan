@@ -1,21 +1,36 @@
 /**
  * The landing screen.
  *
- * Answers one question — what am I doing today — and gets everything it needs from a
- * single /dashboard request, because four round trips on a phone at a client site is
- * three too many.
+ * Leads with what the day demands rather than a greeting: the headline is the number of
+ * visits and whether anything is late, because that is the question a rep opens the app
+ * to answer. Everything below it is the answer in detail.
+ *
+ * One /dashboard request — four round trips on a phone in a client's lobby is three too
+ * many.
  */
 
 import React from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { fonts, useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getDashboard } from '../../lib/crm/clients';
 import type { VisitPlan } from '../../lib/crm/types';
-import { KPICard, SectionHead } from '../ui';
+import { Gradient } from '../../ui/Gradient';
+import { Card, Rise, SectionHeader, StatTile } from '../../ui/Surface';
+import { alpha, radius, space, type } from '../../ui/tokens';
+import { DayRail } from './DayRail';
 import { EmptyState, ErrorState, LoadingState, NoAccessState } from './States';
 import { useResource } from './useResource';
 import { VisitCard } from './VisitCard';
+
+function greeting(): string {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+
+  return 'Good evening';
+}
 
 export function DashboardScreen({
   onOpenVisit,
@@ -24,7 +39,7 @@ export function DashboardScreen({
   onOpenVisit?: (visit: VisitPlan) => void;
   onSeeAllVisits?: () => void;
 }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { data, loading, error, refetch, refreshing } = useResource((signal) => getDashboard(signal));
 
   if (loading) return <LoadingState label="Loading your day…" />;
@@ -34,77 +49,141 @@ export function DashboardScreen({
   const counts = data.visit_counts;
   const firstName = data.user.name.split(' ')[0];
 
+  // The headline states the day in one line. "Nothing scheduled" is a real answer, not
+  // an empty string — a rep who reads it can stop checking.
+  const headline =
+    !data.can.view_visits ? 'Welcome back'
+    : counts.today === 0 ? 'Nothing scheduled'
+    : counts.today === 1 ? '1 visit today'
+    : `${counts.today} visits today`;
+
+  const subline =
+    counts.overdue > 0
+      ? `${counts.overdue} overdue ${counts.overdue === 1 ? 'visit needs' : 'visits need'} attention`
+      : data.can.view_visits
+        ? `${counts.planned} planned · ${counts.completed_this_month} done this month`
+        : 'Your dashboard';
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.bg }}
-      contentContainerStyle={{ paddingBottom: 32 }}
+      contentContainerStyle={{ paddingBottom: space.xxl }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={theme.primary} />
       }
     >
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
-          Hello, {firstName}
+      <Gradient
+        colors={
+          isDark
+            ? [alpha(theme.primary, 0.28), alpha(theme.info, 0.14), theme.bg]
+            : [alpha(theme.primary, 0.18), alpha(theme.info, 0.08), theme.bg]
+        }
+        direction={2}
+        style={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xl }}
+      >
+        <Text style={[type.micro, { color: theme.primary }]}>
+          {greeting()}, {firstName}
         </Text>
-        <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>
+
+        <Text style={[type.hero, { color: theme.text, marginTop: space.sm }]}>{headline}</Text>
+
+        <Text style={[type.body, { color: counts.overdue > 0 ? theme.error : theme.textSecondary, marginTop: 5 }]}>
+          {subline}
+        </Text>
+
+        {/* textSecondary rather than textFaint: over the gradient, faint dropped below
+            a readable contrast ratio. */}
+        <Text style={[type.micro, { color: theme.textSecondary, marginTop: space.md, letterSpacing: 0.7 }]}>
           {new Date().toLocaleDateString(undefined, {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
           })}
         </Text>
-      </View>
+      </Gradient>
 
       {data.can.view_visits ? (
-        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 12 }}>
-          <KPICard value={counts.today} label="Today" />
-          <KPICard value={counts.planned} label="Planned" />
-          <KPICard
+        <View style={{ flexDirection: 'row', gap: space.sm, paddingHorizontal: space.lg, marginTop: -space.md }}>
+          <StatTile value={counts.today} label="Today" tone="brand" />
+          <StatTile value={counts.planned} label="Planned" />
+          <StatTile
             value={counts.overdue}
             label="Overdue"
-            // Only coloured when it is non-zero: a red 0 trains people to ignore red.
-            accent={counts.overdue > 0 ? theme.error : undefined}
+            // Coloured only when non-zero: a permanently red zero trains people to
+            // ignore the colour.
+            tone={counts.overdue > 0 ? 'warn' : 'neutral'}
           />
-          <KPICard value={counts.completed_this_month} label="Done this month" />
+          <StatTile value={counts.completed_this_month} label="Done" tone="good" caption="this month" />
         </View>
       ) : null}
 
-      <SectionHead
-        title="Today's visits"
-        action={data.can.view_visits ? 'See all' : undefined}
+      <SectionHeader
+        eyebrow="Your day"
+        title="Today's schedule"
+        action={data.can.view_visits ? 'All visits' : undefined}
         onAction={onSeeAllVisits}
       />
 
       {!data.can.view_visits ? (
         <NoAccessState what="visit plans" />
       ) : data.todays_visits.length === 0 ? (
-        <EmptyState
-          icon="◷"
-          title="Nothing scheduled today"
-          message="No visits are booked for today. Check the upcoming list, or plan a new visit."
-        />
+        <View style={{ paddingHorizontal: space.lg }}>
+          <Card level={1}>
+            <EmptyState
+              icon="◷"
+              title="No visits today"
+              message="Nothing is booked. Check what's coming up below, or plan a visit."
+            />
+          </Card>
+        </View>
       ) : (
-        data.todays_visits.map((visit) => (
-          <VisitCard
-            key={visit.id}
-            visit={visit}
-            showDay={false}
-            onPress={onOpenVisit ? () => onOpenVisit(visit) : undefined}
-          />
-        ))
+        <DayRail visits={data.todays_visits} onOpenVisit={onOpenVisit} />
       )}
 
       {data.can.view_visits && data.upcoming_visits.length > 0 ? (
         <>
-          <SectionHead title="Coming up" />
-          {data.upcoming_visits.map((visit) => (
-            <VisitCard
-              key={visit.id}
-              visit={visit}
-              onPress={onOpenVisit ? () => onOpenVisit(visit) : undefined}
-            />
+          <SectionHeader eyebrow="Ahead" title="Coming up" />
+          {data.upcoming_visits.map((visit, index) => (
+            <Rise key={visit.id} index={index}>
+              <VisitCard visit={visit} onPress={onOpenVisit ? () => onOpenVisit(visit) : undefined} />
+            </Rise>
           ))}
         </>
+      ) : null}
+
+      {data.can.view_clients ? (
+        <View style={{ paddingHorizontal: space.lg, marginTop: space.xl }}>
+          <Card level={1} padded={false}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: space.lg,
+              }}
+            >
+              <View style={{ gap: 3 }}>
+                <Text style={[type.micro, { color: theme.textFaint }]}>In your territory</Text>
+                <Text style={[type.title, { color: theme.text }]}>
+                  {data.client_count} {data.client_count === 1 ? 'client' : 'clients'}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: radius.md,
+                  backgroundColor: alpha(theme.primary, 0.14),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 17, color: theme.primary }}>◇</Text>
+              </View>
+            </View>
+          </Card>
+        </View>
       ) : null}
     </ScrollView>
   );

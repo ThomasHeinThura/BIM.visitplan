@@ -1,29 +1,20 @@
 /**
- * One visit, as it appears in a list.
+ * One visit in a list.
  *
- * Shared by the dashboard, the visit list and the client workspace so a visit looks
- * and behaves identically wherever it turns up.
+ * Shared by the visit list, the client workspace and the dashboard's "coming up", so a
+ * visit looks the same wherever it appears. The dashboard's *today* section uses the
+ * day rail instead — that is the one place a visit gets special treatment.
  */
 
 import React from 'react';
 import { Text, View } from 'react-native';
 
-import { fonts, radii, useTheme } from '../../context/ThemeContext';
-import type { VisitPlan, VisitStatusValue } from '../../lib/crm/types';
-import { Badge, Card } from '../ui';
+import { useTheme } from '../../context/ThemeContext';
+import type { VisitPlan } from '../../lib/crm/types';
+import { Avatar, Card, SectorChip, StatusPill } from '../../ui/Surface';
+import { alpha, radius, sectorColor, space, type } from '../../ui/tokens';
 
-/**
- * Status wording comes from the server; only the colour is decided here. Mapping the
- * enum value — not the label — means renaming a status server-side changes the text
- * everywhere without silently falling back to a default tone.
- */
-const TONE_BY_STATUS: Record<VisitStatusValue, 'teal' | 'success' | 'muted'> = {
-  planned: 'teal',
-  completed: 'success',
-  cancelled: 'muted',
-};
-
-function formatWhen(iso: string): { day: string; time: string; isPast: boolean } {
+function when(iso: string) {
   const date = new Date(iso);
   const now = new Date();
 
@@ -32,90 +23,96 @@ function formatWhen(iso: string): { day: string; time: string; isPast: boolean }
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate();
 
-  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  // Split the meridiem off rather than letting "10:45 AM" wrap inside the date block —
+  // as one string it broke across three lines at this width.
+  const full = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const [clock, meridiem = ''] = full.split(' ');
 
-  if (sameDay) return { day: 'Today', time, isPast: date < now };
-
-  const day = date.toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-
-  return { day, time, isPast: date < now };
+  return {
+    clock,
+    meridiem,
+    day: sameDay ? 'Today' : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+    weekday: sameDay ? '' : date.toLocaleDateString(undefined, { weekday: 'short' }),
+    isPast: date.getTime() < now.getTime(),
+  };
 }
 
-export function VisitCard({
-  visit,
-  onPress,
-  showDay = true,
-}: {
-  visit: VisitPlan;
-  onPress?: () => void;
-  showDay?: boolean;
-}) {
+export function VisitCard({ visit, onPress }: { visit: VisitPlan; onPress?: () => void }) {
   const { theme } = useTheme();
-  const { day, time, isPast } = formatWhen(visit.scheduled_at);
+  const { clock, meridiem, day, weekday, isPast } = when(visit.scheduled_at);
 
-  // A planned visit whose date has passed is the thing a rep most often loses track
-  // of, so it is called out rather than left looking like any other row.
-  const isOverdue = isPast && visit.status.value === 'planned';
+  const status = visit.status.value;
+  const overdue = isPast && status === 'planned';
+  const sector = sectorColor(visit.sector?.color);
 
   return (
-    <Card onPress={onPress} style={{ marginHorizontal: 16, marginBottom: 10 }}>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
+    <Card
+      onPress={onPress}
+      accent={visit.sector?.color ?? null}
+      style={{ marginHorizontal: space.lg, marginBottom: space.md }}
+    >
+      <View style={{ flexDirection: 'row', gap: space.md }}>
+        {/* The date block is the anchor: a rep scans a list by time first. */}
         <View
           style={{
-            width: 52,
+            width: 60,
+            borderRadius: radius.md,
+            backgroundColor: overdue ? alpha(theme.error, 0.12) : alpha(sector, 0.12),
+            borderWidth: 1,
+            borderColor: overdue ? alpha(theme.error, 0.3) : alpha(sector, 0.25),
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: isOverdue ? theme.errorLight : theme.primaryLight,
-            borderRadius: radii.md,
-            paddingVertical: 8,
+            paddingVertical: space.sm,
+            gap: 1,
           }}
         >
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: '700',
-              color: isOverdue ? theme.error : theme.primary,
-              fontFamily: fonts.display,
-            }}
-          >
-            {time}
-          </Text>
-          {showDay ? (
-            <Text style={{ fontSize: 9, color: theme.textSecondary, marginTop: 2 }}>{day}</Text>
+          {weekday ? (
+            <Text style={[type.micro, { color: theme.textFaint, fontSize: 9, letterSpacing: 0.5 }]}>
+              {weekday}
+            </Text>
           ) : null}
+
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+            <Text style={[type.numeric, { color: overdue ? theme.error : sector, fontSize: 15 }]}>
+              {clock}
+            </Text>
+            {meridiem ? (
+              <Text style={[type.micro, { color: overdue ? theme.error : sector, fontSize: 8.5 }]}>
+                {meridiem}
+              </Text>
+            ) : null}
+          </View>
+
+          <Text style={[type.micro, { color: theme.textFaint, fontSize: 9, letterSpacing: 0.3 }]}>{day}</Text>
         </View>
 
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 14, fontWeight: '600', color: theme.text, fontFamily: fonts.display }}
-          >
+        <View style={{ flex: 1, gap: 7 }}>
+          <Text style={[type.heading, { color: theme.text }]} numberOfLines={2}>
             {visit.title}
           </Text>
 
           {visit.client ? (
-            <Text numberOfLines={1} style={{ fontSize: 12, color: theme.textSecondary }}>
+            <Text style={[type.bodySm, { color: theme.textSecondary }]} numberOfLines={1}>
               {visit.client.name}
             </Text>
           ) : null}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Badge tone={TONE_BY_STATUS[visit.status.value]}>{visit.status.label}</Badge>
+            {overdue ? (
+              <StatusPill label="Overdue" tone="overdue" />
+            ) : (
+              <StatusPill
+                label={visit.status.label}
+                tone={status === 'completed' ? 'done' : status === 'cancelled' ? 'cancelled' : 'planned'}
+              />
+            )}
 
-            {isOverdue ? <Badge tone="error">Overdue</Badge> : null}
+            {visit.sector ? <SectorChip name={visit.sector.name} color={visit.sector.color} /> : null}
 
-            {visit.sector ? <Badge tone="muted">{visit.sector.name}</Badge> : null}
+            <View style={{ flex: 1 }} />
+
+            {visit.owner ? <Avatar name={visit.owner.name} size={24} color={visit.sector?.color} /> : null}
           </View>
-
-          {/* Only meaningful to someone who can see other people's visits; for an
-              account manager every row is their own, so it would be noise. */}
-          {visit.owner ? (
-            <Text style={{ fontSize: 11, color: theme.textFaint }}>{visit.owner.name}</Text>
-          ) : null}
         </View>
       </View>
     </Card>

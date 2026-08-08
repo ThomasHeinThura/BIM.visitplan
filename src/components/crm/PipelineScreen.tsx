@@ -13,28 +13,42 @@
 import React, { useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { fonts, radii, useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getPipeline, moveDealStage } from '../../lib/crm/deals';
 import type { Deal, PipelineColumn, StageTypeValue } from '../../lib/crm/types';
-import { Badge } from '../ui';
+import { Avatar, ProportionBar, Rise, StatusPill } from '../../ui/Surface';
+import { alpha, radius, sectorColor, space, type } from '../../ui/tokens';
 import { EmptyState, ErrorState, LoadingState, NoAccessState } from './States';
 import { useResource } from './useResource';
 
-const COLUMN_WIDTH = 264;
+const COLUMN_WIDTH = 268;
 
 /** Colour by stage TYPE, so a renamed stage keeps its meaning. */
-function toneForStage(type: StageTypeValue): 'teal' | 'info' | 'success' | 'error' | 'muted' {
-  switch (type) {
-    case 'lead':
-      return 'teal';
-    case 'progress':
-      return 'info';
+function stageTone(stage: StageTypeValue) {
+  switch (stage) {
     case 'won':
-      return 'success';
+      return 'won' as const;
     case 'lost':
-      return 'error';
+      return 'lost' as const;
+    case 'progress':
+      return 'progress' as const;
     default:
-      return 'muted';
+      return 'lead' as const;
+  }
+}
+
+function stageColor(stage: StageTypeValue, theme: ReturnType<typeof useTheme>['theme']): string {
+  switch (stage) {
+    case 'won':
+      return theme.success;
+    case 'lost':
+      return theme.error;
+    case 'progress':
+      return theme.info;
+    case 'custom':
+      return theme.purple;
+    default:
+      return theme.primary;
   }
 }
 
@@ -44,119 +58,132 @@ function formatValue(value: string | null): string | null {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount === 0) return null;
 
-  // Compact so a column header stays readable at 264pt.
+  // Compact so a column header stays readable at 268pt.
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
+  if (amount >= 1_000) return `${Math.round(amount / 1_000)}K`;
 
   return amount.toFixed(0);
 }
 
-function DealCard({ deal, onPress }: { deal: Deal; onPress: () => void }) {
+function DealCard({ deal, index, onPress }: { deal: Deal; index: number; onPress: () => void }) {
   const { theme } = useTheme();
   const value = formatValue(deal.value);
+  const sector = sectorColor(deal.sector?.color);
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          backgroundColor: theme.surface,
-          borderRadius: radii.md,
-          borderWidth: 1,
-          borderColor: theme.border,
-          padding: 12,
-          marginBottom: 8,
-          gap: 5,
-        },
-        pressed && { opacity: 0.8 },
-      ]}
-    >
-      <Text
-        numberOfLines={2}
-        style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: fonts.display }}
+    <Rise index={index}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          {
+            backgroundColor: theme.surface,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: theme.border,
+            marginBottom: space.sm,
+            overflow: 'hidden',
+            flexDirection: 'row',
+          },
+          pressed && { transform: [{ scale: 0.98 }], borderColor: alpha(theme.primary, 0.45) },
+        ]}
       >
-        {deal.title}
-      </Text>
+        <View style={{ width: 3, backgroundColor: sector }} />
 
-      {deal.client ? (
-        <Text numberOfLines={1} style={{ fontSize: 11, color: theme.textSecondary }}>
-          {deal.client.name}
-        </Text>
-      ) : null}
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-        {value ? (
-          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary, fontFamily: fonts.display }}>
-            {value}
+        <View style={{ flex: 1, padding: space.md, gap: 7 }}>
+          <Text numberOfLines={2} style={[type.heading, { color: theme.text, fontSize: 13.5 }]}>
+            {deal.title}
           </Text>
-        ) : (
-          <Text style={{ fontSize: 11, color: theme.textFaint }}>No value</Text>
-        )}
 
-        {deal.owner ? (
-          <Text numberOfLines={1} style={{ fontSize: 10, color: theme.textFaint, flexShrink: 1 }}>
-            {deal.owner.name}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+          {deal.client ? (
+            <Text numberOfLines={1} style={[type.bodySm, { color: theme.textSecondary, fontSize: 11.5 }]}>
+              {deal.client.name}
+            </Text>
+          ) : null}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {value ? (
+              <Text style={[type.numeric, { color: theme.text, fontSize: 15 }]}>{value}</Text>
+            ) : (
+              <Text style={[type.micro, { color: theme.textFaint }]}>No value</Text>
+            )}
+
+            <View style={{ flex: 1 }} />
+
+            {deal.owner ? <Avatar name={deal.owner.name} size={22} color={deal.sector?.color} /> : null}
+          </View>
+        </View>
+      </Pressable>
+    </Rise>
   );
 }
 
 function Column({
   column,
+  pipelineTotal,
   onOpenDeal,
 }: {
   column: PipelineColumn;
+  pipelineTotal: number;
   onOpenDeal: (deal: Deal) => void;
 }) {
   const { theme } = useTheme();
+
   const total = formatValue(column.total_value);
+  const amount = Number(column.total_value) || 0;
+
+  // Share of the whole pipeline's value. This is the column header's real job — where
+  // the money actually sits, not just how many cards are stacked up.
+  const share = pipelineTotal > 0 ? amount / pipelineTotal : 0;
+  const accent = stageColor(column.type, theme);
 
   return (
     <View
       style={{
         width: COLUMN_WIDTH,
         backgroundColor: theme.surfaceAlt,
-        borderRadius: radii.lg,
+        borderRadius: radius.lg,
         borderWidth: 1,
         borderColor: theme.border,
-        padding: 10,
-        marginRight: 10,
+        padding: space.md,
+        marginRight: space.md,
       }}
     >
-      <View style={{ gap: 6, marginBottom: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text
-            numberOfLines={1}
-            style={{ flex: 1, fontSize: 13, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}
-          >
+      <View style={{ gap: space.sm, marginBottom: space.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Text numberOfLines={1} style={[type.heading, { flex: 1, color: theme.text }]}>
             {column.name}
           </Text>
-          <Badge tone={toneForStage(column.type)}>{String(column.deal_count)}</Badge>
+          <StatusPill label={String(column.deal_count)} tone={stageTone(column.type)} />
         </View>
 
-        {total ? (
-          <Text style={{ fontSize: 11, color: theme.textSecondary }}>{total} total</Text>
-        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+          <Text style={[type.title, { color: total ? theme.text : theme.textFaint, fontSize: 17 }]}>
+            {total ?? '—'}
+          </Text>
+          {share > 0 ? (
+            <Text style={[type.micro, { color: theme.textFaint }]}>{Math.round(share * 100)}% of pipeline</Text>
+          ) : null}
+        </View>
+
+        <ProportionBar fraction={share} color={accent} />
       </View>
 
       {column.deals.length === 0 ? (
         <View
           style={{
-            paddingVertical: 22,
+            paddingVertical: 26,
             alignItems: 'center',
             borderWidth: 1,
             borderStyle: 'dashed',
             borderColor: theme.border,
-            borderRadius: radii.md,
+            borderRadius: radius.md,
           }}
         >
-          <Text style={{ fontSize: 11, color: theme.textFaint }}>Empty</Text>
+          <Text style={[type.micro, { color: theme.textFaint }]}>Empty</Text>
         </View>
       ) : (
-        column.deals.map((deal) => (
-          <DealCard key={deal.id} deal={deal} onPress={() => onOpenDeal(deal)} />
+        column.deals.map((deal, index) => (
+          <DealCard key={deal.id} deal={deal} index={index} onPress={() => onOpenDeal(deal)} />
         ))
       )}
     </View>
@@ -198,6 +225,11 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!data) return null;
 
+  // Totals are derived from the columns the server already scoped, so they can never
+  // imply deals the viewer cannot open.
+  const pipelineTotal = data.stages.reduce((sum, stage) => sum + (Number(stage.total_value) || 0), 0);
+  const dealCount = data.stages.reduce((sum, stage) => sum + stage.deal_count, 0);
+
   if (!data.sector || data.stages.length === 0) {
     return (
       <EmptyState
@@ -210,23 +242,51 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 12, color: theme.textSecondary }}>Pipeline</Text>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
-          {data.sector.name}
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md, gap: 4 }}>
+        <Text style={[type.micro, { color: theme.primary }]}>Pipeline</Text>
+
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <Text style={[type.display, { color: theme.text }]}>{data.sector.name}</Text>
+
+          {/* The pipeline's headline number. Without it the board shows distribution
+              but never says how much is actually in play. */}
+          {pipelineTotal > 0 ? (
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[type.micro, { color: theme.textFaint }]}>Total</Text>
+              <Text style={[type.title, { color: theme.primary }]}>
+                {formatValue(String(pipelineTotal))}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <Text style={[type.bodySm, { color: theme.textSecondary }]}>
+          {dealCount} {dealCount === 1 ? 'deal' : 'deals'} across {data.stages.length} stages
         </Text>
       </View>
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
+        // alignItems: 'flex-start' stops columns stretching to the scroll view's full
+        // height — without it a three-card column reserves the whole screen and the
+        // board reads as mostly empty.
+        contentContainerStyle={{
+          paddingHorizontal: space.lg,
+          paddingBottom: space.xl,
+          alignItems: 'flex-start',
+        }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={theme.primary} />
         }
       >
         {data.stages.map((column) => (
-          <Column key={column.id} column={column} onOpenDeal={setSelected} />
+          <Column
+            key={column.id}
+            column={column}
+            pipelineTotal={pipelineTotal}
+            onOpenDeal={setSelected}
+          />
         ))}
       </ScrollView>
 
@@ -245,14 +305,14 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
             onPress={(e) => e.stopPropagation()}
             style={{
               backgroundColor: theme.surface,
-              borderTopLeftRadius: radii.xl,
-              borderTopRightRadius: radii.xl,
+              borderTopLeftRadius: radius.xl,
+              borderTopRightRadius: radius.xl,
               padding: 20,
               paddingBottom: 34,
               gap: 12,
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, fontFamily: fonts.display }}>
+            <Text style={[type.title, { color: theme.text }]}>
               {selected?.title}
             </Text>
 
@@ -261,7 +321,7 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
             ) : null}
 
             {moveError ? (
-              <View style={{ backgroundColor: theme.errorLight, borderRadius: radii.md, padding: 10 }}>
+              <View style={{ backgroundColor: theme.errorLight, borderRadius: radius.md, padding: 10 }}>
                 <Text style={{ color: theme.error, fontSize: 12 }}>{moveError}</Text>
               </View>
             ) : null}
@@ -275,7 +335,7 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
                 }}
                 style={{
                   backgroundColor: theme.primaryLight,
-                  borderRadius: radii.md,
+                  borderRadius: radius.md,
                   paddingVertical: 12,
                   alignItems: 'center',
                 }}
@@ -301,7 +361,7 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
                       {
                         paddingHorizontal: 13,
                         paddingVertical: 9,
-                        borderRadius: radii.full,
+                        borderRadius: radius.pill,
                         backgroundColor: isCurrent ? theme.primary : theme.surfaceOffset,
                         opacity: !selected?.can.update || moving ? 0.5 : 1,
                       },

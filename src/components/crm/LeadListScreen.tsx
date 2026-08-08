@@ -9,10 +9,12 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
-import { fonts, radii, useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import { listDeals } from '../../lib/crm/deals';
 import type { Deal, StageTypeValue } from '../../lib/crm/types';
-import { Badge, Card, SearchBar } from '../ui';
+import { Avatar, Card, Rise, SectorChip, StatusPill } from '../../ui/Surface';
+import { alpha, radius, space, type } from '../../ui/tokens';
+import { SearchBar } from '../ui';
 import { EmptyState, ErrorState, LoadingState, NoAccessState } from './States';
 import { useResource } from './useResource';
 
@@ -24,45 +26,47 @@ function DealRow({ deal, onPress }: { deal: Deal; onPress?: () => void }) {
   const amount = deal.value === null ? null : Number(deal.value);
   const showValue = amount !== null && Number.isFinite(amount) && amount > 0;
 
-  const tone: Record<StageTypeValue, 'teal' | 'info' | 'success' | 'error' | 'muted'> = {
-    lead: 'teal',
-    progress: 'info',
-    won: 'success',
-    lost: 'error',
-    custom: 'muted',
+  const tone: Record<StageTypeValue, 'lead' | 'progress' | 'won' | 'lost'> = {
+    lead: 'lead',
+    progress: 'progress',
+    won: 'won',
+    lost: 'lost',
+    custom: 'progress',
   };
 
   return (
-    <Card onPress={onPress} style={{ marginHorizontal: 16, marginBottom: 10 }}>
-      <View style={{ gap: 6 }}>
-        <Text
-          numberOfLines={2}
-          style={{ fontSize: 14, fontWeight: '600', color: theme.text, fontFamily: fonts.display }}
-        >
-          {deal.title}
-        </Text>
-
-        {deal.client ? (
-          <Text numberOfLines={1} style={{ fontSize: 12, color: theme.textSecondary }}>
-            {deal.client.name}
+    <Card
+      onPress={onPress}
+      accent={deal.sector?.color ?? null}
+      style={{ marginHorizontal: space.lg, marginBottom: space.md }}
+    >
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
+          <Text numberOfLines={2} style={[type.heading, { flex: 1, color: theme.text }]}>
+            {deal.title}
           </Text>
-        ) : null}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          {deal.stage ? <Badge tone={tone[deal.stage.type]}>{deal.stage.name}</Badge> : null}
-          {deal.sector ? <Badge tone="muted">{deal.sector.name}</Badge> : null}
           {showValue ? (
-            <Text
-              style={{ fontSize: 12, fontWeight: '700', color: theme.primary, fontFamily: fonts.display }}
-            >
+            <Text style={[type.numeric, { color: theme.primary, fontSize: 16 }]}>
               {amount!.toLocaleString()}
             </Text>
           ) : null}
         </View>
 
-        {deal.owner ? (
-          <Text style={{ fontSize: 11, color: theme.textFaint }}>{deal.owner.name}</Text>
+        {deal.client ? (
+          <Text numberOfLines={1} style={[type.bodySm, { color: theme.textSecondary }]}>
+            {deal.client.name}
+          </Text>
         ) : null}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {deal.stage ? <StatusPill label={deal.stage.name} tone={tone[deal.stage.type]} /> : null}
+          {deal.sector ? <SectorChip name={deal.sector.name} color={deal.sector.color} /> : null}
+
+          <View style={{ flex: 1 }} />
+
+          {deal.owner ? <Avatar name={deal.owner.name} size={24} color={deal.sector?.color} /> : null}
+        </View>
       </View>
     </Card>
   );
@@ -105,7 +109,11 @@ export function LeadListScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <View style={{ paddingTop: 12, paddingHorizontal: 16 }}>
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm }}>
+        <Text style={[type.micro, { color: theme.primary }]}>Opportunities</Text>
+        <Text style={[type.display, { color: theme.text, marginBottom: space.md }]}>
+          {scope === 'lead' ? 'Leads' : 'All deals'}
+        </Text>
         <SearchBar value={search} onChange={setSearch} placeholder="Search deals or clients" />
       </View>
 
@@ -125,7 +133,7 @@ export function LeadListScreen({
             style={{
               paddingHorizontal: 14,
               paddingVertical: 6,
-              borderRadius: radii.full,
+              borderRadius: radius.pill,
               backgroundColor: scope === key ? theme.primary : theme.surfaceOffset,
               borderWidth: 1,
               borderColor: scope === key ? theme.primary : theme.border,
@@ -155,7 +163,7 @@ export function LeadListScreen({
                 gap: 5,
                 paddingHorizontal: 13,
                 paddingVertical: 7,
-                borderRadius: radii.full,
+                borderRadius: radius.pill,
                 backgroundColor: theme.primary,
               },
               pressed && { opacity: 0.8 },
@@ -182,8 +190,10 @@ export function LeadListScreen({
           refreshing={refreshing}
           onRefresh={refetch}
           contentContainerStyle={{ paddingBottom: 32 }}
-          renderItem={({ item }) => (
-            <DealRow deal={item} onPress={onOpenDeal ? () => onOpenDeal(item) : undefined} />
+          renderItem={({ item, index }) => (
+            <Rise index={index}>
+              <DealRow deal={item} onPress={onOpenDeal ? () => onOpenDeal(item) : undefined} />
+            </Rise>
           )}
           ListEmptyComponent={
             <EmptyState
