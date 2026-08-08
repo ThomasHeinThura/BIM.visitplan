@@ -55,3 +55,6 @@ android/app/debug.keystore
 
 # local Android artifacts
 *.apk
+
+# AI-DLC local-only settings
+.claude/settings.local.json

@@ -13,7 +13,7 @@
     },
     "scheme": "msauth.com.bim.visitplan",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.bim.visitplan",
       "buildNumber": "8",
       "appleTeamId": "P6HM822KD4"

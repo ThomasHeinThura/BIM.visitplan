@@ -15,6 +15,7 @@ const publicEnv = {
   EXPO_PUBLIC_ENTRA_CLIENT_ID: process.env.EXPO_PUBLIC_ENTRA_CLIENT_ID,
   EXPO_PUBLIC_ENTRA_TENANT_ID: process.env.EXPO_PUBLIC_ENTRA_TENANT_ID,
   EXPO_PUBLIC_ENTRA_REDIRECT_SCHEME: process.env.EXPO_PUBLIC_ENTRA_REDIRECT_SCHEME,
+  EXPO_PUBLIC_CRM_API_URL: process.env.EXPO_PUBLIC_CRM_API_URL,
 } as const;
 
 function requireEnv(key: keyof typeof publicEnv): string {
@@ -39,6 +40,8 @@ export const ENTRA_TENANT_ID = requireEnv('EXPO_PUBLIC_ENTRA_TENANT_ID');
 // Custom URL scheme registered in app.json — must match Azure redirect URI
 export const ENTRA_REDIRECT_SCHEME = requireEnv('EXPO_PUBLIC_ENTRA_REDIRECT_SCHEME');
 
-// ─── Legacy REST API (optional) ──────────────────────────────────────────────
-export const DEFAULT_API_BASE_URL =
-  (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://uat-crm.bimats.com:10443').replace(/\/$/, '');
+// ─── bim-crm REST API ────────────────────────────────────────────────────────
+// The old uat-crm.bimats.com host is decommissioned — no fallback default here on
+// purpose. A build without EXPO_PUBLIC_CRM_API_URL set should fail loudly rather
+// than silently point at a dead host.
+export const CRM_API_URL = requireEnv('EXPO_PUBLIC_CRM_API_URL').replace(/\/$/, '');
