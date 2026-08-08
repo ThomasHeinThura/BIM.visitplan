@@ -88,6 +88,32 @@ Requires Xcode, and an Apple Developer account with a Distribution certificate. 
 machine already has one: `Apple Distribution: BIM ADVANCED TECHNOLOGY SERVICES COMPANY
 LIMITED (P6HM822KD4)`, matching `expo.ios.appleTeamId` in `app.json`.
 
+### Prerequisite: the iOS device platform
+
+**This blocks archiving even when `xcodebuild -showsdks` lists the iOS SDK.** An SDK is
+not the same thing as device platform support, and only the latter provides an archive
+destination. The failure reads:
+
+```
+xcodebuild: error: Unable to find a destination matching the provided destination specifier:
+    { generic:1, platform:iOS }
+  Ineligible destinations:
+    { platform:iOS, ..., error:iOS 26.5 is not installed. }
+```
+
+Confusing because `-showsdks` happily reports `iOS 26.5  -sdk iphoneos26.5`. Targeting
+the SDK directly with `-sdk iphoneos26.5` does not help — it fails with "Found no
+destinations for the scheme and action archive" for the same reason.
+
+Fix (several GB, so allow time):
+
+```bash
+xcodebuild -downloadPlatform iOS
+```
+
+or Xcode → Settings → Components → iOS. Simulator builds work without it; only device
+archives need it.
+
 ```bash
 export EXPO_PUBLIC_CRM_API_URL=https://crm.example.com   # or your LAN IP for local testing
 
