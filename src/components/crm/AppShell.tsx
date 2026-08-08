@@ -19,6 +19,7 @@ import type { Client, Deal, VisitPlan } from '../../lib/crm/types';
 import { ClientDetailScreen } from './ClientDetailScreen';
 import { ClientListScreen } from './ClientListScreen';
 import { DashboardScreen } from './DashboardScreen';
+import { DealDetailScreen } from './DealDetailScreen';
 import { DealFormScreen } from './DealFormScreen';
 import { LeadListScreen } from './LeadListScreen';
 import { PipelineScreen } from './PipelineScreen';
@@ -46,6 +47,7 @@ const TABS: Tab[] = [
 /** A view stacked over a tab — cleared by switching tabs or pressing back. */
 type Detail =
   | { type: 'client'; id: number; title: string }
+  | { type: 'deal'; id: number; title: string }
   | { type: 'deal-new'; title: string }
   | { type: 'deal-edit'; deal: Deal; title: string };
 
@@ -67,6 +69,11 @@ export function AppShell({ user, onSignOut }: { user: CrmUser; onSignOut: () => 
 
   const addLead = () => setDetail({ type: 'deal-new', title: 'New lead' });
 
+  // A tap opens the deal, not the edit form. Previously the only way to look at a deal
+  // was to start changing it, which also meant anyone without update rights could not
+  // open one at all — including the collaborators this feature exists to give access to.
+  const openDeal = (deal: Deal) => setDetail({ type: 'deal', id: deal.id, title: deal.title });
+
   const editDeal = (deal: Deal) =>
     setDetail(
       deal.can.update
@@ -77,7 +84,13 @@ export function AppShell({ user, onSignOut }: { user: CrmUser; onSignOut: () => 
     );
 
   const afterDealSaved = () => {
-    setDetail(null);
+    setDetail((current) =>
+      // Editing returns to the deal just saved rather than the list, so the change is
+      // visible where it was made instead of costing the user their place.
+      current?.type === 'deal-edit'
+        ? { type: 'deal', id: current.deal.id, title: current.deal.title }
+        : null,
+    );
     setFormKey((key) => key + 1);
   };
 
@@ -136,6 +149,8 @@ export function AppShell({ user, onSignOut }: { user: CrmUser; onSignOut: () => 
       <View style={{ flex: 1 }}>
         {detail?.type === 'client' ? (
           <ClientDetailScreen clientId={detail.id} />
+        ) : detail?.type === 'deal' ? (
+          <DealDetailScreen key={`deal-${detail.id}-${formKey}`} dealId={detail.id} onEdit={editDeal} />
         ) : detail?.type === 'deal-new' ? (
           <DealFormScreen
             // Remounts the form after a save so the next "add lead" starts blank
@@ -147,17 +162,21 @@ export function AppShell({ user, onSignOut }: { user: CrmUser; onSignOut: () => 
         ) : detail?.type === 'deal-edit' ? (
           <DealFormScreen key={formKey} deal={detail.deal} onSaved={afterDealSaved} onCancel={goBack} />
         ) : tab === 'today' ? (
-          <DashboardScreen onOpenVisit={openVisit} onSeeAllVisits={() => switchTab('visits')} />
+          <DashboardScreen
+            onOpenVisit={openVisit}
+            onSeeAllVisits={() => switchTab('visits')}
+            onOpenDeal={(id) => setDetail({ type: 'deal', id, title: 'Deal' })}
+          />
         ) : tab === 'visits' ? (
           <VisitListScreen onOpenVisit={openVisit} />
         ) : tab === 'pipeline' ? (
-          <PipelineScreen key={`pipeline-${formKey}`} onEditDeal={editDeal} />
+          <PipelineScreen key={`pipeline-${formKey}`} onEditDeal={openDeal} />
         ) : tab === 'leads' ? (
           <LeadListScreen
             key={`leads-${formKey}`}
             canCreate={permissions.has('deals.create')}
             onAddLead={addLead}
-            onOpenDeal={editDeal}
+            onOpenDeal={openDeal}
           />
         ) : tab === 'clients' ? (
           <ClientListScreen onOpenClient={openClient} />

@@ -52,12 +52,7 @@ function stageColor(stage: StageTypeValue, theme: ReturnType<typeof useTheme>['t
   }
 }
 
-function formatValue(value: string | null): string | null {
-  if (value === null) return null;
-
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount === 0) return null;
-
+function compact(amount: number): string {
   // Compact so a column header stays readable at 268pt.
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `${Math.round(amount / 1_000)}K`;
@@ -65,9 +60,45 @@ function formatValue(value: string | null): string | null {
   return amount.toFixed(0);
 }
 
+/**
+ * A column's money, one line per currency.
+ *
+ * Kyat and dollars are never added together — the sum would be neither, and at
+ * roughly 4,500 kyat to the dollar a single MMK deal would swamp the column and make
+ * every USD deal in it look like a rounding error.
+ */
+function formatTotals(totals: Record<string, string>): string | null {
+  const parts = Object.entries(totals)
+    .map(([currency, value]) => [currency, Number(value)] as const)
+    .filter(([, amount]) => Number.isFinite(amount) && amount > 0)
+    .map(([currency, amount]) => `${CURRENCY_SYMBOL[currency] ?? ''}${compact(amount)}`);
+
+  return parts.length === 0 ? null : parts.join(' · ');
+}
+
+const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', MMK: 'K ' };
+
+/**
+ * The figure the proportion bar is drawn from.
+ *
+ * Deliberately USD only. The bar answers "where does the money sit", and mixing two
+ * currencies into one length would make a kyat-heavy column appear to hold the entire
+ * pipeline. A column that is entirely MMK gets no bar rather than a misleading one.
+ */
+function usdAmount(totals: Record<string, string>): number {
+  return Number(totals.USD ?? 0) || 0;
+}
+
 function DealCard({ deal, index, onPress }: { deal: Deal; index: number; onPress: () => void }) {
   const { theme } = useTheme();
-  const value = formatValue(deal.value);
+  // The card carries its own currency symbol. Two cards in one column can now be in
+  // different currencies, and a bare "2000" beside a bare "2000000" says nothing about
+  // which is the bigger opportunity.
+  const amount = deal.value === null ? null : Number(deal.value);
+  const value =
+    amount !== null && Number.isFinite(amount) && amount !== 0
+      ? `${CURRENCY_SYMBOL[deal.currency] ?? ''}${compact(amount)}`
+      : null;
   const sector = sectorColor(deal.sector?.color);
 
   return (
@@ -128,8 +159,8 @@ function Column({
 }) {
   const { theme } = useTheme();
 
-  const total = formatValue(column.total_value);
-  const amount = Number(column.total_value) || 0;
+  const total = formatTotals(column.totals);
+  const amount = usdAmount(column.totals);
 
   // Share of the whole pipeline's value. This is the column header's real job — where
   // the money actually sits, not just how many cards are stacked up.
@@ -227,7 +258,8 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
 
   // Totals are derived from the columns the server already scoped, so they can never
   // imply deals the viewer cannot open.
-  const pipelineTotal = data.stages.reduce((sum, stage) => sum + (Number(stage.total_value) || 0), 0);
+  const pipelineTotal = data.stages.reduce((sum, stage) => sum + usdAmount(stage.totals), 0);
+  const pipelineMmk = data.stages.reduce((sum, stage) => sum + (Number(stage.totals.MMK ?? 0) || 0), 0);
   const dealCount = data.stages.reduce((sum, stage) => sum + stage.deal_count, 0);
 
   if (!data.sector || data.stages.length === 0) {
@@ -250,12 +282,18 @@ export function PipelineScreen({ onEditDeal }: { onEditDeal?: (deal: Deal) => vo
 
           {/* The pipeline's headline number. Without it the board shows distribution
               but never says how much is actually in play. */}
-          {pipelineTotal > 0 ? (
+          {pipelineTotal > 0 || pipelineMmk > 0 ? (
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={[type.micro, { color: theme.textFaint }]}>Total</Text>
               <Text style={[type.title, { color: theme.primary }]}>
-                {formatValue(String(pipelineTotal))}
+                ${compact(pipelineTotal)}
               </Text>
+              {/* Shown separately, never folded in. */}
+              {pipelineMmk > 0 ? (
+                <Text style={[type.micro, { color: theme.textFaint }]}>
+                  + K {compact(pipelineMmk)}
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </View>

@@ -47,6 +47,8 @@ export type DealDraft = {
   client_id?: number;
   contact_id?: number;
   value?: string;
+  /** Omit to take the column default (USD). Sending null is a 422, not a default. */
+  currency?: 'USD' | 'MMK';
   notes?: string;
 };
 

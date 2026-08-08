@@ -15,6 +15,7 @@ import type { Deal, StageTypeValue } from '../../lib/crm/types';
 import { Avatar, Card, Rise, SectorChip, StatusPill } from '../../ui/Surface';
 import { alpha, radius, space, type } from '../../ui/tokens';
 import { SearchBar } from '../ui';
+import { formatDealValue } from '../../lib/crm/money';
 import { EmptyState, ErrorState, LoadingState, NoAccessState } from './States';
 import { useResource } from './useResource';
 
@@ -48,7 +49,7 @@ function DealRow({ deal, onPress }: { deal: Deal; onPress?: () => void }) {
 
           {showValue ? (
             <Text style={[type.numeric, { color: theme.primary, fontSize: 16 }]}>
-              {amount!.toLocaleString()}
+              {formatDealValue(deal)}
             </Text>
           ) : null}
         </View>

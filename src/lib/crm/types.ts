@@ -123,7 +123,9 @@ export type Deal = {
   title: string;
   /** String, not number — decimal(15,2) does not survive a JSON double intact. */
   value: string | null;
-  currency: string | null;
+  /** Always present — the column is NOT NULL and defaults to USD. */
+  currency: 'USD' | 'MMK';
+  currency_symbol: string;
   is_paused: boolean;
   ended_at: string | null;
   notes: string | null;
@@ -132,18 +134,84 @@ export type Deal = {
   client?: { id: number; name: string } | null;
   contact?: { id: number; name: string; phone: string | null; email: string | null } | null;
   owner?: { id: number; name: string };
+  /** Present only on the detail response, which eager-loads them. */
+  collaborators?: DealCollaborator[];
+  pending_transfer?: DealTransferRequest | null;
+  /** True when the viewer is on the deal but does not own it. */
+  is_collaborator?: boolean;
   can: {
     update: boolean;
     delete: boolean;
     change_owner: boolean;
+    add_collaborator: boolean;
+    request_transfer: boolean;
+    approve_transfer: boolean;
   };
   created_at: string | null;
   updated_at: string | null;
 };
 
+/** Someone working a deal alongside its owner. Not an owner — see DealTransferRequest. */
+export type DealCollaborator = {
+  id: number;
+  role: 'sales' | 'consultant';
+  role_label: string;
+  user: { id: number; name: string; email: string };
+  added_by?: { id: number; name: string };
+  created_at: string | null;
+};
+
+export type TransferStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+/**
+ * A request to hand a deal to another account manager.
+ *
+ * from_user is captured at request time rather than read off the deal, because the
+ * deal's owner changes on approval and reading it back would show the wrong name.
+ */
+export type DealTransferRequest = {
+  id: number;
+  deal_id: number;
+  deal_title?: string;
+  status: TransferStatus;
+  status_label: string;
+  reason: string | null;
+  decision_note: string | null;
+  from_user?: { id: number; name: string };
+  to_user?: { id: number; name: string };
+  requested_by?: { id: number; name: string };
+  decided_by?: { id: number; name: string } | null;
+  decided_at: string | null;
+  created_at: string | null;
+};
+
+/** A colleague, as returned by the picker directory. Deliberately thin. */
+export type Person = {
+  id: number;
+  name: string;
+  email: string;
+  roles?: string[];
+  sector?: { id: number; name: string; color: string | null } | null;
+};
+
+export type ExchangeRate = {
+  /** Kyat per 1 USD. A multiplier, so a number rather than the string money uses. */
+  rate: number;
+  effective_on: string;
+  set_by: string;
+  note: string | null;
+  /** More than a week old — worth checking before pricing anything with it. */
+  is_stale: boolean;
+};
+
 export type PipelineColumn = StageSummary & {
   deal_count: number;
-  total_value: string;
+  /**
+   * Money in this column, broken out per currency — only those actually present.
+   * A single number would add 2,000 USD to 2,000,000 MMK and report 2,002,000 of
+   * nothing.
+   */
+  totals: Record<string, string>;
   deals: Deal[];
 };
 

@@ -20,6 +20,7 @@ import { Card, Rise, SectionHeader, StatTile } from '../../ui/Surface';
 import { alpha, radius, space, type } from '../../ui/tokens';
 import { DayRail } from './DayRail';
 import { EmptyState, ErrorState, LoadingState, NoAccessState } from './States';
+import { listPendingTransfers } from '../../lib/crm/collaboration';
 import { useResource } from './useResource';
 import { VisitCard } from './VisitCard';
 
@@ -35,12 +36,19 @@ function greeting(): string {
 export function DashboardScreen({
   onOpenVisit,
   onSeeAllVisits,
+  onOpenDeal,
 }: {
   onOpenVisit?: (visit: VisitPlan) => void;
   onSeeAllVisits?: () => void;
+  onOpenDeal?: (dealId: number) => void;
 }) {
   const { theme, isDark } = useTheme();
   const { data, loading, error, refetch, refreshing } = useResource((signal) => getDashboard(signal));
+
+  // Its own request rather than part of the dashboard payload: it returns an empty
+  // list for anyone who cannot approve, so it costs a rep nothing and does not need a
+  // permission check here to decide whether to ask.
+  const approvals = useResource((signal) => listPendingTransfers(signal));
 
   if (loading) return <LoadingState label="Loading your day…" />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -115,6 +123,39 @@ export function DashboardScreen({
           />
           <StatTile value={counts.completed_this_month} label="Done" tone="good" caption="this month" />
         </View>
+      ) : null}
+
+      {/* Someone is waiting on this person. It goes above the day's schedule because
+          a transfer sitting unanswered blocks another rep from working the deal at
+          all — which is more urgent than anything on the calendar. */}
+      {(approvals.data ?? []).length > 0 ? (
+        <>
+          <SectionHeader eyebrow="Needs you" title="Transfers awaiting approval" />
+          {(approvals.data ?? []).map((transfer, index) => (
+            <Rise key={transfer.id} index={index}>
+              <View style={{ paddingHorizontal: space.lg, paddingBottom: space.md }}>
+                <Card
+                  level={1}
+                  accent="#F59E0B"
+                  onPress={onOpenDeal ? () => onOpenDeal(transfer.deal_id) : undefined}
+                >
+                  <Text style={[type.heading, { color: theme.text }]}>
+                    {transfer.deal_title ?? 'A deal'}
+                  </Text>
+                  <Text style={[type.bodySm, { color: theme.textSecondary, marginTop: 4 }]}>
+                    {transfer.requested_by?.name} wants to move it from{' '}
+                    {transfer.from_user?.name} to {transfer.to_user?.name}.
+                  </Text>
+                  {transfer.reason ? (
+                    <Text style={[type.micro, { color: theme.textSecondary, marginTop: 4 }]}>
+                      “{transfer.reason}”
+                    </Text>
+                  ) : null}
+                </Card>
+              </View>
+            </Rise>
+          ))}
+        </>
       ) : null}
 
       <SectionHeader

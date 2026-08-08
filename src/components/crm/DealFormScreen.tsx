@@ -100,6 +100,9 @@ export function DealFormScreen({
 
   const [title, setTitle] = useState(deal?.title ?? '');
   const [value, setValue] = useState(deal?.value ?? '');
+  // Defaults to USD for a new deal, matching the column default. Most deals are in
+  // dollars, and a picker that starts blank makes every one of them an extra tap.
+  const [currency, setCurrency] = useState<'USD' | 'MMK'>(deal?.currency ?? 'USD');
   const [notes, setNotes] = useState(deal?.notes ?? '');
 
   const [sector, setSector] = useState<SelectOption | null>(
@@ -150,6 +153,7 @@ export function DealFormScreen({
             title: title.trim(),
             client_id: client?.id,
             value: trimmedValue === '' ? undefined : trimmedValue,
+            currency,
             notes: notes.trim() === '' ? undefined : notes.trim(),
           })
         : await createDeal({
@@ -158,6 +162,7 @@ export function DealFormScreen({
             sector_id: sector!.id,
             client_id: client?.id,
             value: trimmedValue === '' ? undefined : trimmedValue,
+            currency,
             notes: notes.trim() === '' ? undefined : notes.trim(),
           });
 
@@ -267,6 +272,43 @@ export function DealFormScreen({
         keyboardType="numeric"
         error={fieldErrors.value?.[0]}
       />
+
+      {/* Two options, so segmented rather than a select — the rule about switching to
+          a searchable picker starts above four. */}
+      <View style={{ gap: 6 }}>
+        <Text style={[type.micro, { color: theme.textSecondary, letterSpacing: 1.1 }]}>
+          CURRENCY
+        </Text>
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          {(['USD', 'MMK'] as const).map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => setCurrency(option)}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                paddingVertical: space.md,
+                borderRadius: radius.md,
+                backgroundColor: currency === option ? theme.primary : theme.surface,
+                borderWidth: 1,
+                borderColor: currency === option ? theme.primary : theme.border,
+              }}
+            >
+              <Text
+                style={[
+                  type.body,
+                  { color: currency === option ? '#fff' : theme.textSecondary, fontWeight: '700' },
+                ]}
+              >
+                {option === 'USD' ? '$ USD' : 'K MMK'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {fieldErrors.currency?.[0] ? (
+          <Text style={[type.micro, { color: '#DC2626' }]}>{fieldErrors.currency[0]}</Text>
+        ) : null}
+      </View>
 
       <Field
         label="Notes"
