@@ -23,7 +23,7 @@ export type SectorSummary = {
   color: string | null;
 };
 
-export type VisitStatusValue = 'planned' | 'completed' | 'cancelled';
+export type VisitStatusValue = "planned" | "completed" | "cancelled";
 
 export type VisitPlan = {
   id: number;
@@ -108,7 +108,7 @@ export type Dashboard = {
  * `lead`. Behaviour keys off `type` (a fixed enum) while the UI displays `name`,
  * which is per-sector configuration and can be renamed by an administrator.
  */
-export type StageTypeValue = 'lead' | 'progress' | 'won' | 'lost' | 'custom';
+export type StageTypeValue = "lead" | "progress" | "won" | "lost" | "custom";
 
 export type StageSummary = {
   id: number;
@@ -124,7 +124,7 @@ export type Deal = {
   /** String, not number — decimal(15,2) does not survive a JSON double intact. */
   value: string | null;
   /** Always present — the column is NOT NULL and defaults to USD. */
-  currency: 'USD' | 'MMK';
+  currency: "USD" | "MMK";
   currency_symbol: string;
   is_paused: boolean;
   ended_at: string | null;
@@ -132,7 +132,12 @@ export type Deal = {
   stage?: StageSummary;
   sector?: SectorSummary;
   client?: { id: number; name: string } | null;
-  contact?: { id: number; name: string; phone: string | null; email: string | null } | null;
+  contact?: {
+    id: number;
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
   owner?: { id: number; name: string };
   /** Present only on the detail response, which eager-loads them. */
   collaborators?: DealCollaborator[];
@@ -154,14 +159,14 @@ export type Deal = {
 /** Someone working a deal alongside its owner. Not an owner — see DealTransferRequest. */
 export type DealCollaborator = {
   id: number;
-  role: 'sales' | 'consultant';
+  role: "sales" | "consultant";
   role_label: string;
   user: { id: number; name: string; email: string };
   added_by?: { id: number; name: string };
   created_at: string | null;
 };
 
-export type TransferStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type TransferStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 /**
  * A request to hand a deal to another account manager.
@@ -218,4 +223,25 @@ export type PipelineColumn = StageSummary & {
 export type Pipeline = {
   sector: SectorSummary | null;
   stages: PipelineColumn[];
+};
+
+/**
+ * One bell entry.
+ *
+ * The payload is a snapshot written when the notification was sent, not a live join —
+ * so it still reads correctly after the deal is renamed or the person who triggered it
+ * is deactivated. That also means nothing here should be treated as current state.
+ */
+export type AppNotification = {
+  id: string;
+  kind: string | null;
+  title: string;
+  message: string;
+  url: string | null;
+  deal_id: number | null;
+  visit_plan_id: number | null;
+  /** True on the approver's copy of a transfer request — drives the "needs you" chip. */
+  requires_action: boolean;
+  read_at: string | null;
+  created_at: string | null;
 };
